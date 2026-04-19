@@ -1,8 +1,0 @@
-{
-    "chat.tools.terminal.autoApprove": {
-        "/^cd /Users/yanchimyeung/Projects/stockMonitor/backend && node - <<'NODE'\nimport YahooFinance from 'yahoo-finance2';\nconst yahooFinance = new YahooFinance\\(\\);\n\\(async \\(\\) => \\{\n  const data = await yahooFinance\\.fundamentalsTimeSeries\\('AAPL', \\{\n    period1: '2018-01-01',\n    type: 'annual',\n    module: 'cash-flow'\n  \\}\\);\n  console\\.log\\(JSON\\.stringify\\(data\\[0\\], null, 2\\)\\);\n\\}\\)\\(\\);\nNODE$/": {
-            "approve": true,
-            "matchCommandLine": true
-        }
-    }
-}
