@@ -6,11 +6,27 @@ import StockDetailModal from "./components/StockDetailModal";
 import { usePortfolio } from "./hooks/useStockData";
 
 const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
+const STORAGE_KEY = "portfolio-tickers";
+
+function loadTickers() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : null;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_TICKERS;
+  } catch {
+    return DEFAULT_TICKERS;
+  }
+}
 
 export default function App() {
-  const [tickers, setTickers] = useState(DEFAULT_TICKERS);
+  const [tickers, setTickers] = useState(loadTickers);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const { data, loading, errors, refetch } = usePortfolio(tickers);
+
+  function handleTickerChange(newTickers) {
+    setTickers(newTickers);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newTickers));
+  }
 
   return (
     <>
@@ -52,7 +68,7 @@ export default function App() {
           {/* Portfolio Manager */}
           <section style={styles.managerSection}>
             <div style={styles.sectionLabel}>Watchlist</div>
-            <PortfolioManager tickers={tickers} onChange={setTickers} />
+            <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
           </section>
 
           {/* Stats bar */}
