@@ -9,6 +9,31 @@ import {
   isPositive,
 } from "../utils/formatters";
 
+// Check if earnings date is within the next N days
+function isEarningsSoon(earningsDate, days = 7) {
+  if (!earningsDate) return false;
+  const now = new Date();
+  const earnings = new Date(earningsDate);
+  const diffTime = earnings - now;
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= days;
+}
+
+// Format earnings date for display
+function formatEarningsDate(earningsDate) {
+  if (!earningsDate) return null;
+  const date = new Date(earningsDate);
+  const now = new Date();
+  const diffTime = date - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Earnings today";
+  if (diffDays === 1) return "Earnings tomorrow";
+  if (diffDays <= 7) return `Earnings in ${diffDays} days`;
+
+  return `Earnings ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
+
 function MetricRow({ label, value, highlight }) {
   return (
     <div style={metricStyles.row}>
@@ -141,7 +166,18 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           <span style={styles.footerText}>
             52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
           </span>
-          <span style={styles.footerCta}>View details →</span>
+          {data.earningsDate ? (
+            <span
+              style={{
+                ...(isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText),
+                ...(isEarningsSoon(data.earningsDate) ? styles.earningsGlow : {}),
+              }}
+            >
+              {formatEarningsDate(data.earningsDate)}
+            </span>
+          ) : (
+            <span style={styles.footerCta}>View details →</span>
+          )}
         </div>
       )}
     </motion.div>
@@ -247,6 +283,16 @@ const styles = {
     fontSize: "11px",
     fontWeight: 500,
     opacity: 0.7,
+  },
+  earningsCta: {
+    color: "#FFD700",
+    fontFamily: "var(--font-body)",
+    fontSize: "11px",
+    fontWeight: 600,
+    textShadow: "0 0 8px rgba(255, 215, 0, 0.5)",
+  },
+  earningsGlow: {
+    animation: "pulse 2s ease-in-out infinite",
   },
   skeleton: {
     background: "rgba(255,255,255,0.06)",

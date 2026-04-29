@@ -14,10 +14,10 @@ async function getSummary(ticker) {
   if (cached) return cached;
 
   const result = await yahooFinance.quoteSummary(ticker, {
-    modules: ["price", "summaryDetail", "defaultKeyStatistics"],
+    modules: ["price", "summaryDetail", "defaultKeyStatistics", "calendarEvents"],
   });
 
-  const { price, summaryDetail, defaultKeyStatistics } = result;
+  const { price, summaryDetail, defaultKeyStatistics, calendarEvents } = result;
 
   const data = {
     ticker: ticker.toUpperCase(),
@@ -44,6 +44,9 @@ async function getSummary(ticker) {
     // Volume
     volume: price.regularMarketVolume,
     avgVolume: summaryDetail.averageVolume,
+
+    // Earnings date
+    earningsDate: calendarEvents?.earnings?.earningsDate?.[0] || null,
   };
 
   cache.setFundamentals(cacheKey, data);
