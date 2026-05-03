@@ -4,6 +4,7 @@ import * as cache from "../services/cache.js";
 import * as fred from "../services/fred.js";
 import * as marginDebtService from "../services/marginDebt.js";
 import * as sectorScore from "../services/sectorScore.js";
+import * as aaii from "../services/aaii.js";
 import {
   MAX_PORTFOLIO_TICKERS,
   VALID_PERIODS,
@@ -180,12 +181,19 @@ router.get("/market/indicators", async (req, res) => {
     // 5. Inflation
     const inflationPromise = fred.getInflation(period);
 
-    const [vixSummary, vixHistory, fedPolicy, creditSpreads, inflation] = await Promise.all([
+    // 6. AAII Sentiment
+    const aaiiSentimentPromise = aaii.getAAIISentiment().catch(err => {
+      console.error("[market-indicators] AAII fetch failed:", err);
+      return { error: err.message };
+    });
+
+    const [vixSummary, vixHistory, fedPolicy, creditSpreads, inflation, aaiiSentiment] = await Promise.all([
       vixSummaryPromise,
       vixHistoryPromise,
       fedPolicyPromise,
       creditSpreadsPromise,
       inflationPromise,
+      aaiiSentimentPromise,
     ]);
 
     const vix = {
@@ -201,6 +209,7 @@ router.get("/market/indicators", async (req, res) => {
         marginDebt,
         creditSpreads,
         inflation,
+        aaiiSentiment,
       },
     });
   } catch (err) {

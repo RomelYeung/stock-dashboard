@@ -11,6 +11,7 @@ import {
   getMarginDebtInterpretation,
   getCreditSpreadInterpretation,
   getInflationInterpretation,
+  getAAIIInterpretation,
 } from "../utils/interpretations.js";
 import { formatMarketCap } from "../utils/formatters.js";
 
@@ -104,6 +105,7 @@ export default function MarketIndicatorsPage() {
     marginDebt,
     creditSpreads,
     inflation,
+    aaiiSentiment,
   } = data;
 
   const vixValue = vix?.currentValue;
@@ -122,6 +124,9 @@ export default function MarketIndicatorsPage() {
 
   const inflationValue = inflation?.currentValue;
   const { color: inflationColor, text: inflationInterpretation } = getInflationInterpretation(inflationValue);
+
+  const aaiiValue = aaiiSentiment?.currentValue;
+  const { color: aaiiColor, text: aaiiInterpretation } = getAAIIInterpretation(aaiiValue);
 
   return (
     <motion.div
@@ -198,6 +203,27 @@ export default function MarketIndicatorsPage() {
           }
           valueColor={inflationColor}
         />
+
+        {aaiiSentiment && aaiiSentiment.error ? (
+          <div style={{...styles.sectorCard, border: "1px solid var(--accent-red)", justifyContent: "center"}}>
+            <h4 style={{ margin: 0, color: "var(--accent-red)" }}>AAII Sentiment Error</h4>
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.5" }}>
+              {aaiiSentiment.error}
+            </p>
+          </div>
+        ) : aaiiSentiment ? (
+          <MetricCard
+            title="AAII Sentiment (Bull-Bear Spread)"
+            currentValue={aaiiValue}
+            chartData={aaiiSentiment.history?.map(h => ({ date: h.date, value: h.spread })) || []}
+            chartType="line"
+            interpretationText={aaiiInterpretation}
+            valueFormatter={(v) =>
+              v != null ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : "N/A"
+            }
+            valueColor={aaiiColor}
+          />
+        ) : null}
       </div>
 
       {/* Sector Rotation */}

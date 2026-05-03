@@ -87,3 +87,22 @@ export function getInflationInterpretation(currentValue) {
   const text = `Headline CPI YoY: ${currentValue?.toFixed(2) || "N/A"}%. ${pressureText}`;
   return { color, text };
 }
+
+export function getAAIIInterpretation(currentValue) {
+  // currentValue is the spread (Bullish - Bearish)
+  const isExtremeBullish = currentValue > 20; // Example threshold
+  const isExtremeBearish = currentValue < -20; // Example threshold
+  
+  // Contrarian indicator: Extreme bullishness is bearish for market, extreme bearishness is bullish
+  const color = 
+    isExtremeBullish ? "var(--accent-red)" : 
+    isExtremeBearish ? "var(--accent-green)" : 
+    "var(--accent-yellow)";
+    
+  const text = 
+    isExtremeBullish ? "Extreme Bullishness (Contrarian Bearish Signal)" :
+    isExtremeBearish ? "Extreme Bearishness (Contrarian Bullish Signal)" :
+    "Neutral Sentiment (No clear contrarian signal)";
+    
+  return { color, text };
+}
