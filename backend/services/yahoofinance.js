@@ -18,7 +18,6 @@ async function getSummary(ticker) {
   });
 
   const { price, summaryDetail, defaultKeyStatistics, calendarEvents } = result;
-
   const data = {
     ticker: ticker.toUpperCase(),
     name: price.longName || price.shortName,
@@ -34,6 +33,7 @@ async function getSummary(ticker) {
     priceToBook: defaultKeyStatistics.priceToBook,
     enterpriseToEbitda: defaultKeyStatistics.enterpriseToEbitda,
     pegRatio: defaultKeyStatistics.pegRatio,
+    netAssets: defaultKeyStatistics?.totalAssets,
 
     // Range
     fiftyTwoWeekLow: summaryDetail.fiftyTwoWeekLow,
@@ -238,6 +238,37 @@ async function getPriceHistory(ticker, period = "1y") {
   return result;
 }
 
+async function getOhlcv(ticker, period = "6mo") {
+  const cacheKey = `ohlcv:${ticker}:${period}`;
+  const cached = cache.getPrice(cacheKey);
+  if (cached) return cached;
+
+  const chartData = await yahooFinance.chart(ticker, {
+    period1: getPeriodStart(period),
+    interval: "1d",
+  });
+
+  const result = (chartData.quotes || [])
+    .filter((d) =>
+      Number.isFinite(d.open) &&
+      Number.isFinite(d.high) &&
+      Number.isFinite(d.low) &&
+      Number.isFinite(d.close) &&
+      Number.isFinite(d.volume)
+    )
+    .map((d) => ({
+      date: d.date.toISOString().split("T")[0],
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+      volume: d.volume,
+    }));
+
+  cache.setPrice(cacheKey, result);
+  return result;
+}
+
 /**
  * Batch fetch summaries for a portfolio of tickers.
  * Adds a small delay between calls to avoid rate limiting.
@@ -276,10 +307,30 @@ function getPeriodStart(period) {
   }
 }
 
+async function getHoldings(ticker) {
+  const cacheKey = `holdings:${ticker}`;
+  const cached = cache.getFundamentals(cacheKey);
+  if (cached) return cached;
+
+  const result = await yahooFinance.quoteSummary(ticker, {
+    modules: ["topHoldings"],
+  });
+
+  const holdings = (result.holdings?.holdings || []).slice(0, 3).map(h => ({
+    symbol: h.symbol,
+    name: h.name,
+  }));
+  
+  cache.setFundamentals(cacheKey, holdings);
+  return holdings;
+}
+
 export {
   getSummary,
   getFinancials,
   getBalanceSheet,
   getPriceHistory,
+  getOhlcv,
   getPortfolioSummaries,
+  getHoldings,
 };

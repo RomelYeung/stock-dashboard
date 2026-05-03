@@ -1,8 +1,10 @@
+import { useRef, useEffect } from "react";
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
 } from "recharts";
+import { createChart, LineSeries } from "lightweight-charts";
 import { formatRevenue, formatPercent, formatYear } from "../utils/formatters";
 
 const TOOLTIP_STYLE = {
@@ -81,8 +83,8 @@ export function RevenueChart({ annualIncome }) {
             formatter={(v) => formatRevenue(v)}
             cursor={{ fill: "rgba(255,255,255,0.03)" }}
           />
-          <Bar dataKey="Revenue" fill="var(--accent-blue)" radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Net Income" fill="var(--accent-green)" radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Revenue" fill="#4f8dff" radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Net Income" fill="#00e5a0" radius={[4, 4, 0, 0]} opacity={0.8} />
           <Legend
             wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }}
           />
@@ -115,8 +117,8 @@ export function MarginsChart({ annualIncome }) {
             contentStyle={TOOLTIP_STYLE}
             formatter={(v) => `${v}%`}
           />
-          <Line type="monotone" dataKey="Gross Margin" stroke="var(--accent-blue)" strokeWidth={2} dot={{ fill: "var(--accent-blue)", r: 3 }} />
-          <Line type="monotone" dataKey="Net Margin" stroke="var(--accent-green)" strokeWidth={2} dot={{ fill: "var(--accent-green)", r: 3 }} />
+          <Line type="monotone" dataKey="Gross Margin" stroke="#4f8dff" strokeWidth={2} dot={{ fill: "#4f8dff", r: 3 }} />
+          <Line type="monotone" dataKey="Net Margin" stroke="#00e5a0" strokeWidth={2} dot={{ fill: "#00e5a0", r: 3 }} />
           <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }} />
         </LineChart>
       </ResponsiveContainer>
@@ -148,8 +150,8 @@ export function CashFlowChart({ annualCashFlow }) {
             formatter={(v) => formatRevenue(v)}
             cursor={{ fill: "rgba(255,255,255,0.03)" }}
           />
-          <Bar dataKey="Operating CF" fill="var(--accent-amber)" radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Free CF" fill="var(--accent-green)" radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Operating CF" fill="#ffb547" radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Free CF" fill="#00e5a0" radius={[4, 4, 0, 0]} opacity={0.8} />
           <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }} />
         </BarChart>
       </ResponsiveContainer>
@@ -157,49 +159,111 @@ export function CashFlowChart({ annualCashFlow }) {
   );
 }
 
-// Price History Line Chart
+// Price History Chart using Lightweight Charts (TradingView)
 export function PriceChart({ data, ticker }) {
-  if (!data?.length) return null;
+  const chartRef = useRef(null);
+  const seriesRef = useRef(null);
+  const containerRef = useRef(null);
 
-  const min = Math.min(...data.map((d) => d.close)) * 0.98;
-  const max = Math.max(...data.map((d) => d.close)) * 1.02;
-  const isUp = data[data.length - 1]?.close >= data[0]?.close;
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    let resizeObserver = null;
+
+    const formattedData = (data || [])
+      .filter((d) => d?.date && Number.isFinite(d.close))
+      .map((d) => ({
+        time: d.date,
+        value: d.close,
+      }));
+
+    const createPriceChart = () => {
+      if (!container || container.clientWidth === 0 || chartRef.current) return;
+
+      try {
+        const chart = createChart(container, {
+          layout: {
+            background: { type: "solid", color: "transparent" },
+            textColor: "#5a6a80",
+          },
+          grid: {
+            vertLines: { visible: false },
+            horzLines: { visible: false },
+          },
+          width: container.clientWidth,
+          height: 400,
+          timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+          },
+        });
+
+        chartRef.current = chart;
+
+        const isUp = formattedData.length > 1
+          ? formattedData[formattedData.length - 1].value >= formattedData[0].value
+          : true;
+
+        const lineSeries = chart.addSeries(LineSeries, {
+          color: isUp ? "#00E5A0" : "#FF4976",
+          lineWidth: 2,
+        });
+
+        seriesRef.current = lineSeries;
+      } catch (e) {
+        console.error("Error creating price chart:", e);
+      }
+    };
+
+    const updateData = () => {
+      if (!formattedData.length) return;
+      if (!chartRef.current) {
+        createPriceChart();
+      }
+      if (seriesRef.current) {
+        seriesRef.current.setData(formattedData);
+        chartRef.current?.timeScale().fitContent();
+      }
+    };
+
+    const handleResize = () => {
+      try {
+        if (container.clientWidth > 0 && chartRef.current) {
+          chartRef.current.applyOptions({ width: container.clientWidth });
+        }
+      } catch (e) {
+        console.error("Error handling resize:", e);
+      }
+    };
+
+    // Initialize chart and data
+    updateData();
+
+    resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", handleResize);
+      try {
+        if (chartRef.current) {
+          chartRef.current.remove();
+          chartRef.current = null;
+        }
+        seriesRef.current = null;
+      } catch (e) {
+        console.error("Error cleaning up chart:", e);
+      }
+    };
+  }, [data, ticker]);
+
+  if (!data?.length) return null;
 
   return (
     <ChartContainer title={`${ticker} Price History`}>
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data}>
-          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={false}
-            tickLine={false}
-            interval={Math.floor(data.length / 5)}
-            tickFormatter={(v) => v?.slice(0, 7)}
-          />
-          <YAxis
-            domain={[min, max]}
-            tickFormatter={(v) => `$${v.toFixed(0)}`}
-            tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }}
-            axisLine={false}
-            tickLine={false}
-            width={52}
-          />
-          <Tooltip
-            contentStyle={TOOLTIP_STYLE}
-            formatter={(v) => [`$${v.toFixed(2)}`, "Close"]}
-            labelStyle={{ color: "#5a6a80", marginBottom: "4px" }}
-          />
-          <Line
-            type="monotone"
-            dataKey="close"
-            stroke={isUp ? "var(--accent-green)" : "var(--accent-red)"}
-            strokeWidth={2}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div ref={containerRef} style={{ width: "100%", height: "400px" }} />
     </ChartContainer>
   );
 }

@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import PortfolioManager from "./components/PortfolioManager";
 import StockCard from "./components/StockCard";
 import StockDetailModal from "./components/StockDetailModal";
+import MarketIndicatorsPage from "./components/MarketIndicatorsPage";
 import { usePortfolio } from "./hooks/useStockData";
+import { getMarketStatus } from "./utils/marketStatus";
 
 const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 const STORAGE_KEY = "portfolio-tickers";
@@ -21,7 +23,18 @@ function loadTickers() {
 export default function App() {
   const [tickers, setTickers] = useState(loadTickers);
   const [selectedTicker, setSelectedTicker] = useState(null);
+  const [currentPage, setCurrentPage] = useState("portfolio");
+  const [period, setPeriod] = useState("1y");
+  const [marketStatus, setMarketStatus] = useState(getMarketStatus);
   const { data, loading, errors, refetch } = usePortfolio(tickers);
+
+  useEffect(() => {
+    setMarketStatus(getMarketStatus());
+    const interval = setInterval(() => {
+      setMarketStatus(getMarketStatus());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   function handleTickerChange(newTickers) {
     setTickers(newTickers);
@@ -49,9 +62,30 @@ export default function App() {
             </div>
 
             <div style={styles.headerMeta}>
-              <div style={styles.liveIndicator}>
-                <span style={styles.liveDot} />
-                <span>Live</span>
+              <div style={styles.pageToggle}>
+                <button
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(currentPage === "portfolio" ? styles.toggleBtnActive : {}),
+                  }}
+                  onClick={() => setCurrentPage("portfolio")}
+                >
+                  Portfolio
+                </button>
+                <button
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(currentPage === "indicators" ? styles.toggleBtnActive : {}),
+                  }}
+                  onClick={() => setCurrentPage("indicators")}
+                >
+                  Market Indicators
+                </button>
+              </div>
+
+              <div style={{ ...styles.liveIndicator, color: marketStatus.color }}>
+                <span style={{ ...styles.liveDot, background: marketStatus.dotColor }} />
+                <span>{marketStatus.label}</span>
               </div>
               <button style={styles.refreshBtn} onClick={refetch}>
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -65,50 +99,56 @@ export default function App() {
         </header>
 
         <main style={styles.main}>
-          {/* Portfolio Manager */}
-          <section style={styles.managerSection}>
-            <div style={styles.sectionLabel}>Watchlist</div>
-            <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
-          </section>
+          <div style={{ display: currentPage === "portfolio" ? "block" : "none" }}>
+            {/* Portfolio Manager */}
+            <section style={styles.managerSection}>
+              <div style={styles.sectionLabel}>Watchlist</div>
+              <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
+            </section>
 
-          {/* Stats bar */}
-          {tickers.length > 0 && (
-            <div style={styles.statsBar}>
-              <span style={styles.statsText}>
-                {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
-              </span>
-              {Object.keys(errors).length > 0 && (
-                <span style={styles.errorBadge}>
-                  {Object.keys(errors).length} failed to load
+            {/* Stats bar */}
+            {tickers.length > 0 && (
+              <div style={styles.statsBar}>
+                <span style={styles.statsText}>
+                  {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
                 </span>
-              )}
-            </div>
-          )}
+                {Object.keys(errors).length > 0 && (
+                  <span style={styles.errorBadge}>
+                    {Object.keys(errors).length} failed to load
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Stock Cards Grid */}
-          {tickers.length === 0 ? (
-            <div style={styles.emptyState}>
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" opacity={0.2}>
-                <rect x="4" y="10" width="32" height="24" rx="4" stroke="white" strokeWidth="1.5" />
-                <path d="M12 24l5-5 4 4 5-6 4 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p style={styles.emptyText}>Add tickers above to start tracking</p>
-            </div>
-          ) : (
-            <div style={styles.grid}>
-              {tickers.map((ticker, i) => (
-                <StockCard
-                  key={ticker}
-                  ticker={ticker}
-                  data={data[ticker]}
-                  error={errors[ticker]}
-                  loading={loading && !data[ticker]}
-                  onClick={setSelectedTicker}
-                  index={i}
-                />
-              ))}
-            </div>
-          )}
+            {/* Stock Cards Grid */}
+            {tickers.length === 0 ? (
+              <div style={styles.emptyState}>
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" opacity={0.2}>
+                  <rect x="4" y="10" width="32" height="24" rx="4" stroke="white" strokeWidth="1.5" />
+                  <path d="M12 24l5-5 4 4 5-6 4 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={styles.emptyText}>Add tickers above to start tracking</p>
+              </div>
+            ) : (
+              <div style={styles.grid}>
+                {tickers.map((ticker, i) => (
+                  <StockCard
+                    key={ticker}
+                    ticker={ticker}
+                    data={data[ticker]}
+                    error={errors[ticker]}
+                    loading={loading && !data[ticker]}
+                    onClick={setSelectedTicker}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: currentPage === "indicators" ? "block" : "none" }}>
+            <MarketIndicatorsPage />
+          </div>
         </main>
       </div>
 
@@ -118,6 +158,8 @@ export default function App() {
           <StockDetailModal
             ticker={selectedTicker}
             onClose={() => setSelectedTicker(null)}
+            period={period}
+            setPeriod={setPeriod}
           />
         )}
       </AnimatePresence>
@@ -178,6 +220,27 @@ const styles = {
     alignItems: "center",
     display: "flex",
     gap: "16px",
+  },
+  pageToggle: {
+    display: "flex",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: "8px",
+    overflow: "hidden",
+  },
+  toggleBtn: {
+    background: "transparent",
+    border: "none",
+    color: "var(--text-secondary)",
+    cursor: "pointer",
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    padding: "6px 12px",
+    transition: "all 0.15s",
+  },
+  toggleBtnActive: {
+    background: "var(--accent-blue)",
+    color: "white",
   },
   liveIndicator: {
     alignItems: "center",

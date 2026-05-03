@@ -1,0 +1,8 @@
+{
+  "model": "opencode/hy3-preview-free",
+  "plugin": [
+    "opencode-antigravity-auth",
+    "opencode-dynamic-context-pruning",
+    "superpowers@git+https://github.com/obra/superpowers.git"
+  ]
+}

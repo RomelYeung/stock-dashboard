@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStockDetail, usePriceHistory } from "../hooks/useStockData";
 import { RevenueChart, MarginsChart, CashFlowChart, PriceChart } from "./Charts";
@@ -7,7 +6,7 @@ import {
   formatMultiple, formatRevenue, isPositive,
 } from "../utils/formatters";
 
-const PERIODS = ["1mo", "3mo", "6mo", "1y", "2y"];
+const PERIODS = ["1mo", "3mo", "6mo", "1y", "2y", "5y"];
 
 function StatBox({ label, value, sub, positive }) {
   return (
@@ -80,9 +79,8 @@ const sectionStyles = {
   },
 };
 
-export default function StockDetailModal({ ticker, onClose }) {
+export default function StockDetailModal({ ticker, onClose, period, setPeriod }) {
   const { data, loading, error } = useStockDetail(ticker);
-  const [period, setPeriod] = useState("1y");
   const { data: priceData, loading: priceLoading } = usePriceHistory(ticker, period);
 
   const summary = data?.summary;

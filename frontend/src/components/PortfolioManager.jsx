@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { MAX_PORTFOLIO_TICKERS } from "../constants.js";
 
 const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
@@ -14,8 +15,8 @@ export default function PortfolioManager({ tickers, onChange }) {
       setError(`${ticker} is already in your portfolio`);
       return;
     }
-    if (tickers.length >= 20) {
-      setError("Maximum 20 tickers");
+    if (tickers.length >= MAX_PORTFOLIO_TICKERS) {
+      setError(`Maximum ${MAX_PORTFOLIO_TICKERS} tickers`);
       return;
     }
     onChange([...tickers, ticker]);
