@@ -14,6 +14,15 @@ import {
 
 const router = express.Router();
 
+// Only allow requests originating from localhost
+function requireLocal(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress;
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
+    return next();
+  }
+  return res.status(403).json({ success: false, error: 'Forbidden: local access only.' });
+}
+
 // ETFs for sector tracking (GICS + Thematic)
 const sectorEtfs = [
   // GICS Sectors
@@ -305,7 +314,7 @@ router.get("/sector-rotation", async (req, res) => {
 
 // POST /api/stocks/market/update-margin-debt
 // Manual trigger to refresh margin debt data from FINRA
-router.post("/market/update-margin-debt", async (req, res) => {
+router.post("/market/update-margin-debt", requireLocal, async (req, res) => {
   try {
     const result = await marginDebtService.updateMarginDebt();
     res.json({ success: true, message: "Margin debt data updated successfully", lastUpdated: result.lastUpdated });
@@ -318,12 +327,12 @@ router.post("/market/update-margin-debt", async (req, res) => {
 // ─── Cache management ─────────────────────────────────────────────────────────
 
 // GET /api/stocks/cache/stats
-router.get("/cache/stats", (req, res) => {
+router.get("/cache/stats", requireLocal, (req, res) => {
   res.json({ success: true, data: cache.stats() });
 });
 
 // DELETE /api/stocks/cache
-router.delete("/cache", (req, res) => {
+router.delete("/cache", requireLocal, (req, res) => {
   cache.flush();
   res.json({ success: true, message: "Cache cleared." });
 });

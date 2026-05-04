@@ -37,13 +37,20 @@ const fetchFRED = async (seriesId, startDate, frequency = 'm') => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FRED_TIMEOUT_MS);
 
-  const response = await fetch(url, { signal: controller.signal });
+  let response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const safeMessage = err.message.replaceAll(FRED_API_KEY, '***');
+    throw new Error(`FRED API fetch failed: ${safeMessage}`);
+  }
   clearTimeout(timeoutId);
 
   console.log(`FRED API response: ${response.status} ${response.statusText}`);
   if (!response.ok) {
     const text = await response.text();
-    console.log("FRED API error response:", text);
+    console.log("FRED API error response:", text.replaceAll(FRED_API_KEY, '***'));
     throw new Error(`FRED API error: ${response.statusText}`);
   }
   const data = await response.json();

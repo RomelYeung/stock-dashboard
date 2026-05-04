@@ -1,4 +1,4 @@
-import xlsx from 'xlsx';
+import xlsx from 'xlsx-js-style';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -99,56 +99,56 @@ export default function App() {
         </header>
 
         <main style={styles.main}>
-          <div style={{ display: currentPage === "portfolio" ? "block" : "none" }}>
-            {/* Portfolio Manager */}
-            <section style={styles.managerSection}>
-              <div style={styles.sectionLabel}>Watchlist</div>
-              <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
-            </section>
+          {currentPage === "portfolio" && (
+            <div>
+              {/* Portfolio Manager */}
+              <section style={styles.managerSection}>
+                <div style={styles.sectionLabel}>Watchlist</div>
+                <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
+              </section>
 
-            {/* Stats bar */}
-            {tickers.length > 0 && (
-              <div style={styles.statsBar}>
-                <span style={styles.statsText}>
-                  {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
-                </span>
-                {Object.keys(errors).length > 0 && (
-                  <span style={styles.errorBadge}>
-                    {Object.keys(errors).length} failed to load
+              {/* Stats bar */}
+              {tickers.length > 0 && (
+                <div style={styles.statsBar}>
+                  <span style={styles.statsText}>
+                    {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
                   </span>
-                )}
-              </div>
-            )}
+                  {Object.keys(errors).length > 0 && (
+                    <span style={styles.errorBadge}>
+                      {Object.keys(errors).length} failed to load
+                    </span>
+                  )}
+                </div>
+              )}
 
-            {/* Stock Cards Grid */}
-            {tickers.length === 0 ? (
-              <div style={styles.emptyState}>
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" opacity={0.2}>
-                  <rect x="4" y="10" width="32" height="24" rx="4" stroke="white" strokeWidth="1.5" />
-                  <path d="M12 24l5-5 4 4 5-6 4 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <p style={styles.emptyText}>Add tickers above to start tracking</p>
-              </div>
-            ) : (
-              <div style={styles.grid}>
-                {tickers.map((ticker, i) => (
-                  <StockCard
-                    key={ticker}
-                    ticker={ticker}
-                    data={data[ticker]}
-                    error={errors[ticker]}
-                    loading={loading && !data[ticker]}
-                    onClick={setSelectedTicker}
-                    index={i}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              {/* Stock Cards Grid */}
+              {tickers.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" opacity={0.2}>
+                    <rect x="4" y="10" width="32" height="24" rx="4" stroke="white" strokeWidth="1.5" />
+                    <path d="M12 24l5-5 4 4 5-6 4 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <p style={styles.emptyText}>Add tickers above to start tracking</p>
+                </div>
+              ) : (
+                <div style={styles.grid}>
+                  {tickers.map((ticker, i) => (
+                    <StockCard
+                      key={ticker}
+                      ticker={ticker}
+                      data={data[ticker]}
+                      error={errors[ticker]}
+                      loading={loading && !data[ticker]}
+                      onClick={setSelectedTicker}
+                      index={i}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          <div style={{ display: currentPage === "indicators" ? "block" : "none" }}>
-            <MarketIndicatorsPage />
-          </div>
+          {currentPage === "indicators" && <MarketIndicatorsPage />}
         </main>
       </div>
 
