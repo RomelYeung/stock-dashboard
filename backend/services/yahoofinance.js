@@ -14,10 +14,10 @@ async function getSummary(ticker) {
   if (cached) return cached;
 
   const result = await yahooFinance.quoteSummary(ticker, {
-    modules: ["price", "summaryDetail", "defaultKeyStatistics", "calendarEvents"],
+    modules: ["price", "summaryDetail", "defaultKeyStatistics", "calendarEvents", "assetProfile"],
   });
 
-  const { price, summaryDetail, defaultKeyStatistics, calendarEvents } = result;
+  const { price, summaryDetail, defaultKeyStatistics, calendarEvents, assetProfile } = result;
   const data = {
     ticker: ticker.toUpperCase(),
     name: price.longName || price.shortName,
@@ -34,6 +34,7 @@ async function getSummary(ticker) {
     enterpriseToEbitda: defaultKeyStatistics.enterpriseToEbitda,
     pegRatio: defaultKeyStatistics.pegRatio,
     netAssets: defaultKeyStatistics?.totalAssets,
+    beta: defaultKeyStatistics?.beta,
 
     // Range
     fiftyTwoWeekLow: summaryDetail.fiftyTwoWeekLow,
@@ -47,6 +48,10 @@ async function getSummary(ticker) {
 
     // Earnings date
     earningsDate: calendarEvents?.earnings?.earningsDate?.[0] || null,
+
+    // Sector / Industry
+    sector: assetProfile?.sector || null,
+    industry: assetProfile?.industry || null,
   };
 
   cache.setFundamentals(cacheKey, data);
@@ -81,6 +86,10 @@ async function getFinancials(ticker) {
     operatingIncome: s.operatingIncome || s.totalOperatingExpenses,
     netIncome: s.netIncome,
     eps: s.dilutedEPS,
+    interestExpense: s.interestExpense,
+    incomeTaxExpense: s.incomeTaxExpense,
+    ebt: s.ebt,
+    ebit: s.ebit || s.operatingIncome,
     grossMargin: s.grossProfit && s.totalRevenue ? s.grossProfit / s.totalRevenue : null,
     netMargin: s.netIncome && s.totalRevenue ? s.netIncome / s.totalRevenue : null,
   }));
@@ -222,7 +231,7 @@ async function getPriceHistory(ticker, period = "1y") {
 
   const chartData = await yahooFinance.chart(ticker, {
     period1: getPeriodStart(period),
-    interval: period === "1mo" || period === "3mo" ? "1d" : "1wk",
+    interval: period === "1mo" || period === "3mo" || period === "6mo" || period === "1y" ? "1d" : "1wk",
   });
 
   const result = (chartData.quotes || []).map((d) => ({
