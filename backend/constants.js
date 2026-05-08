@@ -3,6 +3,7 @@ export const CACHE_TTL_FUNDAMENTALS = 60 * 60 * 24 * 7; // 7 days
 export const CACHE_TTL_PRICE = 60 * 60 * 24; // 1 day
 export const CACHE_TTL_FRED = 60 * 60 * 24; // 1 day
 export const CACHE_TTL_INSIDER = 60 * 60 * 24; // 24 hours
+export const CACHE_TTL_COMPARABLES = 60 * 60 * 24; // 24 hours
 export const CACHE_PERSIST_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // API limits
