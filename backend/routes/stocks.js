@@ -5,12 +5,14 @@ import * as fred from "../services/fred.js";
 import * as marginDebtService from "../services/marginDebt.js";
 import * as sectorScore from "../services/sectorScore.js";
 import * as aaii from "../services/aaii.js";
+import * as insiderTrading from "../services/insiderTrading.js";
 import {
   MAX_PORTFOLIO_TICKERS,
   VALID_PERIODS,
   TICKER_REGEX,
   YAHOO_FINANCE_DELAY_MS,
 } from "../constants.js";
+import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
 
 const router = express.Router();
 
@@ -126,6 +128,113 @@ router.get("/:ticker/all", async (req, res) => {
     res.json({ success: true, data: { summary, financials, balanceSheet } });
   } catch (err) {
     console.error(`[all] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/insider-trading
+// Returns insider transaction signal, summary, and recent Form 4 filings
+router.get("/:ticker/insider-trading", async (req, res) => {
+  try {
+    const data = await insiderTrading.getInsiderTrading(req.ticker);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(`[insider-trading] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/dcf?simulations=1000
+router.get("/:ticker/dcf", async (req, res) => {
+  const simulations = Math.min(Math.max(parseInt(req.query.simulations) || 1000, 100), 100000);
+  try {
+    const [summary, financials, balanceSheet] = await Promise.all([
+      yf.getSummary(req.ticker),
+      yf.getFinancials(req.ticker),
+      yf.getBalanceSheet(req.ticker),
+    ]);
+
+    const annualIncome = financials?.annualIncome || [];
+    const annualCashFlow = balanceSheet?.annualCashFlow || [];
+
+    const params = aggregateDCFInputs(summary, financials, balanceSheet, annualIncome, annualCashFlow);
+
+    if (!params.fcf || params.fcf <= 0) {
+      return res.json({
+        success: true,
+        data: {
+          ticker: req.ticker,
+          params,
+          dcf: null,
+          monteCarlo: null,
+          warning: "DCF analysis unavailable — company has zero or negative free cash flow.",
+        },
+      });
+    }
+
+    if (params.wacc <= params.terminalGrowth) {
+      return res.json({
+        success: true,
+        data: {
+          ticker: req.ticker,
+          params,
+          dcf: null,
+          monteCarlo: null,
+          warning: "DCF analysis unavailable — WACC is less than or equal to terminal growth rate.",
+        },
+      });
+    }
+
+    const dcf = projectFCF(
+      params.fcf, params.projectionGrowth, params.terminalGrowth,
+      params.wacc, params.cash, params.debt, params.sharesOutstanding
+    );
+
+    const currentPrice = summary?.currentPrice || 0;
+    const upsidePercent = currentPrice > 0
+      ? ((dcf.fairValue - currentPrice) / currentPrice) * 100
+      : null;
+
+    const mc = monteCarlo(
+      params.fcf, params.projectionGrowth, params.wacc,
+      params.cash, params.debt, params.sharesOutstanding, simulations
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ticker: req.ticker,
+        params: {
+          fcf: params.fcf,
+          revenueGrowth: params.revenueGrowth,
+          historicalFCFGrowth: params.historicalFCFGrowth,
+          projectionGrowth: params.projectionGrowth,
+          wacc: Math.round(params.wacc * 10000) / 10000,
+          terminalGrowth: params.terminalGrowth,
+          sharesOutstanding: params.sharesOutstanding,
+          cash: params.cash,
+          debt: params.debt,
+          beta: params.beta,
+          rf: params.rf,
+          erp: params.erp,
+        },
+        dcf: {
+          fairValue: Math.round(dcf.fairValue * 100) / 100,
+          upsidePercent: upsidePercent != null ? Math.round(upsidePercent * 100) / 100 : null,
+          projectedFCFs: dcf.projectedFCFs.map(f => Math.round(f)),
+          terminalValue: Math.round(dcf.terminalValue),
+        },
+        monteCarlo: {
+          iterations: simulations,
+          bear: Math.round(mc.bear * 100) / 100,
+          base: Math.round(mc.base * 100) / 100,
+          bull: Math.round(mc.bull * 100) / 100,
+          histogram: mc.histogram.map(b => ({ bin: Math.round(b.bin * 100) / 100, count: b.count })),
+        },
+      },
+    });
+  } catch (err) {
+    console.error(`[dcf] ${req.ticker}:`, err.message);
     res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
   }
 });
