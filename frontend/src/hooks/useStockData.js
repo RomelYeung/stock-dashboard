@@ -150,3 +150,15 @@ export function useInsiderTrading(ticker) {
 
   return { data, loading: isLoading, error: error?.message };
 }
+
+// Fetch comparables data for a single ticker
+export function useComparables(ticker) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["comparables", ticker],
+    queryFn: () => apiFetch(`/${ticker}/comparables`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message };
+}
