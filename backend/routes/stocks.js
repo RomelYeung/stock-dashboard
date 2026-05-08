@@ -6,6 +6,7 @@ import * as marginDebtService from "../services/marginDebt.js";
 import * as sectorScore from "../services/sectorScore.js";
 import * as aaii from "../services/aaii.js";
 import * as insiderTrading from "../services/insiderTrading.js";
+import * as comparables from "../services/comparables.js";
 import {
   MAX_PORTFOLIO_TICKERS,
   VALID_PERIODS,
@@ -140,6 +141,18 @@ router.get("/:ticker/insider-trading", async (req, res) => {
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[insider-trading] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/comparables
+// Returns sector peer comparison with valuation, growth, profitability, health metrics + sparklines
+router.get("/:ticker/comparables", async (req, res) => {
+  try {
+    const data = await comparables.getComparables(req.ticker);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(`[comparables] ${req.ticker}:`, err.message);
     res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
   }
 });
