@@ -3,11 +3,13 @@ import { persistCache, loadCache } from "./cache-persist.js";
 import {
   CACHE_TTL_FUNDAMENTALS,
   CACHE_TTL_PRICE,
+  CACHE_TTL_INSIDER,
   CACHE_PERSIST_INTERVAL_MS,
 } from "../constants.js";
 
 const fundamentalsCache = new NodeCache({ stdTTL: CACHE_TTL_FUNDAMENTALS });
 const priceCache = new NodeCache({ stdTTL: CACHE_TTL_PRICE });
+const insiderCache = new NodeCache({ stdTTL: CACHE_TTL_INSIDER });
 
 // Load persisted cache on startup
 loadCache(fundamentalsCache, priceCache);
@@ -33,12 +35,17 @@ export const setFundamentals = (key, value) => fundamentalsCache.set(key, value)
 export const getPrice = (key) => priceCache.get(key);
 export const setPrice = (key, value) => priceCache.set(key, value);
 
+export const getInsider = (key) => insiderCache.get(key);
+export const setInsider = (key, value) => insiderCache.set(key, value);
+
 export const flush = () => {
   fundamentalsCache.flushAll();
   priceCache.flushAll();
+  insiderCache.flushAll();
 };
 
 export const stats = () => ({
   fundamentals: fundamentalsCache.getStats(),
   price: priceCache.getStats(),
+  insider: insiderCache.getStats(),
 });
