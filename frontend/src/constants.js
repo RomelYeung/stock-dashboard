@@ -15,4 +15,16 @@ export const CREDIT_SPREAD_HIGH_BPS = 500;
 export const INFLATION_TARGET = 2;
 export const INFLATION_MODERATE = 3;
 
+export const YIELD_CURVE_INVERSION_THRESHOLD = 0;
+export const YIELD_CURVE_FLAT_THRESHOLD = 0.5;
+
+export const TREASURY_YIELD_HIGH = 5;
+export const TREASURY_YIELD_MODERATE = 3.5;
+
+export const CONSUMER_SENTIMENT_LOW = 60;
+export const CONSUMER_SENTIMENT_NEUTRAL = 80;
+
+export const UNEMPLOYMENT_LOW = 4;
+export const UNEMPLOYMENT_HIGH = 6;
+
 export const STALE_DATA_DAYS = 60;

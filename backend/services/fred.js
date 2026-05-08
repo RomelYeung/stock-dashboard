@@ -111,3 +111,45 @@ export async function getInflation(period = '5y') {
   const currentValue = yoyHistory[yoyHistory.length - 1]?.value || null;
   return { currentValue, history: yoyHistory };
 }
+
+export async function getFedBalanceSheet(period = '5y') {
+  const months = periodToMonths(period);
+  const startDate = getStartDate(months);
+  const history = await fetchFRED('WALCL', startDate, 'w');
+  const currentValue = history[history.length - 1]?.value || null;
+  return { currentValue, history };
+}
+
+export async function getTreasuryYield(period = '5y') {
+  const months = periodToMonths(period);
+  const startDate = getStartDate(months);
+  const frequency = months > 12 ? 'm' : 'd';
+  const history = await fetchFRED('DGS10', startDate, frequency);
+  const currentValue = history[history.length - 1]?.value || null;
+  return { currentValue, history };
+}
+
+export async function getYieldCurve(period = '5y') {
+  const months = periodToMonths(period);
+  const startDate = getStartDate(months);
+  const frequency = months > 12 ? 'm' : 'd';
+  const history = await fetchFRED('T10Y2Y', startDate, frequency);
+  const currentValue = history[history.length - 1]?.value || null;
+  return { currentValue, history };
+}
+
+export async function getConsumerSentiment(period = '5y') {
+  const months = periodToMonths(period);
+  const startDate = getStartDate(months);
+  const history = await fetchFRED('UMCSENT', startDate, 'm');
+  const currentValue = history[history.length - 1]?.value || null;
+  return { currentValue, history };
+}
+
+export async function getUnemployment(period = '5y') {
+  const months = periodToMonths(period);
+  const startDate = getStartDate(months);
+  const history = await fetchFRED('UNRATE', startDate, 'm');
+  const currentValue = history[history.length - 1]?.value || null;
+  return { currentValue, history };
+}

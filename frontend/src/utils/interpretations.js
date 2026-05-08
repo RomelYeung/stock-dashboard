@@ -7,6 +7,14 @@ import {
   CREDIT_SPREAD_HIGH_BPS,
   INFLATION_TARGET,
   INFLATION_MODERATE,
+  YIELD_CURVE_INVERSION_THRESHOLD,
+  YIELD_CURVE_FLAT_THRESHOLD,
+  TREASURY_YIELD_HIGH,
+  TREASURY_YIELD_MODERATE,
+  CONSUMER_SENTIMENT_LOW,
+  CONSUMER_SENTIMENT_NEUTRAL,
+  UNEMPLOYMENT_LOW,
+  UNEMPLOYMENT_HIGH,
 } from "../constants.js";
 import { formatMarketCap } from "./formatters.js";
 
@@ -104,5 +112,92 @@ export function getAAIIInterpretation(currentValue) {
     isExtremeBearish ? "Extreme Bearishness (Contrarian Bullish Signal)" :
     "Neutral Sentiment (No clear contrarian signal)";
     
+  return { color, text };
+}
+
+export function getBalanceSheetInterpretation(currentValue, history = []) {
+  const recentChange =
+    history.length >= 6
+      ? (history[history.length - 1]?.value - history[history.length - 6]?.value) /
+        history[history.length - 6]?.value
+      : 0;
+  const expanding = recentChange > 0.005;
+  const contracting = recentChange < -0.005;
+  const color = contracting ? "var(--accent-red)" : expanding ? "var(--accent-green)" : "var(--accent-yellow)";
+  const text = contracting
+    ? "QT in progress — Fed shrinking balance sheet (tighter liquidity)"
+    : expanding
+      ? "QE / expanding — Fed growing balance sheet (more liquidity)"
+      : "Balance sheet roughly stable (neutral liquidity)";
+  return { color, text };
+}
+
+export function getTreasuryYieldInterpretation(currentValue) {
+  const color =
+    currentValue >= TREASURY_YIELD_HIGH
+      ? "var(--accent-red)"
+      : currentValue >= TREASURY_YIELD_MODERATE
+        ? "var(--accent-yellow)"
+        : "var(--accent-green)";
+  const text =
+    currentValue >= TREASURY_YIELD_HIGH
+      ? `10Y at ${currentValue?.toFixed(2)}% — High yields pressure equity valuations`
+      : currentValue >= TREASURY_YIELD_MODERATE
+        ? `10Y at ${currentValue?.toFixed(2)}% — Moderate level, watch for further rises`
+        : `10Y at ${currentValue?.toFixed(2)}% — Low yields supportive of equity valuations`;
+  return { color, text };
+}
+
+export function getYieldCurveInterpretation(currentValue) {
+  const color =
+    currentValue < YIELD_CURVE_INVERSION_THRESHOLD
+      ? "var(--accent-red)"
+      : currentValue < YIELD_CURVE_FLAT_THRESHOLD
+        ? "var(--accent-yellow)"
+        : "var(--accent-green)";
+  const text =
+    currentValue < YIELD_CURVE_INVERSION_THRESHOLD
+      ? `Yield curve inverted (${currentValue?.toFixed(2)}%) — Historically precedes recessions`
+      : currentValue < YIELD_CURVE_FLAT_THRESHOLD
+        ? `Yield curve flat (${currentValue?.toFixed(2)}%) — Caution, potential slowdown`
+        : `Yield curve normal (${currentValue?.toFixed(2)}%) — Healthy economic signal`;
+  return { color, text };
+}
+
+export function getConsumerSentimentInterpretation(currentValue) {
+  const color =
+    currentValue < CONSUMER_SENTIMENT_LOW
+      ? "var(--accent-red)"
+      : currentValue < CONSUMER_SENTIMENT_NEUTRAL
+        ? "var(--accent-yellow)"
+        : "var(--accent-green)";
+  const text =
+    currentValue < CONSUMER_SENTIMENT_LOW
+      ? `Sentiment at ${currentValue?.toFixed(1)} — Consumers very pessimistic (potential contrarian buy)`
+      : currentValue < CONSUMER_SENTIMENT_NEUTRAL
+        ? `Sentiment at ${currentValue?.toFixed(1)} — Below average consumer confidence`
+        : `Sentiment at ${currentValue?.toFixed(1)} — Consumers optimistic, healthy spending outlook`;
+  return { color, text };
+}
+
+export function getUnemploymentInterpretation(currentValue, history = []) {
+  const trend =
+    history.length >= 3
+      ? currentValue - history[history.length - 3]?.value
+      : 0;
+  const rising = trend > 0.3;
+  const color =
+    currentValue >= UNEMPLOYMENT_HIGH
+      ? "var(--accent-red)"
+      : currentValue >= UNEMPLOYMENT_LOW
+        ? "var(--accent-yellow)"
+        : "var(--accent-green)";
+  const trendNote = rising ? " (rising — watch closely)" : "";
+  const text =
+    currentValue >= UNEMPLOYMENT_HIGH
+      ? `Unemployment at ${currentValue?.toFixed(1)}%${trendNote} — Elevated, recessionary signal`
+      : currentValue >= UNEMPLOYMENT_LOW
+        ? `Unemployment at ${currentValue?.toFixed(1)}%${trendNote} — Moderate level`
+        : `Unemployment at ${currentValue?.toFixed(1)}%${trendNote} — Low, healthy labor market`;
   return { color, text };
 }

@@ -196,13 +196,36 @@ router.get("/market/indicators", async (req, res) => {
       return { error: err.message };
     });
 
-    const [vixSummary, vixHistory, fedPolicy, creditSpreads, inflation, aaiiSentiment] = await Promise.all([
+    // 7. Fed Balance Sheet
+    const fedBalanceSheetPromise = fred.getFedBalanceSheet(period);
+
+    // 8. 10-Year Treasury Yield
+    const treasuryYieldPromise = fred.getTreasuryYield(period);
+
+    // 9. Yield Curve (10Y-2Y Spread)
+    const yieldCurvePromise = fred.getYieldCurve(period);
+
+    // 10. Consumer Sentiment
+    const consumerSentimentPromise = fred.getConsumerSentiment(period);
+
+    // 11. Unemployment Rate
+    const unemploymentPromise = fred.getUnemployment(period);
+
+    const [
+      vixSummary, vixHistory, fedPolicy, creditSpreads, inflation, aaiiSentiment,
+      fedBalanceSheet, treasuryYield, yieldCurve, consumerSentiment, unemployment,
+    ] = await Promise.all([
       vixSummaryPromise,
       vixHistoryPromise,
       fedPolicyPromise,
       creditSpreadsPromise,
       inflationPromise,
       aaiiSentimentPromise,
+      fedBalanceSheetPromise,
+      treasuryYieldPromise,
+      yieldCurvePromise,
+      consumerSentimentPromise,
+      unemploymentPromise,
     ]);
 
     const vix = {
@@ -219,6 +242,11 @@ router.get("/market/indicators", async (req, res) => {
         creditSpreads,
         inflation,
         aaiiSentiment,
+        fedBalanceSheet,
+        treasuryYield,
+        yieldCurve,
+        consumerSentiment,
+        unemployment,
       },
     });
   } catch (err) {

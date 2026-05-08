@@ -1,4 +1,4 @@
-import * as xlsx from 'xlsx';
+import xlsx from 'xlsx-js-style';
 import NodeCache from 'node-cache';
 import { exec } from 'child_process';
 import path from 'path';
