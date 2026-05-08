@@ -61,9 +61,28 @@ async function getForm4Filings(cik) {
   return form4s;
 }
 
+async function getRawXmlUrl(cik, acc, primaryDoc) {
+  const cikNum = parseInt(cik);
+  const filename = primaryDoc.split("/").pop();
+  const directUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${filename}`;
+  const head = await fetch(directUrl, { method: "HEAD", headers: SEC_HEADERS });
+  if (head.ok && head.headers.get("content-type")?.includes("xml")) {
+    return directUrl;
+  }
+  const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/index.json`;
+  const idxRes = await fetch(indexUrl, { headers: SEC_HEADERS });
+  if (!idxRes.ok) return null;
+  const idx = await idxRes.json();
+  const files = idx.directory?.item || [];
+  const xmlFile = files.find((f) => f.name.endsWith(".xml"));
+  if (!xmlFile) return null;
+  return `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${xmlFile.name}`;
+}
+
 async function parseForm4(cik, filing) {
   const acc = filing.accessionNumber.replace(/-/g, "");
-  const url = `https://www.sec.gov/Archives/edgar/data/${parseInt(cik)}/${acc}/${filing.primaryDocument}`;
+  const url = await getRawXmlUrl(cik, acc, filing.primaryDocument);
+  if (!url) return null;
   const res = await fetch(url, { headers: SEC_HEADERS });
   if (!res.ok) return null;
 
