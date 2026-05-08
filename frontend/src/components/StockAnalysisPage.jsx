@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useStockDetail, useDCF } from "../hooks/useStockData";
 import DCFAnalysis from "./DCFAnalysis";
 import InsiderTradingTab from "./InsiderTradingTab";
+import ComparablesTab from "./ComparablesTab";
 import { RevenueChart, MarginsChart, CashFlowChart } from "./Charts";
 import { formatPrice, formatMarketCap, formatPercent, formatMultiple, formatRevenue, isPositive } from "../utils/formatters";
 
-const TABS = ["DCF", "Financials", "Insider Activity"];
+const TABS = ["DCF", "Financials", "Insider Activity", "Comparables"];
 
 function StatBox({ label, value, sub, positive }) {
   return (
@@ -192,6 +193,10 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
 
         {activeTab === "Insider Activity" && (
           <InsiderTradingTab ticker={ticker} />
+        )}
+
+        {activeTab === "Comparables" && (
+          <ComparablesTab ticker={ticker} />
         )}
       </div>
     </div>
