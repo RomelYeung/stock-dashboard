@@ -192,36 +192,65 @@ function generateSummary(insiders, score) {
   const recent = insiders.filter((i) => new Date(i.filingDate) >= thirtyDaysAgo);
   const recentBuys = recent.filter((i) => i.buyCount > 0);
   const recentSells = recent.filter((i) => i.sellCount > 0);
+  const allBuys = insiders.filter((i) => i.buyCount > 0);
+  const allSells = insiders.filter((i) => i.sellCount > 0);
   const totalBuyValue = recentBuys.reduce((s, i) => s + i.totalValue, 0);
   const totalSellValue = recentSells.reduce((s, i) => s + i.totalValue, 0);
+  const totalAllBuyValue = allBuys.reduce((s, i) => s + i.totalValue, 0);
+  const totalAllSellValue = allSells.reduce((s, i) => s + i.totalValue, 0);
 
   const topBuyer = recentBuys.sort((a, b) => b.totalValue - a.totalValue)[0];
   const topSeller = recentSells.sort((a, b) => b.totalValue - a.totalValue)[0];
 
+  const hasRecent = recentBuys.length > 0 || recentSells.length > 0;
+
   if (score > 50) {
-    const count = recentBuys.length;
-    const valueStr = formatValue(totalBuyValue);
-    return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} in shares over the past 30 days${topBuyer ? `, led by the ${topBuyer.role}` : ""}.`;
+    if (hasRecent) {
+      const count = recentBuys.length;
+      const valueStr = formatValue(totalBuyValue);
+      return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} in shares over the past 30 days${topBuyer ? `, led by the ${topBuyer.role}` : ""}.`;
+    }
+    const count = allBuys.length;
+    const valueStr = formatValue(totalAllBuyValue);
+    return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} overall — none in the past 30 days.`;
   }
   if (score > 10) {
-    const count = recentBuys.length;
-    const valueStr = formatValue(totalBuyValue);
-    return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} in shares over the past 30 days.`;
+    if (hasRecent) {
+      const count = recentBuys.length;
+      const valueStr = formatValue(totalBuyValue);
+      return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} in shares over the past 30 days.`;
+    }
+    const count = allBuys.length;
+    const valueStr = formatValue(totalAllBuyValue);
+    return `${label}: ${count} insider${count > 1 ? "s" : ""} purchased ${valueStr} overall — none in the past 30 days.`;
   }
   if (score >= -10) {
-    if (recentBuys.length === 0 && recentSells.length === 0) {
-      return `${label}: No insider transactions in the past 30 days.`;
+    if (!hasRecent) {
+      if (insiders.length === 0) {
+        return `${label}: No insider transactions found.`;
+      }
+      return `${label}: No recent insider transactions — past activity was mixed.`;
     }
     return `${label}: Mixed activity with ${formatValue(totalBuyValue)} in purchases and ${formatValue(totalSellValue)} in sales over the past 30 days.`;
   }
   if (score >= -50) {
+    if (hasRecent) {
+      const count = recentSells.length;
+      const valueStr = formatValue(totalSellValue);
+      return `${label}: ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} in shares over the past 30 days${topSeller ? `, led by the ${topSeller.role}` : ""}.`;
+    }
+    const count = allSells.length;
+    const valueStr = formatValue(totalAllSellValue);
+    return `${label}: ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} overall — none in the past 30 days.`;
+  }
+  if (hasRecent) {
     const count = recentSells.length;
     const valueStr = formatValue(totalSellValue);
-    return `${label}: ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} in shares over the past 30 days${topSeller ? `, led by the ${topSeller.role}` : ""}.`;
+    return `${label}: Heavy selling — ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} in shares over the past 30 days with no buying activity.`;
   }
-  const count = recentSells.length;
-  const valueStr = formatValue(totalSellValue);
-  return `${label}: Heavy selling — ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} in shares over the past 30 days with no buying activity.`;
+  const count = allSells.length;
+  const valueStr = formatValue(totalAllSellValue);
+  return `${label}: Heavy selling — ${count} insider${count > 1 ? "s" : ""} sold ${valueStr} overall${allBuys.length > 0 ? ` with only ${formatValue(totalAllBuyValue)} in buys` : ""}.`;
 }
 
 function formatValue(value) {
