@@ -127,3 +127,26 @@ export function useSectorRotation() {
 
   return { data, loading: isLoading, error: error?.message };
 }
+
+export function useDCF(ticker, simulations = 1000) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["dcf", ticker, simulations],
+    queryFn: () => apiFetch(`/${ticker}/dcf?simulations=${simulations}`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+// Fetch insider trading data for a single ticker
+export function useInsiderTrading(ticker) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["insiderTrading", ticker],
+    queryFn: () => apiFetch(`/${ticker}/insider-trading`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message };
+}
