@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { RevenueChart, MarginsChart, CashFlowChart } from "./Charts";
 import { formatPrice, formatMarketCap, formatPercent, formatMultiple, formatRevenue, isPositive } from "../utils/formatters";
@@ -12,14 +12,16 @@ const CATEGORY_LABELS = {
   health: "Health",
 };
 
-
-
-
-
-
-
-
-
+// ─── Responsive hook ───────────────────────────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return width;
+}
 
 
 // ─── StatBox (matching existing StockAnalysisPage pattern) ───────────────────
@@ -169,7 +171,7 @@ function Sparkline({ data, color }) {
   );
 }
 
-function MetricRow({ metric }) {
+function MetricRow({ metric, isMobile }) {
   const { label, fmt, baseValue, peerAvg, sparklineData, diff, diffColor } = metric;
   const [hovered, setHovered] = useState(false);
   const isHigher = baseValue != null && peerAvg != null && baseValue > peerAvg;
@@ -215,11 +217,11 @@ function MetricRow({ metric }) {
     >
       <td style={tbl.cellLabel}>{label}</td>
       <td style={{ ...tbl.cellValue, color }}>{fmtVal(baseValue)}</td>
-      <td style={tbl.cellPeer}>{fmtVal(peerAvg)}</td>
+      {!isMobile && <td style={tbl.cellPeer}>{fmtVal(peerAvg)}</td>}
       <td style={tbl.cellDiff}>{fmtDiff()}</td>
-      <td style={tbl.cellSpark}>
+      {!isMobile && <td style={tbl.cellSpark}>
         <Sparkline data={sparklineData} color={color} />
-      </td>
+      </td>}
     </tr>
   );
 }
@@ -291,16 +293,16 @@ function computeDiffColor(metric) {
   return { diff, diffColor };
 }
 
-function CategoryTable({ category, baseSparklines, ticker }) {
+function CategoryTable({ category, baseSparklines, ticker, isMobile }) {
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
       <thead>
         <tr>
-          <th style={{ ...tbl.head, width: COL_WIDTHS.metric }}>Metric</th>
-          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.thisStock }}>This Stock</th>
-          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>
-          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.diff }}>Diff</th>
-          <th style={{ ...tbl.head, width: COL_WIDTHS.trend }}>Trend</th>
+          <th style={{ ...tbl.head, width: isMobile ? "36%" : COL_WIDTHS.metric }}>Metric</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "28%" : COL_WIDTHS.thisStock }}>This Stock</th>
+          {!isMobile && <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>}
+          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "36%" : COL_WIDTHS.diff }}>Diff</th>
+          {!isMobile && <th style={{ ...tbl.head, width: COL_WIDTHS.trend }}>Trend</th>}
         </tr>
       </thead>
       <tbody>
@@ -310,6 +312,7 @@ function CategoryTable({ category, baseSparklines, ticker }) {
             <MetricRow
               key={m.key}
               metric={{ ...m, sparklineData: baseSparklines?.[m.key], diff, diffColor }}
+              isMobile={isMobile}
             />
           );
         })}
@@ -318,7 +321,7 @@ function CategoryTable({ category, baseSparklines, ticker }) {
   );
 }
 
-function PeerComparisonSection({ comparablesData, ticker }) {
+function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
   const [activeCategory, setActiveCategory] = useState("valuation");
   const category = comparablesData?.categories?.[activeCategory];
 
@@ -381,6 +384,7 @@ function PeerComparisonSection({ comparablesData, ticker }) {
             category={category}
             baseSparklines={comparablesData.base?.sparklines}
             ticker={ticker}
+            isMobile={isMobile}
           />
           {/* Insight box */}
           {(() => {
@@ -456,6 +460,10 @@ export default function FundamentalsTab({
     return <div style={states.error}>No data available</div>;
   }
 
+  const width = useWindowWidth();
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
+
   const summary = financialData.summary || {};
   const financials = financialData.financials || {};
   const balanceSheet = financialData.balanceSheet || {};
@@ -466,7 +474,7 @@ export default function FundamentalsTab({
       {comparablesData && (
         <>
           <Section title="Peer Comparison">
-            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} />
+            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} />
           </Section>
 
           {/* Peers Grid */}
@@ -537,8 +545,8 @@ export default function FundamentalsTab({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "24px",
+          gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr",
+          gap: isMobile ? "20px" : "24px",
         }}
       >
         {/* Valuation */}
