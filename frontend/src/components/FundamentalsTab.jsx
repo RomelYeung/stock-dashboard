@@ -460,107 +460,189 @@ export default function FundamentalsTab({
   const financials = financialData.financials || {};
   const balanceSheet = financialData.balanceSheet || {};
 
-  const statsGridStyle = {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "8px",
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-      {/* ─── 1. FINANCIAL SECTIONS ────────────────────────────────────────── */}
-
-      {/* Valuation */}
-      <Section title="Valuation">
-        <div style={statsGridStyle}>
-          <StatBox label="Market Cap" value={formatMarketCap(summary.marketCap)} />
-          <StatBox label="Forward P/E" value={formatMultiple(summary.forwardPE)} />
-          <StatBox label="P/B" value={formatMultiple(summary.priceToBook)} />
-          <StatBox label="PEG Ratio" value={formatMultiple(summary.pegRatio)} />
-        </div>
-      </Section>
-
-      {/* Profitability */}
-      <Section title="Profitability">
-        <div style={statsGridStyle}>
-          <StatBox
-            label="Operating Margin"
-            value={formatPercent(financials.operatingMargins)}
-            positive={financials.operatingMargins > 0.1}
-          />
-          <StatBox
-            label="Net Margin"
-            value={formatPercent(financials.profitMargins)}
-            positive={financials.profitMargins > 0}
-          />
-          <StatBox
-            label="ROA"
-            value={formatPercent(financials.returnOnAssets)}
-            positive={financials.returnOnAssets > 0.05}
-          />
-        </div>
-        <MarginsChart annualIncome={financials.annualIncome} />
-      </Section>
-
-      {/* Revenue & Earnings */}
-      <Section title="Revenue & Earnings">
-        <div style={statsGridStyle}>
-          <StatBox label="Total Revenue" value={formatRevenue(financials.totalRevenue)} />
-          <StatBox
-            label="Earnings Growth"
-            value={formatPercent(financials.earningsGrowth)}
-            positive={financials.earningsGrowth > 0}
-          />
-          <StatBox
-            label="EPS Est. (This Yr)"
-            value={
-              financials.estimates?.currentYear != null
-                ? `$${financials.estimates.currentYear.toFixed(2)}`
-                : "—"
-            }
-          />
-          <StatBox
-            label="EPS Est. (Next Yr)"
-            value={
-              financials.estimates?.nextYear != null
-                ? `$${financials.estimates.nextYear.toFixed(2)}`
-                : "—"
-            }
-          />
-        </div>
-        <RevenueChart annualIncome={financials.annualIncome} />
-      </Section>
-
-      {/* Balance Sheet & Cash Flow */}
-      <Section title="Balance Sheet & Cash Flow">
-        <div style={statsGridStyle}>
-          <StatBox label="Total Cash" value={formatRevenue(balanceSheet.totalCash)} />
-          <StatBox label="Total Debt" value={formatRevenue(balanceSheet.totalDebt)} />
-          <StatBox
-            label="Current Ratio"
-            value={formatMultiple(balanceSheet.currentRatio)}
-            positive={balanceSheet.currentRatio > 1.5}
-          />
-          <StatBox
-            label="Free Cash Flow"
-            value={formatRevenue(balanceSheet.freeCashflow)}
-            positive={balanceSheet.freeCashflow > 0}
-          />
-          <StatBox
-            label="Operating CF"
-            value={formatRevenue(balanceSheet.operatingCashflow)}
-            positive={balanceSheet.operatingCashflow > 0}
-          />
-        </div>
-        <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />
-      </Section>
-
-      {/* ─── 3. PEER COMPARISON TABLE ─────────────────────────────────────── */}
+      {/* ─── 1. PEER COMPARISON ───────────────────────────────────────────── */}
       {comparablesData && (
-        <Section title="Peer Comparison">
-          <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} />
-        </Section>
+        <>
+          <Section title="Peer Comparison">
+            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} />
+          </Section>
+
+          {/* Peers Grid */}
+          {comparablesData?.peers?.length > 0 && (
+            <Section title={`Peers — ${comparablesData.sector || "Unknown"}`}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                  gap: "8px",
+                }}
+              >
+                {comparablesData.peers.map((peer) => (
+                  <div
+                    key={peer.ticker}
+                    style={{
+                      background: "rgba(255,255,255,0.025)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      {peer.ticker}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "var(--text-secondary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {peer.name}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "var(--text-secondary)",
+                        fontFamily: "var(--font-mono)",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {peer.marketCap >= 1e12
+                        ? "$" + (peer.marketCap / 1e12).toFixed(1) + "T"
+                        : "$" + (peer.marketCap / 1e9).toFixed(1) + "B"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+        </>
       )}
+
+      {/* ─── 2. FINANCIAL SECTIONS ────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "24px",
+        }}
+      >
+        {/* Valuation */}
+        <Section title="Valuation">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
+            <StatBox label="Market Cap" value={formatMarketCap(summary.marketCap)} />
+            <StatBox
+              label="Forward P/E"
+              value={formatMultiple(summary.forwardPE)}
+              peerDiff={findPeerDiff(comparablesData, "forwardPE")}
+            />
+            <StatBox
+              label="P/B"
+              value={formatMultiple(summary.priceToBook)}
+              peerDiff={findPeerDiff(comparablesData, "priceToBook")}
+            />
+            <StatBox
+              label="PEG Ratio"
+              value={formatMultiple(summary.pegRatio)}
+              peerDiff={findPeerDiff(comparablesData, "pegRatio")}
+            />
+          </div>
+        </Section>
+
+        {/* Profitability */}
+        <Section title="Profitability">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
+            <StatBox
+              label="Operating Margin"
+              value={formatPercent(financials.operatingMargins)}
+              positive={financials.operatingMargins > 0.1}
+              peerDiff={findPeerDiff(comparablesData, "operatingMargin")}
+            />
+            <StatBox
+              label="Net Margin"
+              value={formatPercent(financials.profitMargins)}
+              positive={financials.profitMargins > 0}
+              peerDiff={findPeerDiff(comparablesData, "profitMargin")}
+            />
+            <StatBox
+              label="ROA"
+              value={formatPercent(financials.returnOnAssets)}
+              positive={financials.returnOnAssets > 0.05}
+              peerDiff={findPeerDiff(comparablesData, "returnOnAssets")}
+            />
+          </div>
+          <MarginsChart annualIncome={financials.annualIncome} />
+        </Section>
+
+        {/* Revenue & Earnings */}
+        <Section title="Revenue & Earnings">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
+            <StatBox label="Total Revenue" value={formatRevenue(financials.totalRevenue)} />
+            <StatBox
+              label="Earnings Growth"
+              value={formatPercent(financials.earningsGrowth)}
+              positive={financials.earningsGrowth > 0}
+              peerDiff={findPeerDiff(comparablesData, "earningsGrowth")}
+            />
+            <StatBox
+              label="EPS Est. (This Yr)"
+              value={
+                financials.estimates?.currentYear != null
+                  ? `$${financials.estimates.currentYear.toFixed(2)}`
+                  : "—"
+              }
+            />
+            <StatBox
+              label="EPS Est. (Next Yr)"
+              value={
+                financials.estimates?.nextYear != null
+                  ? `$${financials.estimates.nextYear.toFixed(2)}`
+                  : "—"
+              }
+            />
+          </div>
+          <RevenueChart annualIncome={financials.annualIncome} />
+        </Section>
+
+        {/* Balance Sheet & Cash Flow */}
+        <Section title="Balance Sheet & Cash Flow">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
+            <StatBox label="Total Cash" value={formatRevenue(balanceSheet.totalCash)} />
+            <StatBox label="Total Debt" value={formatRevenue(balanceSheet.totalDebt)} />
+            <StatBox
+              label="Current Ratio"
+              value={formatMultiple(balanceSheet.currentRatio)}
+              positive={balanceSheet.currentRatio > 1.5}
+              peerDiff={findPeerDiff(comparablesData, "currentRatio")}
+            />
+            <StatBox
+              label="Free Cash Flow"
+              value={formatRevenue(balanceSheet.freeCashflow)}
+              positive={balanceSheet.freeCashflow > 0}
+            />
+            <StatBox
+              label="Operating CF"
+              value={formatRevenue(balanceSheet.operatingCashflow)}
+              positive={balanceSheet.operatingCashflow > 0}
+            />
+          </div>
+          <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />
+        </Section>
+      </div>
     </div>
   );
 }
