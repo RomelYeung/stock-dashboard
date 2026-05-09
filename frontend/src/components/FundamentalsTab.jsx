@@ -95,16 +95,17 @@ const sec = {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const COL_WIDTHS = {
-  metric: "35%",
-  thisStock: "25%",
-  peerAvg: "25%",
-  trend: "15%",
+  metric: "28%",
+  thisStock: "20%",
+  peerAvg: "20%",
+  diff: "18%",
+  trend: "14%",
 };
 
 const tbl = {
   head: {
     textAlign: "left",
-    padding: "10px 8px",
+    padding: "8px 12px",
     color: "var(--text-secondary)",
     fontFamily: "var(--font-display)",
     fontSize: "10px",
@@ -112,12 +113,14 @@ const tbl = {
     letterSpacing: "0.06em",
     textTransform: "uppercase",
     borderBottom: "1px solid rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.015)",
   },
   row: { borderBottom: "1px solid rgba(255,255,255,0.03)" },
-  cellLabel: { padding: "10px 8px", color: "var(--text-secondary)", fontSize: "12px", width: COL_WIDTHS.metric },
-  cellValue: { padding: "10px 8px", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, textAlign: "right", width: COL_WIDTHS.thisStock },
-  cellPeer: { padding: "10px 8px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: "12px", textAlign: "right", width: COL_WIDTHS.peerAvg },
-  cellSpark: { padding: "10px 8px", width: COL_WIDTHS.trend },
+  cellLabel: { padding: "10px 12px", color: "var(--text-secondary)", fontSize: "12px", width: COL_WIDTHS.metric },
+  cellValue: { padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, textAlign: "right", width: COL_WIDTHS.thisStock },
+  cellPeer: { padding: "10px 12px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: "12px", textAlign: "right", width: COL_WIDTHS.peerAvg },
+  cellDiff: { padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, textAlign: "right", width: COL_WIDTHS.diff },
+  cellSpark: { padding: "8px 12px", width: COL_WIDTHS.trend, textAlign: "center" },
 };
 
 function Sparkline({ data, color }) {
@@ -135,7 +138,8 @@ function Sparkline({ data, color }) {
 }
 
 function MetricRow({ metric }) {
-  const { label, fmt, baseValue, peerAvg, sparklineData } = metric;
+  const { label, fmt, baseValue, peerAvg, sparklineData, diff, diffColor } = metric;
+  const [hovered, setHovered] = useState(false);
   const isHigher = baseValue != null && peerAvg != null && baseValue > peerAvg;
   const isLower = baseValue != null && peerAvg != null && baseValue < peerAvg;
 
@@ -157,11 +161,30 @@ function MetricRow({ metric }) {
     return String(v);
   };
 
+  const fmtDiff = () => {
+    if (diff == null) return <span style={{ color: "var(--text-secondary)" }}>—</span>;
+    const arrow = diff >= 0 ? "▲" : "▼";
+    return (
+      <span style={{ color: diffColor || "var(--text-secondary)" }}>
+        {arrow} {Math.abs(diff).toFixed(1)}%
+      </span>
+    );
+  };
+
   return (
-    <tr style={tbl.row}>
+    <tr
+      style={{
+        ...tbl.row,
+        background: hovered ? "rgba(255,255,255,0.03)" : "transparent",
+        transition: "background 0.15s ease",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <td style={tbl.cellLabel}>{label}</td>
       <td style={{ ...tbl.cellValue, color }}>{fmtVal(baseValue)}</td>
       <td style={tbl.cellPeer}>{fmtVal(peerAvg)}</td>
+      <td style={tbl.cellDiff}>{fmtDiff()}</td>
       <td style={tbl.cellSpark}>
         <Sparkline data={sparklineData} color={color} />
       </td>
@@ -206,77 +229,69 @@ function generateInsight(metrics, ticker) {
   return sentences.join(" ");
 }
 
-function CategoryTable({ category, baseSparklines, ticker }) {
-  const insight = generateInsight(category.metrics, ticker);
+function computeDiffColor(metric) {
+  const { baseValue, peerAvg, fmt } = metric;
+  if (baseValue == null || peerAvg == null || peerAvg === 0) return { diff: null, diffColor: null };
+  const diff = ((baseValue - peerAvg) / peerAvg) * 100;
 
+  let isFavorable;
+  if (fmt === "x") {
+    isFavorable = diff < 0;
+  } else {
+    isFavorable = diff > 0;
+  }
+
+  const diffColor = isFavorable ? "var(--accent-green)" : "var(--accent-red)";
+  return { diff, diffColor };
+}
+
+function CategoryTable({ category, baseSparklines, ticker }) {
   return (
-    <div style={{ marginBottom: "24px" }}>
-      <div
-        style={{
-          background: "rgba(255,255,255,0.025)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: "10px",
-          overflow: "hidden",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-          <thead>
-            <tr>
-              <th style={{ ...tbl.head, width: COL_WIDTHS.metric }}>Metric</th>
-              <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.thisStock }}>This Stock</th>
-              <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>
-              <th style={{ ...tbl.head, width: COL_WIDTHS.trend }}>Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            {category.metrics.map((m) => (
-              <MetricRow
-                key={m.key}
-                metric={{ ...m, sparklineData: baseSparklines?.[m.key] }}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {insight && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "10px 12px",
-            background: "rgba(255,255,255,0.03)",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <p
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "12px",
-              fontStyle: "italic",
-              margin: 0,
-              lineHeight: 1.5,
-            }}
-          >
-            {insight}
-          </p>
-        </div>
-      )}
-    </div>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+      <thead>
+        <tr>
+          <th style={{ ...tbl.head, width: COL_WIDTHS.metric }}>Metric</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.thisStock }}>This Stock</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.diff }}>Diff</th>
+          <th style={{ ...tbl.head, width: COL_WIDTHS.trend }}>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        {category.metrics.map((m) => {
+          const { diff, diffColor } = computeDiffColor(m);
+          return (
+            <MetricRow
+              key={m.key}
+              metric={{ ...m, sparklineData: baseSparklines?.[m.key], diff, diffColor }}
+            />
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
 function PeerComparisonSection({ comparablesData, ticker }) {
   const [activeCategory, setActiveCategory] = useState("valuation");
+  const category = comparablesData?.categories?.[activeCategory];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div
+      style={{
+        background: "var(--glass-bg)",
+        border: "1px solid var(--glass-border)",
+        borderRadius: "14px",
+        overflow: "hidden",
+      }}
+    >
       {/* Category Picker */}
       <div
         style={{
           display: "flex",
           gap: "4px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
-          paddingBottom: "12px",
+          padding: "16px 20px 12px 20px",
         }}
       >
         {CATEGORY_ORDER.map((key) => (
@@ -284,7 +299,7 @@ function PeerComparisonSection({ comparablesData, ticker }) {
             key={key}
             onClick={() => setActiveCategory(key)}
             style={{
-              background: activeCategory === key ? "rgba(255,255,255,0.08)" : "transparent",
+              background: activeCategory === key ? "rgba(255,255,255,0.10)" : "transparent",
               border: "none",
               color: activeCategory === key ? "var(--text-primary)" : "var(--text-secondary)",
               padding: "6px 14px",
@@ -293,6 +308,19 @@ function PeerComparisonSection({ comparablesData, ticker }) {
               fontFamily: "var(--font-body)",
               cursor: "pointer",
               fontWeight: activeCategory === key ? 600 : 400,
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (activeCategory !== key) {
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeCategory !== key) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }
             }}
           >
             {CATEGORY_LABELS[key]}
@@ -301,99 +329,40 @@ function PeerComparisonSection({ comparablesData, ticker }) {
       </div>
 
       {/* Category Table */}
-      {comparablesData?.categories?.[activeCategory] && (
-        <CategoryTable
-          category={comparablesData.categories[activeCategory]}
-          baseSparklines={comparablesData.base?.sparklines}
-          ticker={ticker}
-        />
-      )}
-
-      {/* Peers Grid */}
-      {comparablesData?.peers?.length > 0 && (
-        <div>
-          <h3
-            style={{
-              color: "var(--text-secondary)",
-              fontFamily: "var(--font-display)",
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
-              paddingBottom: "8px",
-              marginBottom: "12px",
-            }}
-          >
-            Peers —
-            <span
-              style={{
-                color: "var(--text-primary)",
-                fontFamily: "var(--font-body)",
-                fontWeight: 400,
-                textTransform: "none",
-                marginLeft: "6px",
-              }}
-            >
-              {comparablesData.sector || "Unknown"}
-            </span>
-          </h3>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-              gap: "8px",
-            }}
-          >
-            {comparablesData.peers.map((peer) => (
+      {category && (
+        <div style={{ padding: "0 20px" }}>
+          <CategoryTable
+            category={category}
+            baseSparklines={comparablesData.base?.sparklines}
+            ticker={ticker}
+          />
+          {/* Insight box */}
+          {(() => {
+            const insight = generateInsight(category.metrics, ticker);
+            if (!insight) return null;
+            return (
               <div
-                key={peer.ticker}
                 style={{
-                  background: "rgba(255,255,255,0.025)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: "8px",
-                  padding: "10px 12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "2px",
+                  padding: "12px 0 16px 0",
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                  background: "rgba(255,255,255,0.015)",
                 }}
               >
-                <span
+                <p
                   style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {peer.ticker}
-                </span>
-                <span
-                  style={{
-                    fontSize: "10px",
                     color: "var(--text-secondary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    fontSize: "11px",
+                    fontFamily: "var(--font-body)",
+                    fontStyle: "italic",
+                    margin: 0,
+                    lineHeight: 1.6,
                   }}
                 >
-                  {peer.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    color: "var(--text-secondary)",
-                    fontFamily: "var(--font-mono)",
-                    marginTop: "4px",
-                  }}
-                >
-                  {peer.marketCap >= 1e12
-                    ? "$" + (peer.marketCap / 1e12).toFixed(1) + "T"
-                    : "$" + (peer.marketCap / 1e9).toFixed(1) + "B"}
-                </span>
+                  {insight}
+                </p>
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
     </div>
