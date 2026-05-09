@@ -23,23 +23,55 @@ const CATEGORY_LABELS = {
 
 
 // ─── StatBox (matching existing StockAnalysisPage pattern) ───────────────────
-function StatBox({ label, value, sub, positive }) {
+function StatBox({ label, value, sub, positive, peerDiff }) {
+  const peerColor = peerDiff?.favorable === true
+    ? "var(--accent-green)"
+    : peerDiff?.favorable === false
+      ? "var(--accent-red)"
+      : "var(--text-secondary)";
+  const peerBg = peerDiff?.favorable === true
+    ? "rgba(0, 229, 160, 0.08)"
+    : peerDiff?.favorable === false
+      ? "rgba(255, 77, 109, 0.08)"
+      : "rgba(255,255,255,0.04)";
+  const peerArrow = peerDiff != null
+    ? (peerDiff.value >= 0 ? "▲" : "▼")
+    : null;
+
   return (
     <div style={sbox.box}>
       <span style={sbox.label}>{label}</span>
-      <span
-        style={{
-          ...sbox.value,
-          color:
-            positive === true
-              ? "var(--accent-green)"
-              : positive === false
-                ? "var(--accent-red)"
-                : "var(--text-primary)",
-        }}
-      >
-        {value}
-      </span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+        <span
+          style={{
+            ...sbox.value,
+            color:
+              positive === true
+                ? "var(--accent-green)"
+                : positive === false
+                  ? "var(--accent-red)"
+                  : "var(--text-primary)",
+          }}
+        >
+          {value}
+        </span>
+        {peerDiff != null && (
+          <span
+            style={{
+              fontSize: "10px",
+              fontFamily: "var(--font-body)",
+              fontWeight: 400,
+              padding: "1px 5px",
+              borderRadius: "4px",
+              whiteSpace: "nowrap",
+              color: peerColor,
+              background: peerBg,
+            }}
+          >
+            {peerArrow} vs peers
+          </span>
+        )}
+      </div>
       {sub && <span style={sbox.sub}>{sub}</span>}
     </div>
   );
@@ -227,6 +259,20 @@ function generateInsight(metrics, ticker) {
   }
 
   return sentences.join(" ");
+}
+
+function findPeerDiff(comparablesData, metricKey) {
+  if (!comparablesData?.categories) return null;
+  for (const cat of Object.values(comparablesData.categories)) {
+    if (!cat?.metrics) continue;
+    const found = cat.metrics.find((m) => m.key === metricKey);
+    if (found && found.peerAvg != null && found.baseValue != null) {
+      const diffPct = ((found.baseValue - found.peerAvg) / found.peerAvg) * 100;
+      const favorable = found.fmt === "x" ? diffPct < 0 : diffPct > 0;
+      return { value: diffPct, favorable };
+    }
+  }
+  return null;
 }
 
 function computeDiffColor(metric) {
