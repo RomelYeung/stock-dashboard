@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Release Notes — Portfolio Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Inter:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg-base: #05080f;
+      --bg-surface: #090d17;
+      --glass-bg: rgba(255, 255, 255, 0.035);
+      --glass-bg-hover: rgba(255, 255, 255, 0.06);
+      --glass-border: rgba(255, 255, 255, 0.07);
+      --glass-border-hover: rgba(255, 255, 255, 0.14);
+      --accent-green: #00e5a0;
+      --accent-green-dim: rgba(0, 229, 160, 0.12);
+      --accent-red: #ff4d6d;
+      --accent-red-dim: rgba(255, 77, 109, 0.12);
+      --accent-blue: #4f8dff;
+      --accent-blue-dim: rgba(79, 141, 255, 0.1);
+      --accent-amber: #ffb547;
+      --accent-amber-dim: rgba(255, 181, 71, 0.1);
+      --text-primary: #e8edf5;
+      --text-secondary: #5a6a80;
+      --text-muted: #2e3d50;
+      --font-display: "Syne", sans-serif;
+      --font-mono: "DM Mono", monospace;
+      --font-body: "Inter", sans-serif;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-weight: 300;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* Ambient gradient orbs */
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-orb-1 {
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0, 229, 160, 0.04) 0%, transparent 70%);
+      top: -200px;
+      right: -100px;
+    }
+
+    .bg-orb-2 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(79, 141, 255, 0.05) 0%, transparent 70%);
+      bottom: -100px;
+      left: -100px;
+    }
+
+    .bg-orb-3 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(255, 77, 109, 0.03) 0%, transparent 70%);
+      top: 40%;
+      left: 30%;
+    }
+
+    /* Layout */
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(5, 8, 15, 0.7);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .header-inner {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      margin: 0 auto;
+      max-width: 800px;
+      padding: 16px 32px;
+    }
+
+    .logo {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+    }
+
+    .logo-text {
+      color: var(--text-primary);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .back-link {
+      align-items: center;
+      color: var(--text-secondary);
+      display: flex;
+      font-family: var(--font-body);
+      font-size: 12px;
+      gap: 6px;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .back-link:hover {
+      color: var(--text-primary);
+    }
+
+    /* Main content */
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+      margin: 0 auto;
+      max-width: 800px;
+      padding: 48px 32px 96px;
+      width: 100%;
+    }
+
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Month group */
+    .month-group {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .month-group h2 {
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Release entry */
+    .release-entry {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .release-entry:hover {
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-hover);
+    }
+
+    .entry-meta {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    time {
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+
+    .tag {
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      text-transform: uppercase;
+    }
+
+    .tag-feature {
+      background: var(--accent-green-dim);
+      color: var(--accent-green);
+    }
+
+    .tag-fix {
+      background: var(--accent-red-dim);
+      color: var(--accent-red);
+    }
+
+    .tag-improvement {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .tag-security {
+      background: var(--accent-amber-dim);
+      color: var(--accent-amber);
+    }
+
+    .release-entry h3 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+
+    .release-entry p {
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .header-inner,
+      main {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .page-title {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient background orbs -->
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+
+  <div class="layout">
+    <header>
+      <div class="header-inner">
+        <div class="logo">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M2 14l4-4 3 3 4-5 4 2" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="2" cy="14" r="1.5" fill="var(--accent-green)" />
+            <circle cx="18" cy="10" r="1.5" fill="var(--accent-green)" />
+          </svg>
+          <span class="logo-text">Portfolio Monitor</span>
+        </div>
+        <a href="/" class="back-link">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 11L4 7l5-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Back to App
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <div>
+        <h1 class="page-title">Release Notes</h1>
+        <p class="page-subtitle">A running log of updates, fixes, and improvements to Portfolio Monitor.</p>
+      </div>
+
+      <!-- May 2026 -->
+      <section class="month-group">
+        <h2>May 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-09">May 9, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Redesigned Fundamentals tab with consolidated peer comparison</h3>
+          <p>Merged the Financials and Comparables tabs into a single Fundamentals view. Removed duplicated metrics and elevated the peer comparison table to the top with a glass-morphism card design, a Diff column showing variance from peer averages, and responsive breakpoints for mobile and tablet.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-07">May 7, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Added responsive breakpoints across the app</h3>
+          <p>Redesigned layouts to work cleanly on mobile and tablet. Stock cards, peer tables, and indicator grids now reflow gracefully below 768px with adjusted padding, font sizes, and column counts.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-04">May 4, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added DCF valuation with Monte Carlo simulation</h3>
+          <p>Introduced a Discounted Cash Flow model on the stock detail page. Users can adjust growth rates, WACC, and terminal multiples to estimate fair value. Includes a Monte Carlo distribution chart and a WACC × Growth sensitivity matrix.</p>
+        </article>
+      </section>
+
+      <!-- April 2026 -->
+      <section class="month-group">
+        <h2>April 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-04-28">Apr 28, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added SEC EDGAR insider trading data</h3>
+          <p>Integrated SEC Form 4 filings directly into the stock detail page. The new Insider Activity tab shows recent buys and sells by officers and directors, including transaction sizes and 30-day net activity summaries.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-04-20">Apr 20, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added AAII Investor Sentiment to Market Indicators</h3>
+          <p>The Market Indicators dashboard now includes the American Association of Individual Investors sentiment survey. Track bullish, bearish, and neutral readings with historical context and threshold-based signal interpretation.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-04-15">Apr 15, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added sector rotation signals and leaderboard</h3>
+          <p>Introduced sector momentum analysis with a top-sector hero card, ranked sector leaderboard, and a signal interpretation guide. Helps identify which sectors are leading or lagging based on relative strength.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-04-10">Apr 10, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fixed credit spread calculation logic</h3>
+          <p>Corrected an error in the BAA-AAA corporate credit spread calculation that was producing inverted values. The Market Indicators UI layout was also tightened for better readability.</p>
+        </article>
+      </section>
+
+      <!-- March 2026 -->
+      <section class="month-group">
+        <h2>March 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-03-25">Mar 25, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added Market Indicators dashboard</h3>
+          <p>Launched a comprehensive macro dashboard covering VIX, Federal Funds Rate, Treasury yields, yield curve, credit spreads, margin debt, inflation, consumer sentiment, and unemployment. Each indicator includes a current reading, historical sparkline, and interpretation.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-03-15">Mar 15, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Added stock detail modal with TradingView chart</h3>
+          <p>Click any stock card to open a detail modal with an embedded TradingView chart, live price, key metrics, and a DCF summary sidebar. Modal is dismissible with Escape key or backdrop click.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-03-08">Mar 8, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Initial portfolio tracking with Yahoo Finance</h3>
+          <p>First release of Portfolio Monitor. Add up to 20 tickers to a watchlist with real-time price, change percentage, market cap, P/E ratio, and 52-week range. Data powered by Yahoo Finance with 24-hour client-side caching.</p>
+        </article>
+      </section>
+
+      <section class="month-group" style="border-top: 1px solid var(--glass-border); padding-top: 32px;">
+        <h2>Future Entries — Format Template</h2>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="YYYY-MM-DD">Month Day, Year</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Short, specific headline in imperative mood</h3>
+          <p>What changed, in 2–3 sentences. Include user impact. No internal implementation details unless relevant to users.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
