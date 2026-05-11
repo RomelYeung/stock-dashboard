@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   formatPrice,
@@ -77,14 +78,32 @@ const metricStyles = {
   },
 };
 
-export default function StockCard({ ticker, data, error, loading, onClick, index }) {
+export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive }) {
   const positive = data ? isPositive(data.changePercent) : null;
+  const [flash, setFlash] = useState(null);
+  const prevPriceRef = useRef(data?.currentPrice);
+
+  useEffect(() => {
+    if (data?.currentPrice != null && prevPriceRef.current != null) {
+      if (data.currentPrice !== prevPriceRef.current) {
+        const isUp = data.currentPrice > prevPriceRef.current;
+        setFlash(isUp ? "up" : "down");
+        const timer = setTimeout(() => setFlash(null), 500);
+        prevPriceRef.current = data.currentPrice;
+        return () => clearTimeout(timer);
+      }
+    } else if (data?.currentPrice != null) {
+      prevPriceRef.current = data.currentPrice;
+    }
+  }, [data?.currentPrice]);
 
   return (
     <motion.div
       style={{
         ...styles.card,
         cursor: loading || error ? "default" : "pointer",
+        ...(flash === "up" ? { background: "rgba(0, 229, 160, 0.06)" } : {}),
+        ...(flash === "down" ? { background: "rgba(255, 77, 109, 0.05)" } : {}),
       }}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
@@ -113,18 +132,21 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           {error && <div style={{ ...styles.name, color: "var(--accent-red)" }}>Failed to load</div>}
         </div>
 
-        {data && (
-          <div style={styles.priceBlock}>
-            <div style={styles.price}>{formatPrice(data.currentPrice)}</div>
-            <div style={{
-              ...styles.change,
-              color: positive ? "var(--accent-green)" : "var(--accent-red)",
-              background: positive ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
-            }}>
-              {positive ? "▲" : "▼"} {formatChange(data.changePercent)}
+          {data && (
+            <div style={styles.priceBlock}>
+              <div style={styles.price}>{formatPrice(data.currentPrice)}</div>
+              <div style={{
+                ...styles.change,
+                color: positive ? "var(--accent-green)" : "var(--accent-red)",
+                background: positive ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
+              }}>
+                {positive ? "▲" : "▼"} {formatChange(data.changePercent)}
+              </div>
+              {liveActive && (
+                <div style={styles.liveDot} title="Live updates active" />
+              )}
             </div>
-          </div>
-        )}
+          )}
 
         {loading && (
           <div style={styles.skeleton} />
@@ -166,7 +188,9 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           <span style={styles.footerText}>
             52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
           </span>
-          {data.earningsDate ? (
+          {liveActive ? (
+            <span style={styles.liveFooterText}>Live · updated just now</span>
+          ) : data.earningsDate ? (
             <span
               style={{
                 ...(isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText),
@@ -293,6 +317,21 @@ const styles = {
   },
   earningsGlow: {
     animation: "pulse 2s ease-in-out infinite",
+  },
+  liveDot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    background: "var(--accent-green)",
+    animation: "blink 2s ease-in-out infinite",
+    flexShrink: 0,
+  },
+  liveFooterText: {
+    color: "var(--accent-green)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "10px",
+    fontWeight: 300,
+    opacity: 0.7,
   },
   skeleton: {
     background: "rgba(255,255,255,0.06)",

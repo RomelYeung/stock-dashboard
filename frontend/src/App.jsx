@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import PortfolioManager from "./components/PortfolioManager";
 import StockCard from "./components/StockCard";
 import StockDetailModal from "./components/StockDetailModal";
 import MarketIndicatorsPage from "./components/MarketIndicatorsPage";
-import { usePortfolio } from "./hooks/useStockData";
+import StockAnalysisPage from "./components/StockAnalysisPage";
+import { usePortfolio, useLivePrices } from "./hooks/useStockData";
 import { getMarketStatus } from "./utils/marketStatus";
 
 const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
@@ -24,9 +25,17 @@ export default function App() {
   const [tickers, setTickers] = useState(loadTickers);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [currentPage, setCurrentPage] = useState("portfolio");
-  const [period, setPeriod] = useState("1y");
+  const [period, setPeriod] = useState("5y");
   const [marketStatus, setMarketStatus] = useState(getMarketStatus);
   const { data, loading, errors, refetch } = usePortfolio(tickers);
+  const { liveData, isActive: liveActive } = useLivePrices(tickers);
+
+  const handleCloseModal = useCallback(() => setSelectedTicker(null), []);
+  const handleOpenAnalysis = useCallback(() => setCurrentPage("stock"), []);
+  const handleBackFromAnalysis = useCallback(() => {
+    setCurrentPage("portfolio");
+    setSelectedTicker(null);
+  }, []);
 
   useEffect(() => {
     setMarketStatus(getMarketStatus());
@@ -35,6 +44,57 @@ export default function App() {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Initialize from URL on first load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get("page") || "portfolio";
+    const ticker = params.get("ticker");
+    if (["portfolio", "indicators", "stock"].includes(page)) {
+      setCurrentPage(page);
+    }
+    if (ticker) setSelectedTicker(ticker);
+  }, []);
+
+  // Sync state TO URL on every navigation change
+  useEffect(() => {
+    const url = new URL(window.location);
+    if (currentPage === "portfolio") {
+      url.searchParams.delete("page");
+      url.searchParams.delete("ticker");
+    } else if (currentPage === "stock" && selectedTicker) {
+      url.searchParams.set("page", "stock");
+      url.searchParams.set("ticker", selectedTicker);
+    } else if (currentPage === "indicators") {
+      url.searchParams.set("page", "indicators");
+    }
+    history.pushState({ currentPage, selectedTicker }, "", url);
+  }, [currentPage, selectedTicker]);
+
+  // Sync URL TO state on browser back/forward
+  useEffect(() => {
+    const handler = () => {
+      const params = new URLSearchParams(window.location.search);
+      const page = params.get("page") || "portfolio";
+      setCurrentPage(page);
+      setSelectedTicker(params.get("ticker"));
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+
+  // Merge live price data into portfolio data
+  const mergedData = {};
+  for (const [ticker, stockData] of Object.entries(data)) {
+    mergedData[ticker] = {
+      ...stockData,
+      ...(liveData[ticker] ? {
+        currentPrice: liveData[ticker].currentPrice,
+        change: liveData[ticker].change,
+        changePercent: liveData[ticker].changePercent,
+      } : {}),
+    };
+  }
 
   function handleTickerChange(newTickers) {
     setTickers(newTickers);
@@ -68,7 +128,10 @@ export default function App() {
                     ...styles.toggleBtn,
                     ...(currentPage === "portfolio" ? styles.toggleBtnActive : {}),
                   }}
-                  onClick={() => setCurrentPage("portfolio")}
+                  onClick={() => {
+                    if (currentPage === "stock") setSelectedTicker(null);
+                    setCurrentPage("portfolio");
+                  }}
                 >
                   Portfolio
                 </button>
@@ -77,7 +140,10 @@ export default function App() {
                     ...styles.toggleBtn,
                     ...(currentPage === "indicators" ? styles.toggleBtnActive : {}),
                   }}
-                  onClick={() => setCurrentPage("indicators")}
+                  onClick={() => {
+                    if (currentPage === "stock") setSelectedTicker(null);
+                    setCurrentPage("indicators");
+                  }}
                 >
                   Market Indicators
                 </button>
@@ -136,11 +202,12 @@ export default function App() {
                     <StockCard
                       key={ticker}
                       ticker={ticker}
-                      data={data[ticker]}
+                      data={mergedData[ticker]}
                       error={errors[ticker]}
                       loading={loading && !data[ticker]}
                       onClick={setSelectedTicker}
                       index={i}
+                      liveActive={liveActive}
                     />
                   ))}
                 </div>
@@ -149,17 +216,26 @@ export default function App() {
           )}
 
           {currentPage === "indicators" && <MarketIndicatorsPage />}
+
+          {currentPage === "stock" && selectedTicker && (
+            <StockAnalysisPage
+              ticker={selectedTicker}
+              currentPrice={mergedData[selectedTicker]?.currentPrice}
+              onBack={handleBackFromAnalysis}
+            />
+          )}
         </main>
       </div>
 
       {/* Detail Modal */}
       <AnimatePresence>
-        {selectedTicker && (
+        {selectedTicker && currentPage !== "stock" && (
           <StockDetailModal
             ticker={selectedTicker}
-            onClose={() => setSelectedTicker(null)}
+            onClose={handleCloseModal}
             period={period}
             setPeriod={setPeriod}
+            onOpenAnalysis={handleOpenAnalysis}
           />
         )}
       </AnimatePresence>
@@ -173,6 +249,14 @@ export default function App() {
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
+        }
+        @keyframes flash-up {
+          0% { background: rgba(0, 229, 160, 0.15); }
+          100% { background: transparent; }
+        }
+        @keyframes flash-down {
+          0% { background: rgba(255, 77, 109, 0.15); }
+          100% { background: transparent; }
         }
       `}</style>
     </>

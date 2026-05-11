@@ -1,4 +1,6 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getMarketStatus } from "../utils/marketStatus";
 
 const BASE = "/api/stocks";
 
@@ -54,6 +56,111 @@ export function usePortfolio(tickers) {
     errors: data?.errors || {},
     refetch,
   };
+}
+
+/**
+ * Poll for live price updates every 30s during market hours.
+ * Automatically stops polling when market closes or component unmounts.
+ * On network failure, retries with exponential backoff (30s → 60s → 120s → max 300s).
+ *
+ * @param {string[]} tickers - Array of ticker symbols
+ * @returns {{ liveData: Record<string, {currentPrice, change, changePercent}>, isActive: boolean }}
+ */
+export function useLivePrices(tickers) {
+  const [liveData, setLiveData] = useState({});
+  const [isActive, setIsActive] = useState(false);
+  const intervalRef = useRef(null);
+  const backoffRef = useRef(30000);
+  const errorCountRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const fetchLivePrices = useCallback(async () => {
+    if (!tickers.length) return;
+
+    const marketStatus = getMarketStatus();
+    if (!marketStatus.isOpen) {
+      setIsActive(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    setIsActive(true);
+
+    try {
+      const res = await fetch("/api/stocks/portfolio/live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tickers }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        throw new Error(json.error || "API error");
+      }
+
+      backoffRef.current = 30000;
+      errorCountRef.current = 0;
+
+      const newData = {};
+      for (const item of json.data || []) {
+        if (item.data) {
+          newData[item.ticker] = item.data;
+        }
+      }
+
+      if (mountedRef.current) {
+        setLiveData((prev) => ({ ...prev, ...newData }));
+      }
+    } catch (err) {
+      console.error("[live-prices] fetch failed:", err.message);
+      errorCountRef.current++;
+
+      const nextBackoff = Math.min(backoffRef.current * 2, 300000);
+      backoffRef.current = nextBackoff;
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(fetchLivePrices, nextBackoff);
+      }
+    }
+  }, [tickers]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const marketStatus = getMarketStatus();
+    if (marketStatus.isOpen && tickers.length > 0) {
+      setIsActive(true);
+      fetchLivePrices();
+      intervalRef.current = setInterval(fetchLivePrices, 30000);
+    }
+
+    const marketCheckInterval = setInterval(() => {
+      const status = getMarketStatus();
+      if (status.isOpen && !intervalRef.current && tickers.length > 0) {
+        setIsActive(true);
+        fetchLivePrices();
+        intervalRef.current = setInterval(fetchLivePrices, 30000);
+      } else if (!status.isOpen && intervalRef.current) {
+        setIsActive(false);
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }, 60000);
+
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      clearInterval(marketCheckInterval);
+    };
+  }, [fetchLivePrices, tickers]);
+
+  return { liveData, isActive };
 }
 
 // Fetch full fundamentals for a single ticker (detail view)
