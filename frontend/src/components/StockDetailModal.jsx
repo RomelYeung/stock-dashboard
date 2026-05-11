@@ -1,91 +1,16 @@
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useStockDetail, usePriceHistory } from "../hooks/useStockData";
-import { RevenueChart, MarginsChart, CashFlowChart, PriceChart } from "./Charts";
-import {
-  formatPrice, formatMarketCap, formatPercent,
-  formatMultiple, formatRevenue, isPositive,
-} from "../utils/formatters";
+import { useStockDetail, useDCF } from "../hooks/useStockData";
+import DCFSummary from "./DCFSummary";
+import TradingViewChart from "./TradingViewChart";
+import { formatPrice, isPositive } from "../utils/formatters";
 
-const PERIODS = ["1mo", "3mo", "6mo", "1y", "2y", "5y"];
 
-function StatBox({ label, value, sub, positive }) {
-  return (
-    <div style={statStyles.box}>
-      <span style={statStyles.label}>{label}</span>
-      <span style={{
-        ...statStyles.value,
-        color: positive === true
-          ? "var(--accent-green)"
-          : positive === false
-          ? "var(--accent-red)"
-          : "var(--text-primary)",
-      }}>
-        {value}
-      </span>
-      {sub && <span style={statStyles.sub}>{sub}</span>}
-    </div>
-  );
-}
-
-const statStyles = {
-  box: {
-    background: "rgba(255,255,255,0.025)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "10px",
-    padding: "14px 16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  label: {
-    color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "10px",
-    fontWeight: 400,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-  },
-  value: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "15px",
-    fontWeight: 500,
-  },
-  sub: {
-    color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "10px",
-  },
-};
-
-function Section({ title, children }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-      <h3 style={sectionStyles.title}>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-const sectionStyles = {
-  title: {
-    color: "var(--text-secondary)",
-    fontFamily: "var(--font-display)",
-    fontSize: "11px",
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    borderBottom: "1px solid rgba(255,255,255,0.05)",
-    paddingBottom: "8px",
-  },
-};
-
-export default function StockDetailModal({ ticker, onClose, period, setPeriod }) {
+function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis }) {
   const { data, loading, error } = useStockDetail(ticker);
-  const { data: priceData, loading: priceLoading } = usePriceHistory(ticker, period);
+  const { data: dcfData, loading: dcfLoading } = useDCF(ticker);
 
   const summary = data?.summary;
-  const financials = data?.financials;
-  const balance = data?.balanceSheet;
   const isUp = summary ? isPositive(summary.changePercent) : true;
 
   return (
@@ -139,7 +64,7 @@ export default function StockDetailModal({ ticker, onClose, period, setPeriod })
             {loading && (
               <div style={styles.loadingState}>
                 <div style={styles.spinner} />
-                <span>Fetching fundamentals…</span>
+                <span>Fetching data…</span>
               </div>
             )}
 
@@ -148,77 +73,21 @@ export default function StockDetailModal({ ticker, onClose, period, setPeriod })
             )}
 
             {data && (
-              <div style={styles.sections}>
-                {/* Price Chart */}
-                <Section title="Price History">
-                  <div style={styles.periodRow}>
-                    {PERIODS.map((p) => (
-                      <button
-                        key={p}
-                        style={{
-                          ...styles.periodBtn,
-                          ...(period === p ? styles.periodBtnActive : {}),
-                        }}
-                        onClick={() => setPeriod(p)}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                  {priceLoading
-                    ? <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading…</div>
-                    : <PriceChart data={priceData} ticker={ticker} />
-                  }
-                </Section>
+              <div style={{ display: "flex", gap: "16px" }}>
+                {/* Chart Panel */}
+                <div style={{ flex: 4, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                  <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} />
+                </div>
 
-                {/* Valuation */}
-                <Section title="Valuation">
-                  <div style={styles.statsGrid}>
-                    <StatBox label="Market Cap" value={formatMarketCap(summary?.marketCap)} />
-                    <StatBox label="P/E (TTM)" value={formatMultiple(summary?.trailingPE)} />
-                    <StatBox label="Forward P/E" value={formatMultiple(summary?.forwardPE)} />
-                    <StatBox label="EV/EBITDA" value={formatMultiple(summary?.enterpriseToEbitda)} />
-                    <StatBox label="P/B" value={formatMultiple(summary?.priceToBook)} />
-                    <StatBox label="PEG Ratio" value={formatMultiple(summary?.pegRatio)} />
-                  </div>
-                </Section>
-
-                {/* Profitability */}
-                <Section title="Profitability">
-                  <div style={styles.statsGrid}>
-                    <StatBox label="Gross Margin" value={formatPercent(financials?.grossMargins)} positive={financials?.grossMargins > 0.3} />
-                    <StatBox label="Operating Margin" value={formatPercent(financials?.operatingMargins)} positive={financials?.operatingMargins > 0.1} />
-                    <StatBox label="Net Margin" value={formatPercent(financials?.profitMargins)} positive={financials?.profitMargins > 0} />
-                    <StatBox label="ROE" value={formatPercent(financials?.returnOnEquity)} positive={financials?.returnOnEquity > 0.15} />
-                    <StatBox label="ROA" value={formatPercent(financials?.returnOnAssets)} positive={financials?.returnOnAssets > 0.05} />
-                    <StatBox label="Revenue Growth" value={formatPercent(financials?.revenueGrowth)} positive={financials?.revenueGrowth > 0} />
-                  </div>
-                  <MarginsChart annualIncome={financials?.annualIncome} />
-                </Section>
-
-                {/* Growth */}
-                <Section title="Revenue & Earnings">
-                  <div style={styles.statsGrid}>
-                    <StatBox label="Total Revenue" value={formatRevenue(financials?.totalRevenue)} />
-                    <StatBox label="Earnings Growth" value={formatPercent(financials?.earningsGrowth)} positive={financials?.earningsGrowth > 0} />
-                    <StatBox label="EPS Est. (This Yr)" value={financials?.estimates?.currentYear != null ? `$${financials.estimates.currentYear.toFixed(2)}` : "—"} />
-                    <StatBox label="EPS Est. (Next Yr)" value={financials?.estimates?.nextYear != null ? `$${financials.estimates.nextYear.toFixed(2)}` : "—"} />
-                  </div>
-                  <RevenueChart annualIncome={financials?.annualIncome} />
-                </Section>
-
-                {/* Balance Sheet */}
-                <Section title="Balance Sheet & Cash Flow">
-                  <div style={styles.statsGrid}>
-                    <StatBox label="Total Cash" value={formatRevenue(balance?.totalCash)} />
-                    <StatBox label="Total Debt" value={formatRevenue(balance?.totalDebt)} />
-                    <StatBox label="Debt/Equity" value={balance?.debtToEquity != null ? `${balance.debtToEquity.toFixed(1)}%` : "—"} positive={balance?.debtToEquity < 100} />
-                    <StatBox label="Current Ratio" value={formatMultiple(balance?.currentRatio)} positive={balance?.currentRatio > 1.5} />
-                    <StatBox label="Free Cash Flow" value={formatRevenue(balance?.freeCashflow)} positive={balance?.freeCashflow > 0} />
-                    <StatBox label="Operating CF" value={formatRevenue(balance?.operatingCashflow)} positive={balance?.operatingCashflow > 0} />
-                  </div>
-                  <CashFlowChart annualCashFlow={balance?.annualCashFlow} />
-                </Section>
+                {/* DCF Summary Sidebar */}
+                <div style={{ flex: 0.9, minWidth: "180px", alignSelf: "stretch" }}>
+                  <DCFSummary
+                    dcfData={dcfData}
+                    currentPrice={summary?.currentPrice}
+                    loading={dcfLoading}
+                    onOpenAnalysis={onOpenAnalysis}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -248,8 +117,8 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     height: "calc(100vh - 48px)",
-    maxHeight: "860px",
-    maxWidth: "720px",
+    maxHeight: "95vh",
+    maxWidth: "1200px",
     overflow: "hidden",
     width: "100%",
     boxShadow: "0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
@@ -289,42 +158,33 @@ const styles = {
     fontWeight: 300,
   },
   headerRight: {
-    alignItems: "flex-end",
+    alignItems: "center",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "row",
     gap: "12px",
   },
   currentPrice: {
     color: "var(--text-primary)",
     fontFamily: "var(--font-mono)",
-    fontSize: "22px",
-    fontWeight: 500,
+    fontSize: "28px",
+    fontWeight: 800,
+    lineHeight: 1,
   },
   closeBtn: {
     alignItems: "center",
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "8px",
+    borderRadius: "6px",
     color: "var(--text-secondary)",
     cursor: "pointer",
     display: "flex",
-    padding: "8px",
+    padding: "6px",
     transition: "all 0.15s",
   },
   body: {
     flex: 1,
     overflowY: "auto",
     padding: "28px 32px",
-  },
-  sections: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "32px",
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "8px",
   },
   loadingState: {
     alignItems: "center",
@@ -352,24 +212,6 @@ const styles = {
     padding: "40px",
     textAlign: "center",
   },
-  periodRow: {
-    display: "flex",
-    gap: "6px",
-  },
-  periodBtn: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "6px",
-    color: "var(--text-secondary)",
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    padding: "5px 10px",
-    transition: "all 0.15s",
-  },
-  periodBtnActive: {
-    background: "rgba(0,229,160,0.1)",
-    border: "1px solid rgba(0,229,160,0.2)",
-    color: "var(--accent-green)",
-  },
 };
+
+export default memo(StockDetailModal);

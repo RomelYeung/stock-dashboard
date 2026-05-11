@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
 } from "recharts";
-import { createChart, LineSeries } from "lightweight-charts";
+import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from "lightweight-charts";
 import { formatRevenue, formatPercent, formatYear } from "../utils/formatters";
 
 const TOOLTIP_STYLE = {
@@ -159,111 +159,217 @@ export function CashFlowChart({ annualCashFlow }) {
   );
 }
 
-// Price History Chart using Lightweight Charts (TradingView)
+// Price History Chart — 3 synced panes (candlestick + volume + RSI)
 export function PriceChart({ data, ticker }) {
-  const chartRef = useRef(null);
-  const seriesRef = useRef(null);
-  const containerRef = useRef(null);
+  const priceRef = useRef(null);
+  const volumeRef = useRef(null);
+  const rsiRef = useRef(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!priceRef.current || !data?.length) return;
 
-    const container = containerRef.current;
-    let resizeObserver = null;
+    const commonChartOpts = (height) => ({
+      layout: {
+        background: { type: "solid", color: "transparent" },
+        textColor: "#5a6a80",
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: false },
+      },
+      width: priceRef.current.clientWidth,
+      height,
+      crosshair: { mode: 0 },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        visible: false,
+      },
+      rightPriceScale: {
+        borderColor: "rgba(255,255,255,0.06)",
+      },
+    });
 
-    const formattedData = (data || [])
+    const formattedData = data
       .filter((d) => d?.date && Number.isFinite(d.close))
       .map((d) => ({
         time: d.date,
-        value: d.close,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+        volume: d.volume,
       }));
 
-    const createPriceChart = () => {
-      if (!container || container.clientWidth === 0 || chartRef.current) return;
+    if (!formattedData.length) return;
 
-      try {
-        const chart = createChart(container, {
-          layout: {
-            background: { type: "solid", color: "transparent" },
-            textColor: "#5a6a80",
-          },
-          grid: {
-            vertLines: { visible: false },
-            horzLines: { visible: false },
-          },
-          width: container.clientWidth,
-          height: 400,
-          timeScale: {
-            timeVisible: true,
-            secondsVisible: false,
-          },
-        });
+    // --- Pane 1: Candlestick + SMA 50 ---
+    const priceChart = createChart(priceRef.current, commonChartOpts(320));
+    const candleSeries = priceChart.addSeries(CandlestickSeries, {
+      upColor: "#00E5A0",
+      downColor: "#FF4976",
+      borderUpColor: "#00E5A0",
+      borderDownColor: "#FF4976",
+      wickUpColor: "#00E5A0",
+      wickDownColor: "#FF4976",
+    });
+    candleSeries.setData(formattedData.map((d) => ({
+      time: d.time, open: d.open, high: d.high, low: d.low, close: d.close,
+    })));
 
-        chartRef.current = chart;
+    const sma50Data = [];
+    for (let i = 49; i < formattedData.length; i++) {
+      const slice = formattedData.slice(i - 49, i + 1);
+      const avg = slice.reduce((s, d) => s + d.close, 0) / slice.length;
+      sma50Data.push({ time: formattedData[i].time, value: avg });
+    }
+    if (sma50Data.length) {
+      const smaSeries = priceChart.addSeries(LineSeries, {
+        color: "rgba(255,181,71,0.5)",
+        lineWidth: 1,
+      });
+      smaSeries.setData(sma50Data);
+    }
+    priceChart.timeScale().fitContent();
 
-        const isUp = formattedData.length > 1
-          ? formattedData[formattedData.length - 1].value >= formattedData[0].value
-          : true;
+    // --- Pane 2: Volume ---
+    const volumeChart = createChart(volumeRef.current, commonChartOpts(80));
+    volumeChart.timeScale().applyOptions({ visible: false });
+    volumeChart.priceScale("right").applyOptions({ visible: false });
+    const volumeSeries = volumeChart.addSeries(HistogramSeries, {
+      priceFormat: { type: "volume" },
+    });
+    volumeSeries.setData(formattedData.map((d, i) => {
+      const prev = formattedData[i - 1];
+      const isUp = prev ? d.close >= prev.close : true;
+      return {
+        time: d.time,
+        value: d.volume,
+        color: isUp ? "rgba(0,229,160,0.35)" : "rgba(255,73,118,0.35)",
+      };
+    }));
+    volumeChart.timeScale().fitContent();
 
-        const lineSeries = chart.addSeries(LineSeries, {
-          color: isUp ? "#00E5A0" : "#FF4976",
-          lineWidth: 2,
-        });
+    // --- Pane 3: RSI ---
+    const closes = formattedData.map((d) => d.close);
+    const rsiData = calcRSI(closes, formattedData);
 
-        seriesRef.current = lineSeries;
-      } catch (e) {
-        console.error("Error creating price chart:", e);
+    const rsiChart = createChart(rsiRef.current, commonChartOpts(90));
+    rsiChart.timeScale().applyOptions({ visible: true });
+    rsiChart.priceScale("right").applyOptions({
+      visible: true,
+      autoScale: true,
+    });
+
+    if (rsiData.length) {
+      const rsiLine = rsiChart.addSeries(LineSeries, {
+        color: "#4f8dff",
+        lineWidth: 1.5,
+      });
+      rsiLine.setData(rsiData);
+
+      const overbought = rsiChart.addSeries(LineSeries, {
+        color: "rgba(255,77,109,0.25)",
+        lineWidth: 1,
+        lineStyle: 2,
+      });
+      overbought.setData([{ time: rsiData[0].time, value: 70 }, { time: rsiData[rsiData.length - 1].time, value: 70 }]);
+
+      const oversold = rsiChart.addSeries(LineSeries, {
+        color: "rgba(0,229,160,0.25)",
+        lineWidth: 1,
+        lineStyle: 2,
+      });
+      oversold.setData([{ time: rsiData[0].time, value: 30 }, { time: rsiData[rsiData.length - 1].time, value: 30 }]);
+
+      // Lock RSI range to 0-100
+      const rsi50 = rsiChart.addSeries(LineSeries, {
+        color: "rgba(255,255,255,0.05)",
+        lineWidth: 1,
+      });
+      rsi50.setData([{ time: rsiData[0].time, value: 50 }, { time: rsiData[rsiData.length - 1].time, value: 50 }]);
+
+      rsiChart.priceScale("right").applyOptions({
+        scaleMargins: { top: 0.05, bottom: 0.05 },
+      });
+    }
+    rsiChart.timeScale().fitContent();
+
+    // --- Sync time scales ---
+    const charts = [priceChart, volumeChart, rsiChart];
+    priceChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+      if (!range) return;
+      volumeChart.timeScale().setVisibleRange(range);
+      rsiChart.timeScale().setVisibleRange(range);
+    });
+
+    // --- Sync crosshair ---
+    priceChart.subscribeCrosshairMove((param) => {
+      const point = param.point;
+      if (!point) {
+        volumeChart.clearCrosshairPosition();
+        rsiChart.clearCrosshairPosition();
+        return;
       }
-    };
+      volumeChart.setCrosshairPosition(point.x, point.y, true);
+      rsiChart.setCrosshairPosition(point.x, point.y, true);
+    });
 
-    const updateData = () => {
-      if (!formattedData.length) return;
-      if (!chartRef.current) {
-        createPriceChart();
-      }
-      if (seriesRef.current) {
-        seriesRef.current.setData(formattedData);
-        chartRef.current?.timeScale().fitContent();
-      }
-    };
-
+    // --- Resize ---
     const handleResize = () => {
-      try {
-        if (container.clientWidth > 0 && chartRef.current) {
-          chartRef.current.applyOptions({ width: container.clientWidth });
-        }
-      } catch (e) {
-        console.error("Error handling resize:", e);
+      const w = priceRef.current?.clientWidth || 0;
+      if (w > 0) {
+        charts.forEach((c) => c.applyOptions({ width: w }));
       }
     };
-
-    // Initialize chart and data
-    updateData();
-
-    resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(container);
+    const ro = new ResizeObserver(handleResize);
+    ro.observe(priceRef.current);
     window.addEventListener("resize", handleResize);
 
     return () => {
-      resizeObserver?.disconnect();
+      ro?.disconnect();
       window.removeEventListener("resize", handleResize);
-      try {
-        if (chartRef.current) {
-          chartRef.current.remove();
-          chartRef.current = null;
-        }
-        seriesRef.current = null;
-      } catch (e) {
-        console.error("Error cleaning up chart:", e);
-      }
+      charts.forEach((c) => {
+        try { c.remove(); } catch (e) { /* ignore */ }
+      });
     };
   }, [data, ticker]);
 
   if (!data?.length) return null;
 
   return (
-    <ChartContainer title={`${ticker} Price History`}>
-      <div ref={containerRef} style={{ width: "100%", height: "400px" }} />
-    </ChartContainer>
+    <div style={priceChartStyles.wrap}>
+      <div ref={priceRef} style={{ width: "100%", height: "320px" }} />
+      <div ref={volumeRef} style={{ width: "100%", height: "80px" }} />
+      <div ref={rsiRef} style={{ width: "100%", height: "90px" }} />
+    </div>
   );
 }
+
+function calcRSI(closes, formattedData, period = 14) {
+  if (closes.length < period + 1) return [];
+  const rsiValues = [];
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) gains += change; else losses -= change;
+  }
+  gains /= period; losses /= period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const rs = losses === 0 ? 100 : gains / losses;
+    const rsi = 100 - (100 / (1 + rs));
+    rsiValues.push({ time: formattedData[i]?.time, value: Math.round(rsi * 10) / 10 });
+    const change = closes[i] - closes[i - 1];
+    gains = (gains * (period - 1) + (change > 0 ? change : 0)) / period;
+    losses = (losses * (period - 1) + (change < 0 ? -change : 0)) / period;
+  }
+  return rsiValues;
+}
+
+const priceChartStyles = {
+  wrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  },
+};
