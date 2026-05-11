@@ -1,4 +1,4 @@
-import { getSummary, getFinancials, getBalanceSheet } from "./yahoofinance.js";
+import { getSummary, getFinancials, getBalanceSheet, getFundamentalsTimeSeries } from "./yahoofinance.js";
 import * as cache from "./cache.js";
 
 const METRIC_CATEGORIES = {
@@ -58,111 +58,73 @@ function findSectorPeers(sector, excludeTicker) {
   return peers.filter((p) => p !== excludeTicker).slice(0, 6);
 }
 
-function buildSparklines(summary, financials, balanceSheet) {
-  const annualIncome = financials?.annualIncome || [];
-  const annualBalance = balanceSheet?.annualBalanceSheet || [];
-  const annualCashFlow = balanceSheet?.annualCashFlow || [];
-
-  const years = {};
-  for (const s of annualIncome) {
-    const y = s.date ? new Date(s.date).getFullYear() : null;
-    if (y) years[y] = { ...years[y], income: s };
-  }
-  for (const s of annualBalance) {
-    const y = s.date ? new Date(s.date).getFullYear() : null;
-    if (y) years[y] = { ...years[y], balance: s };
-  }
-  for (const s of annualCashFlow) {
-    const y = s.date ? new Date(s.date).getFullYear() : null;
-    if (y) years[y] = { ...years[y], cashflow: s };
-  }
+function buildSparklines(fundTsData) {
+  const quarterlyFinancials = fundTsData?.financials || [];
+  const quarterlyCashFlow = fundTsData?.cashflow || [];
 
   const sparklines = {};
 
-  // Growth rates from annual income
-  const sortedIncome = [...annualIncome].reverse();
+  // Sort by date ascending
+  const finSorted = [...quarterlyFinancials].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const cfSorted = [...quarterlyCashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Revenue Growth (YoY from quarterly totals)
   const revGrowthVals = [];
-  for (let i = 1; i < sortedIncome.length; i++) {
-    const curr = sortedIncome[i].totalRevenue;
-    const prev = sortedIncome[i - 1].totalRevenue;
+  for (let i = 4; i < finSorted.length; i++) {
+    const curr = finSorted[i].totalRevenue;
+    const prev = finSorted[i - 4].totalRevenue;
     if (curr && prev && prev > 0) {
       revGrowthVals.push({
-        year: new Date(sortedIncome[i].date).getFullYear(),
+        year: new Date(finSorted[i].date).getFullYear(),
         value: ((curr - prev) / prev) * 100,
       });
     }
   }
   if (revGrowthVals.length > 0) sparklines.revenueGrowth = revGrowthVals;
 
+  // Earnings Growth (YoY from quarterly net income)
   const earnGrowthVals = [];
-  for (let i = 1; i < sortedIncome.length; i++) {
-    const curr = sortedIncome[i].netIncome;
-    const prev = sortedIncome[i - 1].netIncome;
+  for (let i = 4; i < finSorted.length; i++) {
+    const curr = finSorted[i].netIncome;
+    const prev = finSorted[i - 4].netIncome;
     if (curr && prev && prev > 0) {
       earnGrowthVals.push({
-        year: new Date(sortedIncome[i].date).getFullYear(),
+        year: new Date(finSorted[i].date).getFullYear(),
         value: ((curr - prev) / prev) * 100,
       });
     }
   }
   if (earnGrowthVals.length > 0) sparklines.earningsGrowth = earnGrowthVals;
 
-  // Profitability from annual income
-  const roeVals = [];
-  const roaVals = [];
+  // Margins from quarterly data
   const grossMarginVals = [];
   const opMarginVals = [];
   const netMarginVals = [];
 
-  for (const [y, data] of Object.entries(years)) {
-    if (data.income && data.balance) {
-      if (data.income.netIncome && data.balance.totalEquity && data.balance.totalEquity > 0) {
-        roeVals.push({ year: Number(y), value: (data.income.netIncome / data.balance.totalEquity) * 100 });
-      }
-      if (data.income.netIncome && data.balance.totalAssets && data.balance.totalAssets > 0) {
-        roaVals.push({ year: Number(y), value: (data.income.netIncome / data.balance.totalAssets) * 100 });
-      }
+  for (const q of finSorted) {
+    const year = new Date(q.date).getFullYear();
+    if (q.grossProfit != null && q.totalRevenue && q.totalRevenue > 0) {
+      grossMarginVals.push({ year, value: (q.grossProfit / q.totalRevenue) * 100 });
     }
-    if (data.income) {
-      if (data.income.grossMargin != null) {
-        grossMarginVals.push({ year: Number(y), value: data.income.grossMargin * 100 });
-      }
-      if (data.income.ebit != null && data.income.totalRevenue && data.income.totalRevenue > 0) {
-        opMarginVals.push({ year: Number(y), value: (data.income.ebit / data.income.totalRevenue) * 100 });
-      }
-      if (data.income.netMargin != null) {
-        netMarginVals.push({ year: Number(y), value: data.income.netMargin * 100 });
-      }
+    if (q.operatingIncome != null && q.totalRevenue && q.totalRevenue > 0) {
+      opMarginVals.push({ year, value: (q.operatingIncome / q.totalRevenue) * 100 });
+    }
+    if (q.netIncome != null && q.totalRevenue && q.totalRevenue > 0) {
+      netMarginVals.push({ year, value: (q.netIncome / q.totalRevenue) * 100 });
     }
   }
 
-  if (roeVals.length > 0) sparklines.returnOnEquity = roeVals;
-  if (roaVals.length > 0) sparklines.returnOnAssets = roaVals;
   if (grossMarginVals.length > 0) sparklines.grossMargins = grossMarginVals;
   if (opMarginVals.length > 0) sparklines.operatingMargins = opMarginVals;
   if (netMarginVals.length > 0) sparklines.profitMargins = netMarginVals;
 
-  // Health metrics from annual balance sheet + cash flow
-  const deVals = [];
-  const crVals = [];
+  // Free Cash Flow from quarterly cash flow data
   const fcfVals = [];
-
-  for (const [y, data] of Object.entries(years)) {
-    if (data.balance) {
-      if (data.balance.totalDebt != null && data.balance.totalEquity && data.balance.totalEquity > 0) {
-        deVals.push({ year: Number(y), value: data.balance.totalDebt / data.balance.totalEquity });
-      }
-      if (data.balance.currentRatio != null) {
-        crVals.push({ year: Number(y), value: data.balance.currentRatio });
-      }
-    }
-    if (data.cashflow && data.cashflow.freeCashFlow != null) {
-      fcfVals.push({ year: Number(y), value: data.cashflow.freeCashFlow });
+  for (const q of cfSorted) {
+    if (q.freeCashFlow != null) {
+      fcfVals.push({ year: new Date(q.date).getFullYear(), value: q.freeCashFlow });
     }
   }
-
-  if (deVals.length > 0) sparklines.debtToEquity = deVals;
-  if (crVals.length > 0) sparklines.currentRatio = crVals;
   if (fcfVals.length > 0) sparklines.freeCashflow = fcfVals;
 
   return sparklines;
@@ -170,14 +132,15 @@ function buildSparklines(summary, financials, balanceSheet) {
 
 async function fetchPeerData(ticker) {
   try {
-    const [summary, financials, balanceSheet] = await Promise.all([
+    const [summary, financials, balanceSheet, fundTsData] = await Promise.all([
       getSummary(ticker),
       getFinancials(ticker),
       getBalanceSheet(ticker),
+      getFundamentalsTimeSeries(ticker),
     ]);
     if (!summary) return null;
 
-    const sparklines = buildSparklines(summary, financials, balanceSheet);
+    const sparklines = buildSparklines(fundTsData);
 
     return {
       ticker,
@@ -269,6 +232,7 @@ export async function getComparables(ticker) {
         hasSparkline: m.hasSparkline || false,
         baseValue: baseData?.[m.key] ?? null,
         peerAvg: peerAvg[m.key],
+        sparkline: baseData?.sparklines?.[m.key] ?? null,
         verdict: generateVerdict(ticker, baseData?.[m.key], peerAvg[m.key], m.fmt),
       })),
     };

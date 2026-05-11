@@ -1,13 +1,44 @@
 import * as yfModule from "yahoo-finance2";
 import * as cache from "./cache.js";
+import { YAHOO_FINANCE_DELAY_MS } from "../constants.js";
 const yahooFinance = new yfModule.default();
 // Small delay between calls to be polite to Yahoo's servers
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let pendingFetches = {}; // deduplicate in-flight requests per ticker
 
 /**
  * Fetch summary + valuation data for a ticker.
  * Covers: price, market cap, P/E, forward P/E, EV/EBITDA, 52wk range
  */
+/**
+ * Fetch fundamentals time series data (quarterly) for sparklines.
+ * Uses fundamentalsTimeSeries API since quoteSummary financial statements are broken.
+ */
+async function getFundamentalsTimeSeries(ticker) {
+  const cacheKey = `fund-ts:${ticker}`;
+  const cached = cache.getFundamentals(cacheKey);
+  if (cached) return cached;
+
+  const [financials, cashflow] = await Promise.all([
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: '2020-01-01',
+      period2: new Date().toISOString(),
+      type: 'quarterly',
+      module: 'financials',
+    }).catch(() => []),
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: '2020-01-01',
+      period2: new Date().toISOString(),
+      type: 'quarterly',
+      module: 'cash-flow',
+    }).catch(() => []),
+  ]);
+
+  const data = { financials, cashflow };
+  cache.setFundamentals(cacheKey, data);
+  return data;
+}
+
 async function getSummary(ticker) {
   const cacheKey = `summary:${ticker}`;
   const cached = cache.getFundamentals(cacheKey);
@@ -296,6 +327,53 @@ async function getPortfolioSummaries(tickers) {
   return results;
 }
 
+async function getLivePrices(tickers) {
+  const results = [];
+  const staleTickers = [];
+
+  for (const ticker of tickers) {
+    const cached = cache.getLivePrice(ticker);
+    if (cached) {
+      results.push({ ticker, data: cached, stale: false });
+    } else {
+      staleTickers.push(ticker);
+      results.push({ ticker, data: null, stale: true });
+    }
+  }
+
+  if (staleTickers.length > 0) {
+    refreshLivePrices(staleTickers);
+  }
+
+  return results;
+}
+
+async function refreshLivePrices(tickers) {
+  const unique = tickers.filter((t) => !pendingFetches[t]);
+  if (unique.length === 0) return;
+
+  unique.forEach((t) => (pendingFetches[t] = true));
+
+  try {
+    for (const ticker of unique) {
+      try {
+        const quote = await yahooFinance.quote(ticker);
+        const data = {
+          currentPrice: quote.regularMarketPrice,
+          change: quote.regularMarketChange,
+          changePercent: quote.regularMarketChangePercent,
+        };
+        cache.setLivePrice(ticker, data);
+      } catch (err) {
+        console.error(`[live-price] ${ticker}:`, err.message);
+      }
+      await delay(YAHOO_FINANCE_DELAY_MS);
+    }
+  } finally {
+    unique.forEach((t) => delete pendingFetches[t]);
+  }
+}
+
 function getPeriodStart(period) {
   const now = new Date();
   switch (period) {
@@ -338,8 +416,10 @@ export {
   getSummary,
   getFinancials,
   getBalanceSheet,
+  getFundamentalsTimeSeries,
   getPriceHistory,
   getOhlcv,
   getPortfolioSummaries,
   getHoldings,
+  getLivePrices,
 };

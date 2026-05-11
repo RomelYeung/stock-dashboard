@@ -210,7 +210,7 @@ router.get("/:ticker/dcf", async (req, res) => {
 
     const mc = monteCarlo(
       params.fcf, params.projectionGrowth, params.wacc,
-      params.cash, params.debt, params.sharesOutstanding, simulations
+      params.cash, params.debt, params.sharesOutstanding, simulations, params.terminalGrowth
     );
 
     res.json({
@@ -230,6 +230,9 @@ router.get("/:ticker/dcf", async (req, res) => {
           beta: params.beta,
           rf: params.rf,
           erp: params.erp,
+          sector: params.sector,
+          sectorWacc: params.sectorWacc != null ? Math.round(params.sectorWacc * 10000) / 10000 : null,
+          sizePremium: params.sizePremium != null ? Math.round(params.sizePremium * 10000) / 10000 : null,
         },
         dcf: {
           fairValue: Math.round(dcf.fairValue * 100) / 100,
@@ -281,6 +284,33 @@ router.post("/portfolio", async (req, res) => {
     });
   } catch (err) {
     console.error("[portfolio]:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/stocks/portfolio/live
+// Body: { tickers: ["AAPL", "MSFT", "GOOG"] }
+// Returns lightweight live price data (currentPrice, change, changePercent)
+// Uses stale-while-revalidate: cached data returned immediately,
+// stale entries refreshed in background — never blocks on Yahoo Finance
+router.post("/portfolio/live", async (req, res) => {
+  const { tickers } = req.body;
+
+  if (!Array.isArray(tickers) || tickers.length === 0) {
+    return res.status(400).json({ success: false, error: "Provide a non-empty 'tickers' array in the request body." });
+  }
+  if (tickers.length > MAX_PORTFOLIO_TICKERS) {
+    return res.status(400).json({ success: false, error: `Maximum ${MAX_PORTFOLIO_TICKERS} tickers per request.` });
+  }
+
+  try {
+    const results = await yf.getLivePrices(tickers.map((t) => t.toUpperCase()));
+    res.json({
+      success: true,
+      data: results,
+    });
+  } catch (err) {
+    console.error("[portfolio/live]:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
