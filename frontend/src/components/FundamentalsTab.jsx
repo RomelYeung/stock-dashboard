@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { RevenueChart, MarginsChart, CashFlowChart } from "./Charts";
-import { formatPrice, formatMarketCap, formatPercent, formatMultiple, formatRevenue, isPositive } from "../utils/formatters";
+import { formatMarketCap, formatPercent, formatMultiple, formatRevenue } from "../utils/formatters";
 
 // ─── Category constants (matching ComparablesTab) ──────────────────────────
 const CATEGORY_ORDER = ["valuation", "growth", "profitability", "health"];
@@ -16,9 +16,16 @@ const CATEGORY_LABELS = {
 function useWindowWidth() {
   const [width, setWidth] = useState(window.innerWidth);
   useEffect(() => {
-    const handleResize = () => setWidth(window.innerWidth);
+    let timeout;
+    const handleResize = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setWidth(window.innerWidth), 150);
+    };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(timeout);
+    };
   }, []);
   return width;
 }
@@ -37,13 +44,13 @@ function StatBox({ label, value, sub, positive, peerDiff }) {
       ? "rgba(255, 77, 109, 0.08)"
       : "rgba(255,255,255,0.04)";
   const peerArrow = peerDiff != null
-    ? (peerDiff.value >= 0 ? "▲" : "▼")
+    ? (peerDiff.favorable === true ? "▲" : peerDiff.favorable === false ? "▼" : "•")
     : null;
 
   return (
     <div style={sbox.box}>
       <span style={sbox.label}>{label}</span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "nowrap" }}>
         <span
           style={{
             ...sbox.value,
@@ -73,6 +80,7 @@ function StatBox({ label, value, sub, positive, peerDiff }) {
             {peerArrow} vs peers
           </span>
         )}
+
       </div>
       {sub && <span style={sbox.sub}>{sub}</span>}
     </div>
@@ -157,11 +165,19 @@ const tbl = {
   cellSpark: { padding: "8px 12px", width: COL_WIDTHS.trend, textAlign: "center" },
 };
 
-function Sparkline({ data, color }) {
+function Sparkline({ data, color, label }) {
   if (!data || data.length < 2) return <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>—</span>;
   const chartData = data.map((d, i) => ({ v: d.value, i }));
+  const first = data[0].value;
+  const last = data[data.length - 1].value;
+  const direction = last >= first ? "rising" : "falling";
+  const pctChange = first !== 0 ? (((last - first) / Math.abs(first)) * 100).toFixed(0) : 0;
   return (
-    <div style={{ width: "64px", height: "24px" }}>
+    <div
+      style={{ width: "64px", height: "24px" }}
+      role="img"
+      aria-label={`${label || "Metric"} trend: ${direction} ${Math.abs(pctChange)}% over period`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} />
@@ -171,7 +187,7 @@ function Sparkline({ data, color }) {
   );
 }
 
-function MetricRow({ metric, isMobile }) {
+function MetricRow({ metric, isMobile, isTablet }) {
   const { label, fmt, baseValue, peerAvg, sparklineData, diff, diffColor } = metric;
   const [hovered, setHovered] = useState(false);
   const isHigher = baseValue != null && peerAvg != null && baseValue > peerAvg;
@@ -205,6 +221,12 @@ function MetricRow({ metric, isMobile }) {
     );
   };
 
+  const wLabel = isMobile ? "40%" : isTablet ? "30%" : COL_WIDTHS.metric;
+  const wValue = isMobile ? "30%" : isTablet ? "22%" : COL_WIDTHS.thisStock;
+  const wPeer = isTablet ? "20%" : COL_WIDTHS.peerAvg;
+  const wDiff = isMobile ? "30%" : isTablet ? "16%" : COL_WIDTHS.diff;
+  const wSpark = isTablet ? "12%" : COL_WIDTHS.trend;
+
   return (
     <tr
       style={{
@@ -215,11 +237,11 @@ function MetricRow({ metric, isMobile }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <td style={tbl.cellLabel}>{label}</td>
-      <td style={{ ...tbl.cellValue, color }}>{fmtVal(baseValue)}</td>
-      {!isMobile && <td style={tbl.cellPeer}>{fmtVal(peerAvg)}</td>}
-      <td style={tbl.cellDiff}>{fmtDiff()}</td>
-      {!isMobile && <td style={tbl.cellSpark}>
+      <td style={{ ...tbl.cellLabel, width: wLabel }}>{label}</td>
+      <td style={{ ...tbl.cellValue, color, width: wValue }}>{fmtVal(baseValue)}</td>
+      {!isMobile && <td style={{ ...tbl.cellPeer, width: wPeer }}>{fmtVal(peerAvg)}</td>}
+      <td style={{ ...tbl.cellDiff, width: wDiff }}>{fmtDiff()}</td>
+      {!isMobile && <td style={{ ...tbl.cellSpark, width: wSpark }}>
         <Sparkline data={sparklineData} color={color} />
       </td>}
     </tr>
@@ -270,7 +292,7 @@ function findPeerDiff(comparablesData, metricKey) {
     const found = cat.metrics.find((m) => m.key === metricKey);
     if (found && found.peerAvg != null && found.baseValue != null) {
       const diffPct = ((found.baseValue - found.peerAvg) / found.peerAvg) * 100;
-      const favorable = found.fmt === "x" ? diffPct < 0 : diffPct > 0;
+      const favorable = Math.abs(diffPct) <= 5 ? null : (found.fmt === "x" ? diffPct < 0 : diffPct > 0);
       return { value: diffPct, favorable };
     }
   }
@@ -282,27 +304,28 @@ function computeDiffColor(metric) {
   if (baseValue == null || peerAvg == null || peerAvg === 0) return { diff: null, diffColor: null };
   const diff = ((baseValue - peerAvg) / peerAvg) * 100;
 
-  let isFavorable;
   if (fmt === "x") {
-    isFavorable = diff < 0;
-  } else {
-    isFavorable = diff > 0;
+    const isFavorable = diff < 0;
+    return { diff, diffColor: isFavorable ? "var(--accent-green)" : "var(--accent-red)" };
   }
-
-  const diffColor = isFavorable ? "var(--accent-green)" : "var(--accent-red)";
-  return { diff, diffColor };
+  if (fmt === "pct") {
+    const isFavorable = diff > 0;
+    return { diff, diffColor: isFavorable ? "var(--accent-green)" : "var(--accent-red)" };
+  }
+  // For abbr and other formats, return neutral colors
+  return { diff, diffColor: "var(--text-secondary)" };
 }
 
-function CategoryTable({ category, baseSparklines, ticker, isMobile }) {
+function CategoryTable({ category, baseSparklines, ticker, isMobile, isTablet }) {
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
       <thead>
         <tr>
-          <th style={{ ...tbl.head, width: isMobile ? "36%" : COL_WIDTHS.metric }}>Metric</th>
-          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "28%" : COL_WIDTHS.thisStock }}>This Stock</th>
-          {!isMobile && <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>}
-          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "36%" : COL_WIDTHS.diff }}>Diff</th>
-          {!isMobile && <th style={{ ...tbl.head, width: COL_WIDTHS.trend }}>Trend</th>}
+          <th style={{ ...tbl.head, width: isMobile ? "40%" : isTablet ? "30%" : COL_WIDTHS.metric }}>Metric</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "30%" : isTablet ? "22%" : COL_WIDTHS.thisStock }}>This Stock</th>
+          {!isMobile && <th style={{ ...tbl.head, textAlign: "right", width: isTablet ? "20%" : COL_WIDTHS.peerAvg }}>Peer Avg</th>}
+          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "30%" : isTablet ? "16%" : COL_WIDTHS.diff }}>Diff</th>
+          {!isMobile && <th style={{ ...tbl.head, width: isTablet ? "12%" : COL_WIDTHS.trend }}>Trend</th>}
         </tr>
       </thead>
       <tbody>
@@ -313,6 +336,7 @@ function CategoryTable({ category, baseSparklines, ticker, isMobile }) {
               key={m.key}
               metric={{ ...m, sparklineData: baseSparklines?.[m.key], diff, diffColor }}
               isMobile={isMobile}
+              isTablet={isTablet}
             />
           );
         })}
@@ -321,8 +345,15 @@ function CategoryTable({ category, baseSparklines, ticker, isMobile }) {
   );
 }
 
-function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
-  const [activeCategory, setActiveCategory] = useState("valuation");
+function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) {
+  const defaultCategory = (() => {
+    for (const key of CATEGORY_ORDER) {
+      const cat = comparablesData?.categories?.[key];
+      if (cat?.metrics?.length > 0) return key;
+    }
+    return "valuation";
+  })();
+  const [activeCategory, setActiveCategory] = useState(defaultCategory);
   const category = comparablesData?.categories?.[activeCategory];
 
   return (
@@ -336,6 +367,7 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
     >
       {/* Category Picker */}
       <div
+        role="tablist"
         style={{
           display: "flex",
           gap: "4px",
@@ -346,7 +378,21 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
         {CATEGORY_ORDER.map((key) => (
           <button
             key={key}
+            role="tab"
+            aria-selected={activeCategory === key}
+            tabIndex={activeCategory === key ? 0 : -1}
             onClick={() => setActiveCategory(key)}
+            onKeyDown={(e) => {
+              const idx = CATEGORY_ORDER.indexOf(activeCategory);
+              if (e.key === "ArrowRight") {
+                e.preventDefault();
+                setActiveCategory(CATEGORY_ORDER[(idx + 1) % CATEGORY_ORDER.length]);
+              }
+              if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                setActiveCategory(CATEGORY_ORDER[(idx - 1 + CATEGORY_ORDER.length) % CATEGORY_ORDER.length]);
+              }
+            }}
             style={{
               background: activeCategory === key ? "rgba(255,255,255,0.10)" : "transparent",
               border: "none",
@@ -358,6 +404,7 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
               cursor: "pointer",
               fontWeight: activeCategory === key ? 600 : 400,
               transition: "all 0.2s ease",
+              outline: "none",
             }}
             onMouseEnter={(e) => {
               if (activeCategory !== key) {
@@ -377,42 +424,53 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile }) {
         ))}
       </div>
 
+      {/* Empty category */}
+      {category && (!category.metrics || category.metrics.length === 0) && (
+        <div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+          No data available for this category
+        </div>
+      )}
+
       {/* Category Table */}
-      {category && (
-        <div style={{ padding: "0 20px" }}>
-          <CategoryTable
-            category={category}
-            baseSparklines={comparablesData.base?.sparklines}
-            ticker={ticker}
-            isMobile={isMobile}
-          />
-          {/* Insight box */}
-          {(() => {
-            const insight = generateInsight(category.metrics, ticker);
-            if (!insight) return null;
-            return (
-              <div
-                style={{
-                  padding: "12px 0 16px 0",
-                  borderTop: "1px solid rgba(255,255,255,0.05)",
-                  background: "rgba(255,255,255,0.015)",
-                }}
-              >
-                <p
+      {category && category.metrics?.length > 0 && (
+        <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+          <div style={{ padding: "0 20px" }}>
+            <CategoryTable
+              category={category}
+              baseSparklines={comparablesData.base?.sparklines}
+              ticker={ticker}
+              isMobile={isMobile}
+              isTablet={isTablet}
+            />
+            {/* Insight box */}
+            {(() => {
+              const insight = generateInsight(category.metrics, ticker);
+              if (!insight) return null;
+              return (
+                <div
                   style={{
-                    color: "var(--text-secondary)",
-                    fontSize: "11px",
-                    fontFamily: "var(--font-body)",
-                    fontStyle: "italic",
-                    margin: 0,
-                    lineHeight: 1.6,
+                    padding: "12px 20px 16px 20px",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    background: "rgba(255,255,255,0.025)",
+                    borderLeft: "2px solid var(--accent-blue)",
                   }}
                 >
-                  {insight}
-                </p>
-              </div>
-            );
-          })()}
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.65)",
+                      fontSize: "12px",
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      margin: 0,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {insight}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>
@@ -427,11 +485,13 @@ export default function FundamentalsTab({
   ticker,
   financialData,
   comparablesData,
-  loading,
+  financialLoading,
+  comparablesLoading,
   error,
+  onRetry,
 }) {
   // ── Loading state ───────────────────────────────────────────────────────
-  if (loading) {
+  if (financialLoading && !financialData && comparablesLoading && !comparablesData) {
     return (
       <div style={states.skeleton}>
         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -451,8 +511,29 @@ export default function FundamentalsTab({
   }
 
   // ── Error state ─────────────────────────────────────────────────────────
-  if (error) {
-    return <div style={states.error}>{error}</div>;
+  if (error && !financialData) {
+    return (
+      <div style={{ ...states.error, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+        <p>{error}</p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "8px",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              fontSize: "12px",
+              padding: "8px 16px",
+            }}
+          >
+            Try Again
+          </button>
+        )}
+      </div>
+    );
   }
 
   // ── Empty / no-data state ───────────────────────────────────────────────
@@ -471,10 +552,18 @@ export default function FundamentalsTab({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
       {/* ─── 1. PEER COMPARISON ───────────────────────────────────────────── */}
-      {comparablesData && (
+      {comparablesLoading && !comparablesData ? (
+        <Section title="Peer Comparison">
+          <div style={{ ...states.skeleton, padding: "24px" }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{ height: "16px", background: "rgba(255,255,255,0.04)", borderRadius: "4px", animation: "pulse 1.5s ease-in-out infinite", animationDelay: `${i * 0.1}s` }} />
+            ))}
+          </div>
+        </Section>
+      ) : comparablesData ? (
         <>
           <Section title="Peer Comparison">
-            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} />
+            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} isTablet={isTablet} />
           </Section>
 
           {/* Peers Grid */}
@@ -500,6 +589,7 @@ export default function FundamentalsTab({
                       gap: "2px",
                     }}
                   >
+                    <span style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Peer</span>
                     <span
                       style={{
                         fontFamily: "var(--font-mono)",
@@ -518,6 +608,7 @@ export default function FundamentalsTab({
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                       }}
+                      title={peer.name}
                     >
                       {peer.name}
                     </span>
@@ -529,9 +620,7 @@ export default function FundamentalsTab({
                         marginTop: "4px",
                       }}
                     >
-                      {peer.marketCap >= 1e12
-                        ? "$" + (peer.marketCap / 1e12).toFixed(1) + "T"
-                        : "$" + (peer.marketCap / 1e9).toFixed(1) + "B"}
+                      {formatMarketCap(peer.marketCap)}
                     </span>
                   </div>
                 ))}
@@ -539,6 +628,12 @@ export default function FundamentalsTab({
             </Section>
           )}
         </>
+      ) : (
+        <Section title="Peer Comparison">
+          <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)" }}>
+            Peer comparison data is not available for {ticker}
+          </div>
+        </Section>
       )}
 
       {/* ─── 2. FINANCIAL SECTIONS ────────────────────────────────────────── */}
@@ -546,7 +641,7 @@ export default function FundamentalsTab({
         style={{
           display: "grid",
           gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr",
-          gap: isMobile ? "20px" : "24px",
+          gap: isMobile ? "20px" : isTablet ? "24px" : "28px",
         }}
       >
         {/* Valuation */}
