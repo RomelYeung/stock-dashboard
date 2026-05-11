@@ -333,6 +333,33 @@
 
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-05-11">May 11, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Fix navigation, accessibility, and loading-state issues across the app</h3>
+          <p>Resolved a critical bug where switching pages from the header could leave a zombie modal open. Browser back and forward buttons now work correctly, and direct links to stock analysis pages are supported. The Fundamentals tab now shows available financial data immediately while peer comparison loads in the background. Added full keyboard navigation to the category picker and tab bar, plus visible focus indicators across all interactive elements. Mobile table scrolling no longer hides the category picker. Improved insight text legibility and added retry buttons for error states.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-11">May 11, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add live price updates every 30 seconds during market hours</h3>
+          <p>Stock cards now show automatically updating prices during regular market hours (9:30 AM – 4:00 PM ET, weekdays). A pulsing green dot indicates active live updates, and price changes trigger a brief flash animation. Polling pauses when the market closes and resumes when it reopens — no manual refresh needed.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-11">May 11, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Added sector-aware WACC and size adjustments to DCF model</h3>
+          <p>The DCF valuation now uses sector-specific equity risk premiums (e.g., 6% ERP for Technology vs. 4% for Utilities) and size-based premium adjustments for small-cap companies, both sourced from Damodaran's 2026 cost of capital data. Terminal growth rates also vary by sector. A new Sector row in the DCF panel shows the reference WACC for the company's industry.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-05-09">May 9, 2026</time>
             <span class="tag tag-feature">Feature</span>
           </div>
