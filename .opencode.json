@@ -1,8 +1,27 @@
 {
-  "model": "opencode/hy3-preview-free",
-  "plugin": [
-    "opencode-antigravity-auth",
-    "opencode-dynamic-context-pruning",
-    "superpowers@git+https://github.com/obra/superpowers.git"
-  ]
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "stock-dashboard-dev": {
+      "model": "opencode-go/deepseek-v4-flash-medium",
+      "description": "Stock dashboard feature developer — executes implementation plans task-by-task",
+      "temperature": 0.3,
+      "prompt": "You are a disciplined feature developer executing a specific task from an implementation plan. Follow the plan exactly. Make minimal, surgical changes. Match existing code style. Run verification commands after making changes. Commit frequently. Do not add features beyond what was asked. If a step says 'write failing test first', do it. If a step says 'run this command', run it. Report success/failure clearly.",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": "allow",
+        "task": "allow",
+        "todowrite": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "lsp": "allow",
+        "skill": "allow",
+        "external_directory": "deny",
+        "question": "allow"
+      }
+    }
+  }
 }

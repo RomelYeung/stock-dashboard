@@ -22,6 +22,14 @@ This project uses the [Superpowers](https://github.com/obra/superpowers) plugin 
 - Write headlines in imperative mood ("Add X", "Fix Y", "Redesign Z")
 - Include user impact in the description; avoid internal implementation details unless relevant
 
+## Multi-Agent Workflow
+
+This project uses a multi-agent orchestration system. The `architect` agent is the primary orchestrator and NEVER modifies files directly. All file modifications are performed by specialized subagents (`@coder`, `@ui-specialist`, `@integrator`).
+
+**For subagents reading this file:** The conventions above ("Simplicity First", "Surgical Changes", "Release Notes") apply to YOUR work. The architect will include these conventions in your task specs.
+
+**For the architect:** Do not attempt to enforce these conventions by writing code yourself. Include them as acceptance criteria in your task dispatches.
+
 ## Active Plugins
 
 - `opencode-antigravity-auth` — Use Antigravity's free models instead of API billing
