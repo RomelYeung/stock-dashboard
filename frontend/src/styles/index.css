@@ -39,6 +39,10 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 28px;
+
+  /* Animation durations */
+  --anim-skeleton: 1.5s;
+  --anim-indicator: 2s;
 }
 
 *, *::before, *::after {
@@ -59,6 +63,16 @@ body {
   font-weight: 300;
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Scrollbar */
@@ -117,7 +131,7 @@ body {
 }
 
 /* Earnings date pulse animation */
-@keyframes pulse {
+@keyframes earnings-pulse {
   0%, 100% {
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
     opacity: 1;
