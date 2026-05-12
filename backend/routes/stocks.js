@@ -7,8 +7,10 @@ import * as sectorScore from "../services/sectorScore.js";
 import * as aaii from "../services/aaii.js";
 import * as insiderTrading from "../services/insiderTrading.js";
 import * as comparables from "../services/comparables.js";
+import NodeCache from "node-cache";
 import {
   MAX_PORTFOLIO_TICKERS,
+  MAX_WISHLIST_TICKERS,
   VALID_PERIODS,
   TICKER_REGEX,
   YAHOO_FINANCE_DELAY_MS,
@@ -16,6 +18,8 @@ import {
 import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
 
 const router = express.Router();
+const MAX_BATCH_TICKERS = MAX_PORTFOLIO_TICKERS + MAX_WISHLIST_TICKERS;
+const searchCache = new NodeCache({ stdTTL: 300, checkperiod: 60 }); // 5 min TTL
 
 // Only allow requests originating from localhost
 function requireLocal(req, res, next) {
@@ -64,6 +68,39 @@ router.param("ticker", (req, res, next, ticker) => {
 });
 
 // ─── Single ticker endpoints ──────────────────────────────────────────────────
+
+// GET /api/stocks/search?q=apple
+// Search tickers via Yahoo Finance
+router.get("/search", async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.trim().length < 1) {
+    return res.status(400).json({ success: false, error: "Query parameter 'q' is required." });
+  }
+
+  try {
+    const cacheKey = `search:${q.trim().toUpperCase()}`;
+    const cached = searchCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
+
+    const quotes = (await yf.searchTickers(q.trim(), { quotesCount: 8 }))
+      .filter((item) => item.quoteType === "EQUITY" || item.quoteType === "ETF")
+      .map((item) => ({
+        symbol: item.symbol,
+        name: item.shortname || item.longname || item.symbol,
+        exchange: item.exchange,
+        type: item.quoteType,
+      }))
+      .slice(0, 8);
+
+    searchCache.set(cacheKey, quotes);
+    res.json({ success: true, data: quotes });
+  } catch (err) {
+    console.error("[search] error:", err.message);
+    res.status(500).json({ success: false, error: "Search failed." });
+  }
+});
 
 // GET /api/stocks/:ticker/summary
 // Returns price, valuation metrics (P/E, P/B, EV/EBITDA), 52wk range
@@ -266,8 +303,8 @@ router.post("/portfolio", async (req, res) => {
   if (!Array.isArray(tickers) || tickers.length === 0) {
     return res.status(400).json({ success: false, error: "Provide a non-empty 'tickers' array in the request body." });
   }
-  if (tickers.length > MAX_PORTFOLIO_TICKERS) {
-    return res.status(400).json({ success: false, error: `Maximum ${MAX_PORTFOLIO_TICKERS} tickers per request.` });
+  if (tickers.length > MAX_BATCH_TICKERS) {
+    return res.status(400).json({ success: false, error: `Maximum ${MAX_BATCH_TICKERS} tickers per request.` });
   }
 
   try {
@@ -299,8 +336,8 @@ router.post("/portfolio/live", async (req, res) => {
   if (!Array.isArray(tickers) || tickers.length === 0) {
     return res.status(400).json({ success: false, error: "Provide a non-empty 'tickers' array in the request body." });
   }
-  if (tickers.length > MAX_PORTFOLIO_TICKERS) {
-    return res.status(400).json({ success: false, error: `Maximum ${MAX_PORTFOLIO_TICKERS} tickers per request.` });
+  if (tickers.length > MAX_BATCH_TICKERS) {
+    return res.status(400).json({ success: false, error: `Maximum ${MAX_BATCH_TICKERS} tickers per request.` });
   }
 
   try {

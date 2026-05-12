@@ -1,3 +1,34 @@
+# Release Notes Page Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Create a standalone `/release-notes.html` page with semantic HTML, dark theme styling, and initial content from git history.
+
+**Architecture:** Static HTML file in `frontend/public/` served by Vite at `/release-notes.html`. All CSS is inline in a `<style>` block to keep it self-contained. Content is hardcoded HTML — no build step or JS framework needed.
+
+**Tech Stack:** HTML5, CSS3 (no frameworks)
+
+---
+
+## File Structure
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `frontend/public/release-notes.html` | Create | Standalone release notes page with semantic HTML and inline CSS |
+| `AGENTS.md` | Modify | Add release notes convention to project-specific rules |
+
+---
+
+### Task 1: Create `frontend/public/release-notes.html`
+
+**Files:**
+- Create: `frontend/public/release-notes.html`
+
+- [ ] **Step 1: Write the complete HTML file**
+
+Write the file with this exact content:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -332,71 +363,6 @@
         <h2>May 2026</h2>
 
         <article class="release-entry">
-          <time datetime="2026-05-12">May 12, 2026</time>
-          <h3>Refine portfolio dashboard UX</h3>
-          <p>
-            Redesigned the portfolio page with sticky section labels, differentiated watch/wish list card sizes,
-            compact ticker manager, and removed distracting continuous animations. Navigation and visual hierarchy
-            are now clearer when scrolling through your stock lists.
-          </p>
-          <span class="tag tag-improvement">Improvement</span>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-12">May 12, 2026</time>
-            <span class="tag tag-feature">Feature</span>
-          </div>
-          <h3>Add ticker autocomplete search</h3>
-          <p>Type a company name or symbol to get intelligent suggestions with real-time symbol lookup. Selecting a result instantly adds it to your active list.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-12">May 12, 2026</time>
-            <span class="tag tag-feature">Feature</span>
-          </div>
-          <h3>Add separate Wish List for tracking future buys</h3>
-          <p>Keep stocks you want to buy separate from your owned portfolio. Manage both lists with independent limits and quick-add autocomplete.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-11">May 11, 2026</time>
-            <span class="tag tag-improvement">Improvement</span>
-          </div>
-          <h3>Redesign Fundamentals tab layout and visual hierarchy</h3>
-          <p>Improved spatial balance by reordering sections, standardizing grids, reducing visual clutter, and unifying tab styling for a cleaner, more scannable experience.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-11">May 11, 2026</time>
-            <span class="tag tag-improvement">Improvement</span>
-          </div>
-          <h3>Fix navigation, accessibility, and loading-state issues across the app</h3>
-          <p>Resolved a critical bug where switching pages from the header could leave a zombie modal open. Browser back and forward buttons now work correctly, and direct links to stock analysis pages are supported. The Fundamentals tab now shows available financial data immediately while peer comparison loads in the background. Added full keyboard navigation to the category picker and tab bar, plus visible focus indicators across all interactive elements. Mobile table scrolling no longer hides the category picker. Improved insight text legibility and added retry buttons for error states.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-11">May 11, 2026</time>
-            <span class="tag tag-feature">Feature</span>
-          </div>
-          <h3>Add live price updates every 30 seconds during market hours</h3>
-          <p>Stock cards now show automatically updating prices during regular market hours (9:30 AM – 4:00 PM ET, weekdays). A pulsing green dot indicates active live updates, and price changes trigger a brief flash animation. Polling pauses when the market closes and resumes when it reopens — no manual refresh needed.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-11">May 11, 2026</time>
-            <span class="tag tag-improvement">Improvement</span>
-          </div>
-          <h3>Added sector-aware WACC and size adjustments to DCF model</h3>
-          <p>The DCF valuation now uses sector-specific equity risk premiums (e.g., 6% ERP for Technology vs. 4% for Utilities) and size-based premium adjustments for small-cap companies, both sourced from Damodaran's 2026 cost of capital data. Terminal growth rates also vary by sector. A new Sector row in the DCF panel shows the reference WACC for the company's industry.</p>
-        </article>
-
-        <article class="release-entry">
           <div class="entry-meta">
             <time datetime="2026-05-09">May 9, 2026</time>
             <span class="tag tag-feature">Feature</span>
@@ -512,3 +478,104 @@
   </div>
 </body>
 </html>
+```
+
+- [ ] **Step 2: Verify file was created**
+
+Run: `test -f /Users/yanchimyeung/Projects/stock-dashboard/frontend/public/release-notes.html && echo "File exists" || echo "File missing"`
+Expected: `File exists`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add frontend/public/release-notes.html
+git commit -m "feat: add release notes page with semantic HTML and dark theme"
+```
+
+---
+
+### Task 2: Update `AGENTS.md` with release notes convention
+
+**Files:**
+- Modify: `AGENTS.md`
+
+- [ ] **Step 1: Read current AGENTS.md**
+
+Run: `cat /Users/yanchimyeung/Projects/stock-dashboard/AGENTS.md`
+
+- [ ] **Step 2: Append release notes convention**
+
+Add the following section after "Surgical Changes":
+
+```markdown
+**Release Notes**
+- Every user-visible change MUST include a release note entry in `frontend/public/release-notes.html`
+- Add the entry to the appropriate month section (create a new `<section class="month-group">` if the month doesn't exist yet)
+- Use the established format: `<article class="release-entry">` with `<time datetime="YYYY-MM-DD">`, `<h3>`, `<p>`, and a type badge (`<span class="tag tag-feature">` or `tag-fix`, `tag-improvement`, `tag-security`)
+- Keep entries in reverse chronological order within each month (newest at the top)
+- Write headlines in imperative mood ("Add X", "Fix Y", "Redesign Z")
+- Include user impact in the description; avoid internal implementation details unless relevant
+```
+
+The updated `AGENTS.md` should look like:
+
+```markdown
+# AGENTS.md
+
+This project uses the [Superpowers](https://github.com/obra/superpowers) plugin for structured development workflows (brainstorming, planning, TDD, code review, subagent-driven development, etc.).
+
+## Project-Specific Conventions
+
+**Simplicity First**
+- Minimum code that solves the problem. Nothing speculative.
+- No features beyond what was asked.
+- No abstractions for single-use code.
+
+**Surgical Changes**
+- Touch only what you must. Match existing style.
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't "improve" adjacent code, comments, or formatting.
+
+**Release Notes**
+- Every user-visible change MUST include a release note entry in `frontend/public/release-notes.html`
+- Add the entry to the appropriate month section (create a new `<section class="month-group">` if the month doesn't exist yet)
+- Use the established format: `<article class="release-entry">` with `<time datetime="YYYY-MM-DD">`, `<h3>`, `<p>`, and a type badge (`<span class="tag tag-feature">` or `tag-fix`, `tag-improvement`, `tag-security`)
+- Keep entries in reverse chronological order within each month (newest at the top)
+- Write headlines in imperative mood ("Add X", "Fix Y", "Redesign Z")
+- Include user impact in the description; avoid internal implementation details unless relevant
+
+## Active Plugins
+
+- `opencode-antigravity-auth` — Use Antigravity's free models instead of API billing
+- `opencode-dynamic-context-pruning` — Optimize token usage by pruning obsolete tool outputs
+- `superpowers` — Structured development methodology
+```
+
+- [ ] **Step 3: Verify the change**
+
+Run: `grep -A 5 "Release Notes" /Users/yanchimyeung/Projects/stock-dashboard/AGENTS.md`
+Expected: Output shows the Release Notes section with all bullet points
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add AGENTS.md
+git commit -m "docs: add release notes convention to AGENTS.md"
+```
+
+---
+
+## Verification
+
+After completing both tasks:
+
+1. Start the frontend dev server: `cd /Users/yanchimyeung/Projects/stock-dashboard/frontend && npm run dev`
+2. Open `http://localhost:3000/release-notes.html` in a browser
+3. Verify:
+   - Dark theme with glass-morphism cards
+   - Correct fonts (Syne for headings, Inter for body, DM Mono for dates)
+   - Semantic HTML structure (`<article>`, `<time>`, `<section>`, etc.)
+   - Monthly groups in reverse chronological order (May → April → March)
+   - Back link in header navigates to `/`
+   - Entries have type badges (Feature, Fix, Improvement)
+   - Responsive layout works on narrow screens

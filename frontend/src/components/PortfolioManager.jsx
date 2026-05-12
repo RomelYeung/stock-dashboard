@@ -1,64 +1,99 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MAX_PORTFOLIO_TICKERS } from "../constants.js";
+import { MAX_PORTFOLIO_TICKERS, MAX_WISHLIST_TICKERS } from "../constants.js";
+import TickerAutocomplete from "./TickerAutocomplete";
 
-const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
-
-export default function PortfolioManager({ tickers, onChange }) {
-  const [input, setInput] = useState("");
+export default function PortfolioManager({ watchlist, wishlist, onWatchlistChange, onWishlistChange }) {
+  const [activeTab, setActiveTab] = useState("watchlist");
   const [error, setError] = useState("");
 
-  function add() {
-    const ticker = input.trim().toUpperCase();
-    if (!ticker) return;
-    if (tickers.includes(ticker)) {
-      setError(`${ticker} is already in your portfolio`);
+  function handleSelect(ticker) {
+    const list = activeTab === "watchlist" ? watchlist : wishlist;
+    const onChange = activeTab === "watchlist" ? onWatchlistChange : onWishlistChange;
+    const max = activeTab === "watchlist" ? MAX_PORTFOLIO_TICKERS : MAX_WISHLIST_TICKERS;
+
+    if (list.includes(ticker)) {
+      setError(`${ticker} is already in your ${activeTab === "watchlist" ? "watch list" : "wish list"}`);
       return;
     }
-    if (tickers.length >= MAX_PORTFOLIO_TICKERS) {
-      setError(`Maximum ${MAX_PORTFOLIO_TICKERS} tickers`);
+    if (list.length >= max) {
+      setError(`Maximum ${max} tickers in ${activeTab === "watchlist" ? "watch list" : "wish list"}`);
       return;
     }
-    onChange([...tickers, ticker]);
-    setInput("");
+    onChange([...list, ticker]);
     setError("");
   }
 
   function remove(ticker) {
-    onChange(tickers.filter((t) => t !== ticker));
+    if (activeTab === "watchlist") {
+      onWatchlistChange(watchlist.filter((t) => t !== ticker));
+    } else {
+      onWishlistChange(wishlist.filter((t) => t !== ticker));
+    }
   }
 
-  function handleKey(e) {
-    if (e.key === "Enter") add();
-    else setError("");
-  }
+  const currentList = activeTab === "watchlist" ? watchlist : wishlist;
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.inputRow}>
-        <div style={styles.inputWrap}>
-          <input
-            style={styles.input}
-            value={input}
-            onChange={(e) => setInput(e.target.value.toUpperCase())}
-            onKeyDown={handleKey}
-            placeholder="Add ticker…"
-            maxLength={10}
-            spellCheck={false}
-          />
-          {error && <span style={styles.error}>{error}</span>}
-        </div>
-        <button style={styles.addBtn} onClick={add}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          Add
+      <div style={styles.tabs}>
+        <button
+          style={{
+            ...styles.tab,
+            ...(activeTab === "watchlist" ? styles.tabActive : {}),
+          }}
+          onClick={() => {
+            setActiveTab("watchlist");
+            setError("");
+          }}
+        >
+          Watch List
+          {watchlist.length > 0 && (
+            <span
+              style={{
+                ...styles.tabCount,
+                ...(activeTab === "watchlist" ? styles.tabCountActive : {}),
+              }}
+            >
+              {watchlist.length}
+            </span>
+          )}
+        </button>
+        <button
+          style={{
+            ...styles.tab,
+            ...(activeTab === "wishlist" ? styles.tabActive : {}),
+          }}
+          onClick={() => {
+            setActiveTab("wishlist");
+            setError("");
+          }}
+        >
+          Wish List
+          {wishlist.length > 0 && (
+            <span
+              style={{
+                ...styles.tabCount,
+                ...(activeTab === "wishlist" ? styles.tabCountActive : {}),
+              }}
+            >
+              {wishlist.length}
+            </span>
+          )}
         </button>
       </div>
 
-      <div style={styles.chips}>
+      <div style={styles.inputWrap}>
+        <TickerAutocomplete
+          onSelect={handleSelect}
+          placeholder={`Add to ${activeTab === "watchlist" ? "watch list" : "wish list"}…`}
+        />
+        {error && <span style={styles.error}>{error}</span>}
+      </div>
+
+      <div style={styles.chips} className="hide-scrollbar">
         <AnimatePresence>
-          {tickers.map((ticker) => (
+          {currentList.map((ticker) => (
             <motion.div
               key={ticker}
               style={styles.chip}
@@ -86,32 +121,52 @@ const styles = {
   wrapper: {
     display: "flex",
     flexDirection: "column",
-    gap: "12px",
-  },
-  inputRow: {
-    display: "flex",
     gap: "8px",
-    alignItems: "flex-start",
+  },
+  tabs: {
+    display: "flex",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: "8px",
+    overflow: "hidden",
+    marginBottom: "0px",
+  },
+  tab: {
+    background: "transparent",
+    border: "none",
+    color: "var(--text-secondary)",
+    cursor: "pointer",
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    padding: "5px 12px",
+    transition: "all 0.15s",
+    flex: 1,
+    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    display: "flex",
+  },
+  tabActive: {
+    background: "var(--accent-blue)",
+    color: "white",
+  },
+  tabCount: {
+    fontFamily: "var(--font-mono)",
+    fontSize: "10px",
+    marginLeft: "6px",
+    padding: "1px 5px",
+    background: "rgba(255,255,255,0.08)",
+    borderRadius: "4px",
+    color: "var(--text-secondary)",
+  },
+  tabCountActive: {
+    background: "rgba(255,255,255,0.2)",
+    color: "white",
   },
   inputWrap: {
     display: "flex",
     flexDirection: "column",
     gap: "4px",
-    flex: 1,
-  },
-  input: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "10px",
-    color: "var(--text-primary)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "13px",
-    fontWeight: 400,
-    letterSpacing: "0.08em",
-    outline: "none",
-    padding: "10px 14px",
-    transition: "border-color 0.2s",
-    width: "100%",
   },
   error: {
     color: "var(--accent-red)",
@@ -119,26 +174,12 @@ const styles = {
     fontSize: "11px",
     paddingLeft: "4px",
   },
-  addBtn: {
-    alignItems: "center",
-    background: "rgba(0, 229, 160, 0.1)",
-    border: "1px solid rgba(0, 229, 160, 0.2)",
-    borderRadius: "10px",
-    color: "var(--accent-green)",
-    cursor: "pointer",
-    display: "flex",
-    fontFamily: "var(--font-body)",
-    fontSize: "13px",
-    fontWeight: 500,
-    gap: "6px",
-    padding: "10px 16px",
-    transition: "all 0.2s",
-    whiteSpace: "nowrap",
-  },
   chips: {
     display: "flex",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
+    overflowX: "auto",
     gap: "6px",
+    scrollbarWidth: "none",
   },
   chip: {
     alignItems: "center",

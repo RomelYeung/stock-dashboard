@@ -9,6 +9,7 @@ export const CACHE_PERSIST_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // API limits
 export const MAX_PORTFOLIO_TICKERS = 20;
+export const MAX_WISHLIST_TICKERS = 20;
 export const YAHOO_FINANCE_DELAY_MS = 150;
 
 // Ticker validation

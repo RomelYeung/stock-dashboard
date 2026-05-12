@@ -412,6 +412,19 @@ async function getHoldings(ticker) {
   return holdings;
 }
 
+/**
+ * Search for tickers by name or symbol.
+ * @param {string} query - Search query
+ * @param {object} [options] - Search options
+ * @param {number} [options.quotesCount=8] - Max results
+ * @returns {Promise<Array>} Matched quotes
+ */
+export async function searchTickers(query, options = {}) {
+  const { quotesCount = 8 } = options;
+  const results = await yahooFinance.search(query, { quotesCount });
+  return results.quotes || [];
+}
+
 export {
   getSummary,
   getFinancials,

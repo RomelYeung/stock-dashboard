@@ -1,5 +1,6 @@
 // Portfolio limits
 export const MAX_PORTFOLIO_TICKERS = 20;
+export const MAX_WISHLIST_TICKERS = 20;
 
 // Market indicator thresholds
 export const VIX_FEAR_THRESHOLD = 30;

@@ -35,9 +35,9 @@ function formatEarningsDate(earningsDate) {
   return `Earnings ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
-function MetricRow({ label, value, highlight }) {
+function MetricRow({ label, value, highlight, compact }) {
   return (
-    <div style={metricStyles.row}>
+    <div style={{ ...metricStyles.row, ...(compact ? metricStyles.rowCompact : {}) }}>
       <span style={metricStyles.label}>{label}</span>
       <span
         style={{
@@ -63,6 +63,9 @@ const metricStyles = {
     padding: "6px 0",
     borderBottom: "1px solid rgba(255,255,255,0.04)",
   },
+  rowCompact: {
+    padding: "4px 0",
+  },
   label: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
@@ -78,8 +81,10 @@ const metricStyles = {
   },
 };
 
-export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive }) {
+export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive, variant }) {
   const positive = data ? isPositive(data.changePercent) : null;
+  const isSecondary = variant === "secondary";
+  const hasEarningsSoon = data && isEarningsSoon(data.earningsDate);
   const [flash, setFlash] = useState(null);
   const prevPriceRef = useRef(data?.currentPrice);
 
@@ -102,8 +107,11 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
       style={{
         ...styles.card,
         cursor: loading || error ? "default" : "pointer",
+        ...(isSecondary ? styles.cardSecondary : {}),
         ...(flash === "up" ? { background: "rgba(0, 229, 160, 0.06)" } : {}),
         ...(flash === "down" ? { background: "rgba(255, 77, 109, 0.05)" } : {}),
+        ...(error ? { border: "1px solid var(--accent-red)" } : {}),
+        ...(!error && hasEarningsSoon ? { border: "1px solid rgba(255, 215, 0, 0.3)" } : {}),
       }}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
@@ -126,17 +134,18 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <div style={styles.ticker}>{ticker}</div>
+          <div style={{ ...styles.ticker, ...(isSecondary ? styles.tickerSecondary : {}) }}>{ticker}</div>
           {data && <div style={styles.name}>{data.name}</div>}
           {loading && <div style={styles.name}>Loading…</div>}
-          {error && <div style={{ ...styles.name, color: "var(--accent-red)" }}>Failed to load</div>}
+          {error && <div style={{ ...styles.name, color: "var(--accent-red)" }}>⚠ Failed to load</div>}
         </div>
 
           {data && (
             <div style={styles.priceBlock}>
-              <div style={styles.price}>{formatPrice(data.currentPrice)}</div>
+              <div style={{ ...styles.price, ...(isSecondary ? styles.priceSecondary : {}) }}>{formatPrice(data.currentPrice)}</div>
               <div style={{
                 ...styles.change,
+                ...(isSecondary ? styles.changeSecondary : {}),
                 color: positive ? "var(--accent-green)" : "var(--accent-red)",
                 background: positive ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
               }}>
@@ -159,15 +168,16 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
       {/* Metrics */}
       {data && (
         <div style={styles.metrics}>
-          <MetricRow label="Market Cap" value={formatMarketCap(data.marketCap)} />
+          <MetricRow label="Market Cap" value={formatMarketCap(data.marketCap)} compact={isSecondary} />
           <MetricRow
             label="P/E (TTM)"
             value={formatMultiple(data.trailingPE)}
             highlight={data.trailingPE != null && data.trailingPE < 15 ? "positive" : data.trailingPE > 40 ? "negative" : null}
+            compact={isSecondary}
           />
-          <MetricRow label="Fwd P/E" value={formatMultiple(data.forwardPE)} />
-          <MetricRow label="EV/EBITDA" value={formatMultiple(data.enterpriseToEbitda)} />
-          <MetricRow label="P/B" value={formatMultiple(data.priceToBook)} />
+          <MetricRow label="Fwd P/E" value={formatMultiple(data.forwardPE)} compact={isSecondary} />
+          <MetricRow label="EV/EBITDA" value={formatMultiple(data.enterpriseToEbitda)} compact={isSecondary} />
+          <MetricRow label="P/B" value={formatMultiple(data.priceToBook)} compact={isSecondary} />
         </div>
       )}
 
@@ -185,18 +195,15 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
       {/* Footer */}
       {data && (
         <div style={styles.footer}>
-          <span style={styles.footerText}>
-            52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
-          </span>
+          {!isSecondary && (
+            <span style={styles.footerText}>
+              52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
+            </span>
+          )}
           {liveActive ? (
             <span style={styles.liveFooterText}>Live · updated just now</span>
           ) : data.earningsDate ? (
-            <span
-              style={{
-                ...(isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText),
-                ...(isEarningsSoon(data.earningsDate) ? styles.earningsGlow : {}),
-              }}
-            >
+            <span style={isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText}>
               {formatEarningsDate(data.earningsDate)}
             </span>
           ) : (
@@ -306,7 +313,7 @@ const styles = {
     fontFamily: "var(--font-body)",
     fontSize: "11px",
     fontWeight: 500,
-    opacity: 0.7,
+    opacity: 1,
   },
   earningsCta: {
     color: "#FFD700",
@@ -315,23 +322,21 @@ const styles = {
     fontWeight: 600,
     textShadow: "0 0 8px rgba(255, 215, 0, 0.5)",
   },
-  earningsGlow: {
-    animation: "pulse 2s ease-in-out infinite",
-  },
   liveDot: {
-    width: "6px",
-    height: "6px",
+    width: "8px",
+    height: "8px",
     borderRadius: "50%",
     background: "var(--accent-green)",
+    boxShadow: "0 0 0 2px rgba(0,229,160,0.15)",
     animation: "blink 2s ease-in-out infinite",
     flexShrink: 0,
   },
   liveFooterText: {
     color: "var(--accent-green)",
     fontFamily: "var(--font-mono)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 300,
-    opacity: 0.7,
+    opacity: 1,
   },
   skeleton: {
     background: "rgba(255,255,255,0.06)",
@@ -345,5 +350,18 @@ const styles = {
     borderRadius: "4px",
     height: "10px",
     animation: "pulse 1.5s ease-in-out infinite",
+  },
+  cardSecondary: {
+    padding: "18px",
+    background: "rgba(255,255,255,0.02)",
+  },
+  tickerSecondary: {
+    fontSize: "18px",
+  },
+  priceSecondary: {
+    fontSize: "14px",
+  },
+  changeSecondary: {
+    fontSize: "10px",
   },
 };

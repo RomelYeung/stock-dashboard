@@ -10,6 +10,7 @@ import { getMarketStatus } from "./utils/marketStatus";
 
 const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 const STORAGE_KEY = "portfolio-tickers";
+const WISHLIST_STORAGE_KEY = "wishlist-tickers";
 
 function loadTickers() {
   try {
@@ -21,14 +22,26 @@ function loadTickers() {
   }
 }
 
+function loadWishlistTickers() {
+  try {
+    const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
   const [tickers, setTickers] = useState(loadTickers);
+  const [wishlistTickers, setWishlistTickers] = useState(loadWishlistTickers);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [currentPage, setCurrentPage] = useState("portfolio");
   const [period, setPeriod] = useState("5y");
   const [marketStatus, setMarketStatus] = useState(getMarketStatus);
-  const { data, loading, errors, refetch } = usePortfolio(tickers);
-  const { liveData, isActive: liveActive } = useLivePrices(tickers);
+  const allTickers = [...new Set([...tickers, ...wishlistTickers])];
+  const { data, loading, errors, refetch } = usePortfolio(allTickers);
+  const { liveData, isActive: liveActive } = useLivePrices(allTickers);
 
   const handleCloseModal = useCallback(() => setSelectedTicker(null), []);
   const handleOpenAnalysis = useCallback(() => setCurrentPage("stock"), []);
@@ -101,6 +114,11 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newTickers));
   }
 
+  function handleWishlistChange(newTickers) {
+    setWishlistTickers(newTickers);
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(newTickers));
+  }
+
   return (
     <>
       {/* Ambient background orbs */}
@@ -169,32 +187,38 @@ export default function App() {
             <div>
               {/* Portfolio Manager */}
               <section style={styles.managerSection}>
-                <div style={styles.sectionLabel}>Watchlist</div>
-                <PortfolioManager tickers={tickers} onChange={handleTickerChange} />
+                <PortfolioManager
+                  watchlist={tickers}
+                  wishlist={wishlistTickers}
+                  onWatchlistChange={handleTickerChange}
+                  onWishlistChange={handleWishlistChange}
+                />
               </section>
 
-              {/* Stats bar */}
-              {tickers.length > 0 && (
-                <div style={styles.statsBar}>
-                  <span style={styles.statsText}>
-                    {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
-                  </span>
-                  {Object.keys(errors).length > 0 && (
-                    <span style={styles.errorBadge}>
-                      {Object.keys(errors).length} failed to load
+              <div style={styles.sectionSticky}>
+                <div className="section-label">Watch List</div>
+                {tickers.length > 0 && (
+                  <div style={styles.statsBar}>
+                    <span style={styles.statsText}>
+                      {tickers.length} stock{tickers.length !== 1 ? "s" : ""} tracked
                     </span>
-                  )}
-                </div>
-              )}
+                    {Object.keys(errors).length > 0 && (
+                      <span style={styles.errorBadge}>
+                        {Object.keys(errors).length} failed to load
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Stock Cards Grid */}
               {tickers.length === 0 ? (
                 <div style={styles.emptyState}>
-                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" opacity={0.2}>
+                  <svg width="36" height="36" viewBox="0 0 40 40" fill="none" opacity={0.25}>
                     <rect x="4" y="10" width="32" height="24" rx="4" stroke="white" strokeWidth="1.5" />
                     <path d="M12 24l5-5 4 4 5-6 4 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p style={styles.emptyText}>Add tickers above to start tracking</p>
+                  <p style={styles.emptyText}>Add your first stock to start tracking</p>
                 </div>
               ) : (
                 <div style={styles.grid}>
@@ -208,9 +232,40 @@ export default function App() {
                       onClick={setSelectedTicker}
                       index={i}
                       liveActive={liveActive}
+                      variant="primary"
                     />
                   ))}
                 </div>
+              )}
+
+              {/* Wish List */}
+              {wishlistTickers.length > 0 && (
+                <>
+                  <div style={styles.sectionDivider} />
+                  <div style={styles.sectionSticky}>
+                    <div className="section-label">Wish List</div>
+                    <div style={styles.statsBar}>
+                      <span style={styles.statsText}>
+                        {wishlistTickers.length} stock{wishlistTickers.length !== 1 ? "s" : ""} wishlisted
+                      </span>
+                    </div>
+                  </div>
+                  <div style={styles.grid}>
+                    {wishlistTickers.map((ticker, i) => (
+                      <StockCard
+                        key={ticker}
+                        ticker={ticker}
+                        data={mergedData[ticker]}
+                        error={errors[ticker]}
+                        loading={loading && !data[ticker]}
+                        onClick={setSelectedTicker}
+                        index={i}
+                        liveActive={liveActive}
+                        variant="secondary"
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -303,7 +358,8 @@ const styles = {
   headerMeta: {
     alignItems: "center",
     display: "flex",
-    gap: "16px",
+    gap: "20px",
+    flexWrap: "wrap",
   },
   pageToggle: {
     display: "flex",
@@ -370,13 +426,21 @@ const styles = {
     flexDirection: "column",
     gap: "10px",
   },
-  sectionLabel: {
-    color: "var(--text-secondary)",
-    fontFamily: "var(--font-display)",
-    fontSize: "11px",
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
+  sectionSticky: {
+    position: "sticky",
+    top: "65px",
+    zIndex: 40,
+    background: "linear-gradient(to bottom, #05080f 70%, transparent)",
+    padding: "8px 0",
+    marginBottom: "8px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  sectionDivider: {
+    height: "1px",
+    background: "rgba(255,255,255,0.05)",
+    margin: "16px 0",
   },
   statsBar: {
     alignItems: "center",
@@ -407,7 +471,7 @@ const styles = {
     flexDirection: "column",
     gap: "16px",
     justifyContent: "center",
-    minHeight: "240px",
+    minHeight: "140px",
   },
   emptyText: {
     color: "var(--text-secondary)",

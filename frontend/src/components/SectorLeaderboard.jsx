@@ -93,7 +93,7 @@ export default function SectorLeaderboard({ sectors }) {
             </div>
             <div style={styles.colScore}>
               <div style={styles.scoreBarContainer}>
-                <BarChart width={100} height={20} data={[{ value: sector.score }]}>
+                <BarChart width={70} height={20} data={[{ value: sector.score }]}>
                   <Bar
                     dataKey="value"
                     fill={sector.score > 70 ? "#10b981" : sector.score > 40 ? "#f59e0b" : "#ef4444"}
@@ -214,8 +214,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    width: "100px",
+    width: "100%",
     height: "20px",
+    padding: 0,
   },
   scoreValue: {
     fontSize: "12px",
