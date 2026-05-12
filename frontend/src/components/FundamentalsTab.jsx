@@ -67,10 +67,10 @@ function StatBox({ label, value, sub, positive, peerDiff }) {
         {peerDiff != null && (
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "11px",
               fontFamily: "var(--font-body)",
-              fontWeight: 400,
-              padding: "1px 5px",
+              fontWeight: 500,
+              padding: "2px 6px",
               borderRadius: "4px",
               whiteSpace: "nowrap",
               color: peerColor,
@@ -89,8 +89,8 @@ function StatBox({ label, value, sub, positive, peerDiff }) {
 
 const sbox = {
   box: {
-    background: "rgba(255,255,255,0.025)",
-    border: "1px solid rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.035)",
+    border: "none",
     borderRadius: "10px",
     padding: "14px 16px",
     display: "flex",
@@ -112,7 +112,7 @@ const sbox = {
 // ─── Section (matching existing StockAnalysisPage pattern) ──────────────────
 function Section({ title, children }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <h3 style={sec.title}>{title}</h3>
       {children}
     </div>
@@ -140,8 +140,8 @@ const COL_WIDTHS = {
   metric: "28%",
   thisStock: "20%",
   peerAvg: "20%",
-  diff: "18%",
-  trend: "14%",
+  diff: "16%",
+  trend: "16%",
 };
 
 const tbl = {
@@ -174,7 +174,7 @@ function Sparkline({ data, color, label }) {
   const pctChange = first !== 0 ? (((last - first) / Math.abs(first)) * 100).toFixed(0) : 0;
   return (
     <div
-      style={{ width: "64px", height: "24px" }}
+      style={{ width: "80px", height: "32px" }}
       role="img"
       aria-label={`${label || "Metric"} trend: ${direction} ${Math.abs(pctChange)}% over period`}
     >
@@ -394,11 +394,12 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
               }
             }}
             style={{
-              background: activeCategory === key ? "rgba(255,255,255,0.10)" : "transparent",
+              background: "transparent",
               border: "none",
-              color: activeCategory === key ? "var(--text-primary)" : "var(--text-secondary)",
+              borderBottom: activeCategory === key ? "2px solid var(--accent-blue)" : "2px solid transparent",
+              color: activeCategory === key ? "var(--accent-blue)" : "var(--text-secondary)",
               padding: "6px 14px",
-              borderRadius: "6px",
+              borderRadius: "0",
               fontSize: "12px",
               fontFamily: "var(--font-body)",
               cursor: "pointer",
@@ -408,13 +409,11 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
             }}
             onMouseEnter={(e) => {
               if (activeCategory !== key) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
                 e.currentTarget.style.color = "var(--text-primary)";
               }
             }}
             onMouseLeave={(e) => {
               if (activeCategory !== key) {
-                e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.color = "var(--text-secondary)";
               }
             }}
@@ -449,18 +448,18 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
               return (
                 <div
                   style={{
-                    padding: "12px 20px 16px 20px",
+                    padding: "16px 20px",
                     borderTop: "1px solid rgba(255,255,255,0.05)",
-                    background: "rgba(255,255,255,0.025)",
-                    borderLeft: "2px solid var(--accent-blue)",
+                    background: "rgba(79, 141, 255, 0.04)",
+                    borderLeft: "3px solid var(--accent-blue)",
                   }}
                 >
                   <p
                     style={{
-                      color: "rgba(255,255,255,0.65)",
-                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.70)",
+                      fontSize: "13px",
                       fontFamily: "var(--font-body)",
-                      fontWeight: 300,
+                      fontWeight: 400,
                       margin: 0,
                       lineHeight: 1.6,
                     }}
@@ -551,7 +550,113 @@ export default function FundamentalsTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-      {/* ─── 1. PEER COMPARISON ───────────────────────────────────────────── */}
+      {/* ─── 1. KEY METRICS ────────────────────────────────────────────────── */}
+      <Section title="Key Metrics">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr",
+            gap: "24px",
+          }}
+        >
+          {/* Valuation */}
+          <Section title="Valuation">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+              <StatBox label="Market Cap" value={formatMarketCap(summary.marketCap)} />
+              <StatBox
+                label="Forward P/E"
+                value={formatMultiple(summary.forwardPE)}
+                peerDiff={findPeerDiff(comparablesData, "forwardPE")}
+              />
+              <StatBox
+                label="P/B"
+                value={formatMultiple(summary.priceToBook)}
+                peerDiff={findPeerDiff(comparablesData, "priceToBook")}
+              />
+              <StatBox
+                label="PEG Ratio"
+                value={formatMultiple(summary.pegRatio)}
+                peerDiff={findPeerDiff(comparablesData, "pegRatio")}
+              />
+            </div>
+          </Section>
+
+          {/* Profitability */}
+          <Section title="Profitability">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              <StatBox
+                label="Operating Margin"
+                value={formatPercent(financials.operatingMargins)}
+                peerDiff={findPeerDiff(comparablesData, "operatingMargin")}
+              />
+              <StatBox
+                label="Net Margin"
+                value={formatPercent(financials.profitMargins)}
+                peerDiff={findPeerDiff(comparablesData, "profitMargin")}
+              />
+              <StatBox
+                label="ROA"
+                value={formatPercent(financials.returnOnAssets)}
+                peerDiff={findPeerDiff(comparablesData, "returnOnAssets")}
+              />
+            </div>
+            <MarginsChart annualIncome={financials.annualIncome} />
+          </Section>
+
+          {/* Revenue & Earnings */}
+          <Section title="Revenue & Earnings">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+              <StatBox label="Total Revenue" value={formatRevenue(financials.totalRevenue)} />
+              <StatBox
+                label="Earnings Growth"
+                value={formatPercent(financials.earningsGrowth)}
+                peerDiff={findPeerDiff(comparablesData, "earningsGrowth")}
+              />
+              <StatBox
+                label="EPS Est. (This Yr)"
+                value={
+                  financials.estimates?.currentYear != null
+                    ? `$${financials.estimates.currentYear.toFixed(2)}`
+                    : "—"
+                }
+              />
+              <StatBox
+                label="EPS Est. (Next Yr)"
+                value={
+                  financials.estimates?.nextYear != null
+                    ? `$${financials.estimates.nextYear.toFixed(2)}`
+                    : "—"
+                }
+              />
+            </div>
+            <RevenueChart annualIncome={financials.annualIncome} />
+          </Section>
+
+          {/* Balance Sheet & Cash Flow */}
+          <Section title="Balance Sheet & Cash Flow">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              <StatBox label="Total Cash" value={formatRevenue(balanceSheet.totalCash)} />
+              <StatBox label="Total Debt" value={formatRevenue(balanceSheet.totalDebt)} />
+              <StatBox
+                label="Current Ratio"
+                value={formatMultiple(balanceSheet.currentRatio)}
+                peerDiff={findPeerDiff(comparablesData, "currentRatio")}
+              />
+              <StatBox
+                label="Free Cash Flow"
+                value={formatRevenue(balanceSheet.freeCashflow)}
+              />
+              <StatBox
+                label="Operating CF"
+                value={formatRevenue(balanceSheet.operatingCashflow)}
+              />
+            </div>
+            <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />
+          </Section>
+        </div>
+      </Section>
+
+      {/* ─── 2. PEER COMPARISON ───────────────────────────────────────────── */}
       {comparablesLoading && !comparablesData ? (
         <Section title="Peer Comparison">
           <div style={{ ...states.skeleton, padding: "24px" }}>
@@ -561,73 +666,9 @@ export default function FundamentalsTab({
           </div>
         </Section>
       ) : comparablesData ? (
-        <>
-          <Section title="Peer Comparison">
-            <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} isTablet={isTablet} />
-          </Section>
-
-          {/* Peers Grid */}
-          {comparablesData?.peers?.length > 0 && (
-            <Section title={`Peers — ${comparablesData.sector || "Unknown"}`}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-                  gap: "8px",
-                }}
-              >
-                {comparablesData.peers.map((peer) => (
-                  <div
-                    key={peer.ticker}
-                    style={{
-                      background: "rgba(255,255,255,0.025)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      borderRadius: "8px",
-                      padding: "10px 12px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "2px",
-                    }}
-                  >
-                    <span style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Peer</span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {peer.ticker}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        color: "var(--text-secondary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={peer.name}
-                    >
-                      {peer.name}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        color: "var(--text-secondary)",
-                        fontFamily: "var(--font-mono)",
-                        marginTop: "4px",
-                      }}
-                    >
-                      {formatMarketCap(peer.marketCap)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-        </>
+        <Section title="Peer Comparison">
+          <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} isTablet={isTablet} />
+        </Section>
       ) : (
         <Section title="Peer Comparison">
           <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)" }}>
@@ -635,117 +676,6 @@ export default function FundamentalsTab({
           </div>
         </Section>
       )}
-
-      {/* ─── 2. FINANCIAL SECTIONS ────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr",
-          gap: isMobile ? "20px" : isTablet ? "24px" : "28px",
-        }}
-      >
-        {/* Valuation */}
-        <Section title="Valuation">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
-            <StatBox label="Market Cap" value={formatMarketCap(summary.marketCap)} />
-            <StatBox
-              label="Forward P/E"
-              value={formatMultiple(summary.forwardPE)}
-              peerDiff={findPeerDiff(comparablesData, "forwardPE")}
-            />
-            <StatBox
-              label="P/B"
-              value={formatMultiple(summary.priceToBook)}
-              peerDiff={findPeerDiff(comparablesData, "priceToBook")}
-            />
-            <StatBox
-              label="PEG Ratio"
-              value={formatMultiple(summary.pegRatio)}
-              peerDiff={findPeerDiff(comparablesData, "pegRatio")}
-            />
-          </div>
-        </Section>
-
-        {/* Profitability */}
-        <Section title="Profitability">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
-            <StatBox
-              label="Operating Margin"
-              value={formatPercent(financials.operatingMargins)}
-              positive={financials.operatingMargins > 0.1}
-              peerDiff={findPeerDiff(comparablesData, "operatingMargin")}
-            />
-            <StatBox
-              label="Net Margin"
-              value={formatPercent(financials.profitMargins)}
-              positive={financials.profitMargins > 0}
-              peerDiff={findPeerDiff(comparablesData, "profitMargin")}
-            />
-            <StatBox
-              label="ROA"
-              value={formatPercent(financials.returnOnAssets)}
-              positive={financials.returnOnAssets > 0.05}
-              peerDiff={findPeerDiff(comparablesData, "returnOnAssets")}
-            />
-          </div>
-          <MarginsChart annualIncome={financials.annualIncome} />
-        </Section>
-
-        {/* Revenue & Earnings */}
-        <Section title="Revenue & Earnings">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
-            <StatBox label="Total Revenue" value={formatRevenue(financials.totalRevenue)} />
-            <StatBox
-              label="Earnings Growth"
-              value={formatPercent(financials.earningsGrowth)}
-              positive={financials.earningsGrowth > 0}
-              peerDiff={findPeerDiff(comparablesData, "earningsGrowth")}
-            />
-            <StatBox
-              label="EPS Est. (This Yr)"
-              value={
-                financials.estimates?.currentYear != null
-                  ? `$${financials.estimates.currentYear.toFixed(2)}`
-                  : "—"
-              }
-            />
-            <StatBox
-              label="EPS Est. (Next Yr)"
-              value={
-                financials.estimates?.nextYear != null
-                  ? `$${financials.estimates.nextYear.toFixed(2)}`
-                  : "—"
-              }
-            />
-          </div>
-          <RevenueChart annualIncome={financials.annualIncome} />
-        </Section>
-
-        {/* Balance Sheet & Cash Flow */}
-        <Section title="Balance Sheet & Cash Flow">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
-            <StatBox label="Total Cash" value={formatRevenue(balanceSheet.totalCash)} />
-            <StatBox label="Total Debt" value={formatRevenue(balanceSheet.totalDebt)} />
-            <StatBox
-              label="Current Ratio"
-              value={formatMultiple(balanceSheet.currentRatio)}
-              positive={balanceSheet.currentRatio > 1.5}
-              peerDiff={findPeerDiff(comparablesData, "currentRatio")}
-            />
-            <StatBox
-              label="Free Cash Flow"
-              value={formatRevenue(balanceSheet.freeCashflow)}
-              positive={balanceSheet.freeCashflow > 0}
-            />
-            <StatBox
-              label="Operating CF"
-              value={formatRevenue(balanceSheet.operatingCashflow)}
-              positive={balanceSheet.operatingCashflow > 0}
-            />
-          </div>
-          <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />
-        </Section>
-      </div>
     </div>
   );
 }
