@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import MarketSessionBadge from "./MarketSessionBadge";
 import {
   formatPrice,
   formatMarketCap,
@@ -81,7 +82,7 @@ const metricStyles = {
   },
 };
 
-export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive, variant }) {
+export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive, variant, marketStatus }) {
   const positive = data ? isPositive(data.changePercent) : null;
   const isSecondary = variant === "secondary";
   const hasEarningsSoon = data && isEarningsSoon(data.earningsDate);
@@ -164,6 +165,13 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
 
       {/* Divider */}
       <div style={styles.divider} />
+
+      {/* Market session badge */}
+      {marketStatus && (
+        <div style={styles.badgeRow}>
+          <MarketSessionBadge status={marketStatus} variant="card" />
+        </div>
+      )}
 
       {/* Metrics */}
       {data && (
@@ -284,6 +292,11 @@ const styles = {
   divider: {
     background: "rgba(255,255,255,0.05)",
     height: "1px",
+    position: "relative",
+    zIndex: 1,
+  },
+  badgeRow: {
+    display: "flex",
     position: "relative",
     zIndex: 1,
   },

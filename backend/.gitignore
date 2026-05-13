@@ -3,3 +3,6 @@ node_modules/
 dist/
 cache/
 data/
+.schwab-token.json
+schwab-token.json
+certs/*.pem

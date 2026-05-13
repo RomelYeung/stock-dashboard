@@ -1,7 +1,4 @@
 # AGENTS.md
-
-This project uses the [Superpowers](https://github.com/obra/superpowers) plugin for structured development workflows (brainstorming, planning, TDD, code review, subagent-driven development, etc.).
-
 ## Project-Specific Conventions
 
 **Simplicity First**
@@ -26,12 +23,11 @@ This project uses the [Superpowers](https://github.com/obra/superpowers) plugin 
 
 This project uses a multi-agent orchestration system. The `architect` agent is the primary orchestrator and NEVER modifies files directly. All file modifications are performed by specialized subagents (`@coder`, `@ui-specialist`, `@integrator`).
 
-**For subagents reading this file:** The conventions above ("Simplicity First", "Surgical Changes", "Release Notes") apply to YOUR work. The architect will include these conventions in your task specs.
-
 **For the architect:** Do not attempt to enforce these conventions by writing code yourself. Include them as acceptance criteria in your task dispatches.
+
+**For subagents reading this file:** The conventions above ("Simplicity First", "Surgical Changes", "Release Notes") apply to YOUR work.
 
 ## Active Plugins
 
 - `opencode-antigravity-auth` — Use Antigravity's free models instead of API billing
 - `opencode-dynamic-context-pruning` — Optimize token usage by pruning obsolete tool outputs
-- `superpowers` — Structured development methodology

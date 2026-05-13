@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMarketStatus } from "../utils/marketStatus";
 
+export const getPollingInterval = (isOpen) => (isOpen ? 30000 : 300000);
+
 const BASE = "/api/stocks";
 
 async function apiFetch(path) {
@@ -48,6 +50,7 @@ export function usePortfolio(tickers) {
       return { data: newData, errors: newErrors };
     },
     staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days for fundamentals
+    placeholderData: (previousData) => previousData,
   });
 
   return {
@@ -82,8 +85,8 @@ export function useLivePrices(tickers) {
       setIsActive(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        intervalRef.current = null;
       }
+      intervalRef.current = setInterval(fetchLivePrices, getPollingInterval(false));
       return;
     }
 
@@ -132,22 +135,24 @@ export function useLivePrices(tickers) {
     mountedRef.current = true;
 
     const marketStatus = getMarketStatus();
-    if (marketStatus.isOpen && tickers.length > 0) {
-      setIsActive(true);
-      fetchLivePrices();
-      intervalRef.current = setInterval(fetchLivePrices, 30000);
+    if (tickers.length > 0) {
+      setIsActive(marketStatus.isOpen);
+      if (marketStatus.isOpen) {
+        fetchLivePrices();
+      }
+      intervalRef.current = setInterval(
+        fetchLivePrices,
+        getPollingInterval(marketStatus.isOpen),
+      );
     }
 
     const marketCheckInterval = setInterval(() => {
       const status = getMarketStatus();
-      if (status.isOpen && !intervalRef.current && tickers.length > 0) {
+      if (status.isOpen && tickers.length > 0) {
         setIsActive(true);
+        if (intervalRef.current) clearInterval(intervalRef.current);
         fetchLivePrices();
-        intervalRef.current = setInterval(fetchLivePrices, 30000);
-      } else if (!status.isOpen && intervalRef.current) {
-        setIsActive(false);
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+        intervalRef.current = setInterval(fetchLivePrices, getPollingInterval(true));
       }
     }, 60000);
 

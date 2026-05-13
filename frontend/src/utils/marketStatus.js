@@ -37,13 +37,45 @@ export function getMarketStatus() {
   const isAfterHours = !isWeekend && totalMinutes >= 960 && totalMinutes < 1200;
 
   if (isOpen) {
-    return { label: "Live", color: "var(--accent-green)", dotColor: "var(--accent-green)", isOpen: true };
+    return {
+      label: "Market Open",
+      session: "open",
+      color: "var(--accent-green)",
+      dotColor: "var(--accent-green)",
+      badgeColor: "var(--accent-green)",
+      badgeBg: "var(--accent-green-dim)",
+      isOpen: true,
+    };
   }
   if (isPreMarket) {
-    return { label: "Pre-market", color: "var(--accent-yellow)", dotColor: "var(--accent-yellow)", isOpen: false };
+    return {
+      label: "Pre-market",
+      session: "pre-market",
+      color: "var(--accent-yellow)",
+      dotColor: "var(--accent-yellow)",
+      badgeColor: "var(--accent-yellow)",
+      badgeBg: "var(--accent-yellow-dim)",
+      isOpen: false,
+    };
   }
   if (isAfterHours) {
-    return { label: "After-hours", color: "var(--accent-amber)", dotColor: "var(--accent-amber)", isOpen: false };
+    return {
+      label: "After-hours",
+      session: "after-hours",
+      color: "var(--accent-purple)",
+      dotColor: "var(--accent-purple)",
+      badgeColor: "var(--accent-purple)",
+      badgeBg: "var(--accent-purple-dim)",
+      isOpen: false,
+    };
   }
-  return { label: "Closed", color: "var(--text-secondary)", dotColor: "rgba(255,255,255,0.3)", isOpen: false };
+  return {
+    label: "Market Closed",
+    session: "closed",
+    color: "var(--text-secondary)",
+    dotColor: "rgba(255,255,255,0.3)",
+    badgeColor: "var(--text-secondary)",
+    badgeBg: "rgba(255,255,255,0.04)",
+    isOpen: false,
+  };
 }

@@ -7,6 +7,9 @@ import * as sectorScore from "../services/sectorScore.js";
 import * as aaii from "../services/aaii.js";
 import * as insiderTrading from "../services/insiderTrading.js";
 import * as comparables from "../services/comparables.js";
+import { getQuotes, getPriceHistory, getOptionChain, getMovers } from "../services/schwab-client.js";
+import { getTokenHealth } from "../services/schwab-auth.js";
+import { startAuthFlow } from "../services/schwab-callback-server.js";
 import NodeCache from "node-cache";
 import {
   MAX_PORTFOLIO_TICKERS,
@@ -84,7 +87,13 @@ router.get("/search", async (req, res) => {
       return res.json({ success: true, data: cached });
     }
 
-    const quotes = (await yf.searchTickers(q.trim(), { quotesCount: 8 }))
+    const searchPromise = yf.searchTickers(q.trim(), { quotesCount: 8 });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Search timeout")), 5000)
+    );
+    const tickers = await Promise.race([searchPromise, timeoutPromise]);
+
+    const quotes = tickers
       .filter((item) => item.quoteType === "EQUITY" || item.quoteType === "ETF")
       .map((item) => ({
         symbol: item.symbol,
@@ -98,6 +107,9 @@ router.get("/search", async (req, res) => {
     res.json({ success: true, data: quotes });
   } catch (err) {
     console.error("[search] error:", err.message);
+    if (err.message === "Search timeout") {
+      return res.status(504).json({ success: false, error: "Search timed out. Please try again." });
+    }
     res.status(500).json({ success: false, error: "Search failed." });
   }
 });
@@ -328,8 +340,7 @@ router.post("/portfolio", async (req, res) => {
 // POST /api/stocks/portfolio/live
 // Body: { tickers: ["AAPL", "MSFT", "GOOG"] }
 // Returns lightweight live price data (currentPrice, change, changePercent)
-// Uses stale-while-revalidate: cached data returned immediately,
-// stale entries refreshed in background — never blocks on Yahoo Finance
+// Uses Schwab batch quotes as primary source, falls back to Yahoo Finance
 router.post("/portfolio/live", async (req, res) => {
   const { tickers } = req.body;
 
@@ -340,15 +351,38 @@ router.post("/portfolio/live", async (req, res) => {
     return res.status(400).json({ success: false, error: `Maximum ${MAX_BATCH_TICKERS} tickers per request.` });
   }
 
+  const symbols = tickers.map((t) => t.toUpperCase());
+
   try {
-    const results = await yf.getLivePrices(tickers.map((t) => t.toUpperCase()));
-    res.json({
-      success: true,
-      data: results,
+    // Primary: Schwab batch quotes
+    const schwabQuotes = await getQuotes(symbols);
+    const results = symbols.map((symbol) => {
+      const entry = schwabQuotes[symbol];
+      if (entry?.quote) {
+        const { quote } = entry;
+        return {
+          ticker: symbol,
+          data: {
+            currentPrice: quote.extended?.lastPrice ?? quote.lastPrice ?? null,
+            change: quote.netChange ?? null,
+            changePercent: quote.netPercentChangeInDouble ?? null,
+          },
+          stale: false,
+        };
+      }
+      return { ticker: symbol, data: null, stale: true };
     });
-  } catch (err) {
-    console.error("[portfolio/live]:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    return res.json({ success: true, data: results });
+  } catch (schwabErr) {
+    // Fallback: Yahoo Finance
+    console.error("[portfolio/live] Schwab failed, falling back to Yahoo:", schwabErr.message);
+    try {
+      const results = await yf.getLivePrices(symbols);
+      return res.json({ success: true, data: results });
+    } catch (yfErr) {
+      console.error("[portfolio/live] Yahoo also failed:", yfErr.message);
+      return res.status(500).json({ success: false, error: yfErr.message });
+    }
   }
 });
 
@@ -552,6 +586,82 @@ router.get("/cache/stats", requireLocal, (req, res) => {
 router.delete("/cache", requireLocal, (req, res) => {
   cache.flush();
   res.json({ success: true, message: "Cache cleared." });
+});
+
+// ─── Schwab API routes ────────────────────────────────────────────────────────
+
+// GET /api/schwab/health — token status
+router.get("/schwab/health", async (req, res) => {
+  try {
+    const health = await getTokenHealth();
+    res.json(health);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/schwab/auth — initiate OAuth2 authorization flow
+router.get("/schwab/auth", async (req, res) => {
+  try {
+    const { authUrl, promise } = startAuthFlow();
+    // Run in background — don't block the response
+    promise.catch((err) => console.error("[schwab/auth] Auth flow failed:", err.message));
+    res.json({ authUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/schwab/quotes — batch quotes
+router.post("/schwab/quotes", async (req, res) => {
+  try {
+    const { symbols, fields } = req.body;
+    if (!symbols || !Array.isArray(symbols)) {
+      return res.status(400).json({ error: "symbols array required" });
+    }
+    const quotes = await getQuotes(symbols, fields);
+    res.json(quotes);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/schwab/price-history/:symbol
+router.get("/schwab/price-history/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { periodType, period, frequencyType, frequency, startDate, endDate, needExtendedHoursData } = req.query;
+    const history = await getPriceHistory(symbol, {
+      periodType, period: period ? parseInt(period) : undefined,
+      frequencyType, frequency: frequency ? parseInt(frequency) : undefined,
+      startDate, endDate, needExtendedHoursData,
+    });
+    res.json(history);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/schwab/option-chain/:symbol
+router.get("/schwab/option-chain/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const options = await getOptionChain(symbol, req.query);
+    res.json(options);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/schwab/movers/:index
+router.get("/schwab/movers/:index", async (req, res) => {
+  try {
+    const { index } = req.params;
+    const movers = await getMovers(index, req.query);
+    res.json(movers);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

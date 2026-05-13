@@ -5,6 +5,8 @@ import StockCard from "./components/StockCard";
 import StockDetailModal from "./components/StockDetailModal";
 import MarketIndicatorsPage from "./components/MarketIndicatorsPage";
 import StockAnalysisPage from "./components/StockAnalysisPage";
+import SchwabAuthAlert from "./components/SchwabAuthAlert";
+import MarketSessionBadge from "./components/MarketSessionBadge";
 import { usePortfolio, useLivePrices } from "./hooks/useStockData";
 import { getMarketStatus } from "./utils/marketStatus";
 
@@ -126,6 +128,8 @@ export default function App() {
       <div className="bg-orb bg-orb-2" />
       <div className="bg-orb bg-orb-3" />
 
+      <SchwabAuthAlert />
+
       <div style={styles.layout}>
         {/* Header */}
         <header style={styles.header}>
@@ -140,6 +144,8 @@ export default function App() {
             </div>
 
             <div style={styles.headerMeta}>
+              <MarketSessionBadge status={marketStatus} variant="header" />
+
               <div style={styles.pageToggle}>
                 <button
                   style={{
@@ -167,10 +173,6 @@ export default function App() {
                 </button>
               </div>
 
-              <div style={{ ...styles.liveIndicator, color: marketStatus.color }}>
-                <span style={{ ...styles.liveDot, background: marketStatus.dotColor }} />
-                <span>{marketStatus.label}</span>
-              </div>
               <button style={styles.refreshBtn} onClick={refetch}>
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                   <path d="M11 2.5A5.5 5.5 0 1 1 6.5 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -233,6 +235,7 @@ export default function App() {
                       index={i}
                       liveActive={liveActive}
                       variant="primary"
+                      marketStatus={marketStatus}
                     />
                   ))}
                 </div>
@@ -262,6 +265,7 @@ export default function App() {
                         index={i}
                         liveActive={liveActive}
                         variant="secondary"
+                        marketStatus={marketStatus}
                       />
                     ))}
                   </div>
@@ -381,22 +385,6 @@ const styles = {
   toggleBtnActive: {
     background: "var(--accent-blue)",
     color: "white",
-  },
-  liveIndicator: {
-    alignItems: "center",
-    color: "var(--text-secondary)",
-    display: "flex",
-    fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    gap: "6px",
-  },
-  liveDot: {
-    background: "var(--accent-green)",
-    borderRadius: "50%",
-    display: "block",
-    height: "6px",
-    width: "6px",
-    animation: "blink 2s ease-in-out infinite",
   },
   refreshBtn: {
     alignItems: "center",

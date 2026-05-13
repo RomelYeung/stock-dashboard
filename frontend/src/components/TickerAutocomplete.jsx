@@ -42,7 +42,7 @@ export default function TickerAutocomplete({ onSelect, placeholder = "Search tic
     setHighlightIndex(-1);
   }, [debouncedQuery]);
 
-  const { data: results, isLoading } = useQuery({
+  const { data: results, isLoading, isError, error } = useQuery({
     queryKey: ["tickerSearch", debouncedQuery],
     queryFn: () => searchTickers(debouncedQuery),
     enabled: debouncedQuery.length >= 1,
@@ -66,7 +66,7 @@ export default function TickerAutocomplete({ onSelect, placeholder = "Search tic
     (ticker) => {
       onSelect(ticker);
       setInput("");
-      setIsFocused(false);
+      setDebouncedQuery("");
       setHighlightIndex(-1);
     },
     [onSelect],
@@ -151,10 +151,13 @@ export default function TickerAutocomplete({ onSelect, placeholder = "Search tic
 
       {showDropdown && (
         <div style={styles.dropdown}>
-          {isLoading && (
+          {isError && (
+            <div style={styles.errorText}>Search failed. Please try again.</div>
+          )}
+          {!isError && isLoading && (
             <div style={styles.loadingText}>Searching…</div>
           )}
-          {!isLoading && results && results.length === 0 && (
+          {!isError && !isLoading && results && results.length === 0 && (
             <div style={styles.emptyText}>No results found</div>
           )}
           {!isLoading &&
@@ -286,6 +289,13 @@ const styles = {
     fontFamily: "var(--font-body)",
     fontSize: "12px",
     color: "var(--text-muted)",
+    textAlign: "center",
+  },
+  errorText: {
+    padding: "14px",
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    color: "var(--accent-red)",
     textAlign: "center",
   },
 };

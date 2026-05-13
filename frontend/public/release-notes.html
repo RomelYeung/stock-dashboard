@@ -332,6 +332,50 @@
         <h2>May 2026</h2>
 
         <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Add market session badge with context-aware polling</h3>
+          <p>A new animated badge in the header and on every stock card shows the current market session (Open, Pre-market, After-hours, or Closed). Live price polling now runs every 30 seconds during market hours and slows to 5 minutes when the market is closed, saving bandwidth and API calls.</p>
+          <span class="tag tag-feature">Feature</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Switch live price source to Schwab API with Yahoo fallback</h3>
+          <p>Portfolio live prices now pull from Schwab's real-time batch quotes first, falling back to Yahoo Finance when Schwab is unavailable. Extended-hours prices are used when available.</p>
+          <span class="tag tag-improvement">Improvement</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Add Schwab token refresh alert with one-click re-authorization</h3>
+          <p>When the Schwab API token expires or approaches expiration, a banner now appears with a direct link to re-authorize. No CLI required.</p>
+          <span class="tag tag-feature">Feature</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-12">May 12, 2026</time>
+          <h3>Fix page flash and autocomplete lockup after adding stocks</h3>
+          <p>
+            Fixed an issue where adding a ticker to your watchlist or wishlist caused all
+            stock cards to briefly flash to a loading state. Also fixed the autocomplete
+            dropdown failing to appear when typing a second search query after selecting
+            a ticker.
+          </p>
+          <span class="tag tag-fix">Fix</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-12">May 12, 2026</time>
+          <h3>Fix ticker autocomplete getting stuck in searching state</h3>
+          <p>
+            Resolved an issue where the ticker search autocomplete would get stuck showing "Searching…"
+            due to a missing backend route and lack of timeout handling. Search now fails gracefully
+            with a clear error message instead of hanging indefinitely.
+          </p>
+          <span class="tag tag-fix">Fix</span>
+        </article>
+
+        <article class="release-entry">
           <time datetime="2026-05-12">May 12, 2026</time>
           <h3>Refine portfolio dashboard UX</h3>
           <p>
