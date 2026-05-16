@@ -21,11 +21,12 @@
 
 ## Multi-Agent Workflow
 
-This project uses a multi-agent orchestration system. The `architect` agent is the primary orchestrator and NEVER modifies files directly. All file modifications are performed by specialized subagents (`@coder`, `@ui-specialist`, `@integrator`).
+This project uses a multi-agent orchestration system. The `architect` agent is the primary orchestrator and the subagents are (`@coder`, `@ui-specialist`, `@integrator`,`@debugger`,`@reviewer`). All file modifications are performed by `@coder`, `@ui-specialist`, `@integrator`.
 
-**For the architect:** Do not attempt to enforce these conventions by writing code yourself. Include them as acceptance criteria in your task dispatches.
+**For the architect:** Do not attempt to enforce these conventions by writing code yourself. 
+Reminder: Follow the TWO-PHASE WORKFLOW.
 
-**For subagents reading this file:** The conventions above ("Simplicity First", "Surgical Changes", "Release Notes") apply to YOUR work.
+**For subagents reading this file:** The conventions above ("Simplicity First", "Surgical Changes", "Release Notes") apply to YOUR work. Make sure you employ relevant skills for your role and the task at hand.
 
 ## Active Plugins
 

@@ -327,9 +327,139 @@
         <p class="page-subtitle">A running log of updates, fixes, and improvements to Portfolio Monitor.</p>
       </div>
 
-      <!-- May 2026 -->
+        <!-- May 2026 -->
       <section class="month-group">
         <h2>May 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix server connection and login errors caused by restart loop</h3>
+          <p>Resolved a critical backend issue where automated database and file updates triggered an infinite restart loop. Users can now reliably log in and use the application without encountering unexpected end-of-JSON errors.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-15">May 15, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Simplify metric cards by removing sparklines</h3>
+          <p>The metric cards in the Fundamentals tab have been simplified by removing the SVG sparkline charts, leaving a cleaner design that focuses on the YoY trend badge. Additionally, historical data has been wired up for more metrics.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-15">May 15, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Update key metrics to show historical trend sparklines</h3>
+          <p>The Fundamentals tab now displays historical trend sparklines and YoY percentage changes for key metrics instead of peer comparisons, providing better insight into a company's performance over time.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix live price 429 rate limit errors during market hours</h3>
+          <p>Live price updates were hitting the global rate limiter (100 req/min shared across all endpoints) because the <code>/portfolio/live</code> endpoint had no dedicated rate limit. Added a separate limiter (30 req/min) for live prices, fixed the <code>useLivePrices</code> hook to prevent duplicate polling intervals when tickers change, and added explicit 429 detection with immediate 120s backoff. Polling now stops gracefully after 5 consecutive failures instead of hammering the server.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add automatic default admin user on startup</h3>
+          <p>The backend now auto-creates a default admin account (<code>admin@stock-dashboard.local</code> / <code>ChangeMe123!</code>) when it starts and no admin user exists yet. No more manual <code>promote-user</code> step needed for the first admin setup — admins should change the password after first login.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Admin Dashboard cache stats displaying as dashes</h3>
+          <p>Cache statistics in the Admin Dashboard now show actual values instead of &ldquo;&mdash;&rdquo;. The backend was returning per-segment cache stats that the frontend couldn't read &mdash; stats are now aggregated across all cache layers so keys, hits, misses, and sizes display correctly.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Admin Dashboard UI with cache management and margin debt tools</h3>
+          <p>Admin users now have a dedicated dashboard visible in the navigation header. The dashboard displays Redis cache statistics (keys, hits, misses, key size, value size) and provides one-click buttons to flush the cache or trigger a manual margin debt update. Non-admin users who navigate to <code>?page=admin</code> see an access denied message.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Admin role with protected management routes</h3>
+          <p>Introduces role-based access control with an ADMIN role. Cache management and margin debt update endpoints now require admin privileges instead of localhost origin. Use <code>node scripts/promote-user.js &lt;email&gt;</code> to promote a user to admin.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix admin routes always returning 403 Forbidden</h3>
+          <p>Corrected a middleware ordering bug where the admin role check ran before authentication, causing all admin-protected endpoints to reject even valid admin users. The authentication middleware now runs first so the user identity is available when the role check executes.</p>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-14">May 14, 2026</time>
+          <h3>Add Sentry error tracking for frontend and backend</h3>
+          <p>Errors are now automatically reported to Sentry from both the browser and server. Frontend errors include session replays for debugging user interactions. Backend errors include performance profiling. Set <code>SENTRY_DSN</code> and <code>VITE_SENTRY_DSN</code> environment variables to enable — Sentry is safely disabled when no DSN is configured.</p>
+          <span class="tag tag-feature">Feature</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-14">May 14, 2026</time>
+          <h3>Add user accounts with persisted portfolio and wishlist</h3>
+          <p>Portfolio and wishlist data is now stored in the database instead of localStorage. New users can create an account or sign in to access their saved tickers from any device. The dashboard requires authentication — unauthenticated visitors see a login screen. A logout button is available in the header.</p>
+          <span class="tag tag-feature">Feature</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-14">May 14, 2026</time>
+          <h3>Add backend input validation and centralized error handling</h3>
+          <p>All API endpoints now validate request data using Zod schemas, returning clear error messages for invalid email, password, ticker, or query parameters. A centralized error handler catches all errors and returns a consistent JSON response format. Prisma database errors are also caught and sanitized — no internal details leak in production.</p>
+          <span class="tag tag-improvement">Improvement</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-14">May 14, 2026</time>
+          <h3>Fix stale chart data persisting when switching periods</h3>
+          <p>Switching time periods in the stock detail modal no longer shows stale candlestick/volume data. The chart now clears immediately when entering a loading state, so users see a clean state instead of outdated chart content.</p>
+          <span class="tag tag-fix">Fix</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Clean up StockCard live indicators and fix percentage display</h3>
+          <p>Remove redundant live indicators from stock cards; percentage change now displays correctly alongside price updates.</p>
+          <span class="tag tag-fix">Fix</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Add live price overlay to stock chart</h3>
+          <p>Stock charts now display a live price line that updates in real-time alongside historical candlestick data.</p>
+          <span class="tag tag-feature">Feature</span>
+        </article>
+
+        <article class="release-entry">
+          <time datetime="2026-05-13">May 13, 2026</time>
+          <h3>Fix live price 429 errors during market hours</h3>
+          <p>Add backend caching and Schwab rate-limit backoff to prevent Too Many Requests errors on live price updates.</p>
+          <span class="tag tag-fix">Fix</span>
+        </article>
 
         <article class="release-entry">
           <time datetime="2026-05-13">May 13, 2026</time>
