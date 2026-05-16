@@ -308,22 +308,80 @@ async function getOhlcv(ticker, period = "6mo") {
 
 /**
  * Batch fetch summaries for a portfolio of tickers using a single quote call.
+ * Fills in fields not available in quote() (enterpriseToEbitda, pegRatio, sector, industry)
+ * from the summary cache or via targeted quoteSummary calls for uncached tickers.
  */
 async function getPortfolioSummaries(tickers) {
   try {
+    // Phase 1: Fast batch quote for price/market data
     const quotes = await yahooFinance.quote(tickers);
     const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
-    return tickers.map((ticker) => {
-      const quote = quoteArray.find(
-        (q) => q.symbol.toUpperCase() === ticker.toUpperCase()
-      );
-      if (!quote) {
-        return { ticker: ticker.toUpperCase(), data: null, error: "No data" };
+
+    // Phase 2: Resolve missing fields from cache or quoteSummary
+    const quoteMap = new Map();
+    for (const q of quoteArray) {
+      quoteMap.set(q.symbol.toUpperCase(), q);
+    }
+
+    // Check cache first for each ticker (getSummary populates summary:${ticker})
+    const cachedMissing = new Map();
+    const uncachedTickers = [];
+
+    for (const ticker of tickers) {
+      const upper = ticker.toUpperCase();
+      const cacheKey = `summary:${upper}`;
+      const cached = cache.getFundamentals(cacheKey);
+      if (cached) {
+        cachedMissing.set(upper, {
+          enterpriseToEbitda: cached.enterpriseToEbitda ?? null,
+          pegRatio: cached.pegRatio ?? null,
+          sector: cached.sector ?? null,
+          industry: cached.industry ?? null,
+        });
+      } else {
+        uncachedTickers.push(ticker);
       }
+    }
+
+    // Phase 3: Fetch missing fields for uncached tickers in parallel
+    const fetchedMissing = new Map();
+    if (uncachedTickers.length > 0) {
+      const results = await Promise.allSettled(
+        uncachedTickers.map(async (ticker) => {
+          const result = await yahooFinance.quoteSummary(ticker, {
+            modules: ["defaultKeyStatistics", "assetProfile"],
+          });
+          return {
+            ticker: ticker.toUpperCase(),
+            enterpriseToEbitda: result.defaultKeyStatistics?.enterpriseToEbitda ?? null,
+            pegRatio: result.defaultKeyStatistics?.pegRatio ?? null,
+            sector: result.assetProfile?.sector ?? null,
+            industry: result.assetProfile?.industry ?? null,
+          };
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          fetchedMissing.set(r.value.ticker, r.value);
+        }
+      }
+    }
+
+    // Build final results
+    return tickers.map((ticker) => {
+      const upper = ticker.toUpperCase();
+      const quote = quoteMap.get(upper);
+      if (!quote) {
+        return { ticker: upper, data: null, error: "No data" };
+      }
+
+      const missing = cachedMissing.get(upper) || fetchedMissing.get(upper) || {};
+
       return {
-        ticker: quote.symbol.toUpperCase(),
+        ticker: upper,
         data: {
-          ticker: quote.symbol.toUpperCase(),
+          ticker: upper,
           name: quote.shortName || quote.longName || null,
           currentPrice: quote.regularMarketPrice,
           change: quote.regularMarketChange,
@@ -333,8 +391,8 @@ async function getPortfolioSummaries(tickers) {
           trailingPE: quote.trailingPE,
           forwardPE: quote.forwardPE,
           priceToBook: quote.priceToBook,
-          enterpriseToEbitda: null,
-          pegRatio: null,
+          enterpriseToEbitda: missing.enterpriseToEbitda ?? null,
+          pegRatio: missing.pegRatio ?? null,
           netAssets: null,
           beta: quote.beta ?? null,
           fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
@@ -344,8 +402,8 @@ async function getPortfolioSummaries(tickers) {
           volume: quote.regularMarketVolume,
           avgVolume: quote.averageDailyVolume3Month || quote.averageDailyVolume10Day || null,
           earningsDate: quote.earningsTimestamp ?? null,
-          sector: null,
-          industry: null,
+          sector: missing.sector ?? null,
+          industry: missing.industry ?? null,
         },
         error: null,
       };

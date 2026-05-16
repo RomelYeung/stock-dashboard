@@ -334,6 +334,15 @@
         <article class="release-entry">
           <div class="entry-meta">
             <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix missing EV/EBITDA and ratio fields in portfolio dashboard</h3>
+          <p>Resolved enterpriseToEbitda, pegRatio, sector, and industry fields always showing null by introducing a three-phase resolution: fast batch quote, summary cache lookup, and parallel quoteSummary calls for uncached tickers.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
             <span class="tag tag-improvement">Improvement</span>
           </div>
           <h3>Faster earnings profile loading</h3>
