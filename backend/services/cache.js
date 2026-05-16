@@ -9,11 +9,12 @@ import {
   CACHE_PERSIST_INTERVAL_MS,
 } from "../constants.js";
 
-const fundamentalsCache = new NodeCache({ stdTTL: CACHE_TTL_FUNDAMENTALS });
-const priceCache = new NodeCache({ stdTTL: CACHE_TTL_PRICE });
-const insiderCache = new NodeCache({ stdTTL: CACHE_TTL_INSIDER });
-const comparablesCache = new NodeCache({ stdTTL: CACHE_TTL_COMPARABLES });
-const livePriceCache = new NodeCache({ stdTTL: CACHE_TTL_LIVE_PRICE });
+const fundamentalsCache = new NodeCache({ stdTTL: CACHE_TTL_FUNDAMENTALS, maxKeys: 5000, useClones: false });
+const priceCache = new NodeCache({ stdTTL: CACHE_TTL_PRICE, maxKeys: 1000, useClones: false });
+const insiderCache = new NodeCache({ stdTTL: CACHE_TTL_INSIDER, maxKeys: 1000, useClones: false });
+const comparablesCache = new NodeCache({ stdTTL: CACHE_TTL_COMPARABLES, maxKeys: 1000, useClones: false });
+const livePriceCache = new NodeCache({ stdTTL: CACHE_TTL_LIVE_PRICE, maxKeys: 1000, useClones: false, checkperiod: 60 });
+const earningsProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 // Load persisted cache on startup
 loadCache(fundamentalsCache, priceCache);
@@ -48,12 +49,18 @@ export const setComparables = (key, value) => comparablesCache.set(key, value);
 export const getLivePrice = (key) => livePriceCache.get(key);
 export const setLivePrice = (key, value) => livePriceCache.set(key, value);
 
+export const getEarningsProfile = (key) => earningsProfileCache.get(key);
+export const setEarningsProfile = (key, value) => earningsProfileCache.set(key, value);
+
+export { earningsProfileCache };
+
 export const flush = () => {
   fundamentalsCache.flushAll();
   priceCache.flushAll();
   insiderCache.flushAll();
   comparablesCache.flushAll();
   livePriceCache.flushAll();
+  earningsProfileCache.flushAll();
 };
 
 export const stats = () => {
@@ -63,6 +70,7 @@ export const stats = () => {
     insiderCache.getStats(),
     comparablesCache.getStats(),
     livePriceCache.getStats(),
+    earningsProfileCache.getStats(),
   ];
   return {
     keys: segments.reduce((s, c) => s + c.keys, 0),

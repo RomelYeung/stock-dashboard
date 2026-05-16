@@ -8,3 +8,8 @@ build/
 .vscode/
 .claude/
 .superpowers/
+
+# Backend credentials
+backend/.env
+backend/.schwab-token.json
+backend/certs/*.pem

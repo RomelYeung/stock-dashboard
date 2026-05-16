@@ -3,11 +3,11 @@
  * Runs automatically at server startup.
  */
 
+import { randomBytes } from "node:crypto";
 import prisma from "../services/db.js";
 import { hashPassword } from "../services/auth.js";
 
 const ADMIN_EMAIL = "admin@stock-dashboard.local";
-const ADMIN_PASSWORD = "ChangeMe123!";
 
 export async function seedAdmin() {
   const existing = await prisma.user.findUnique({
@@ -19,7 +19,8 @@ export async function seedAdmin() {
     return;
   }
 
-  const passwordHash = await hashPassword(ADMIN_PASSWORD);
+  const generatedPassword = randomBytes(24).toString("hex");
+  const passwordHash = await hashPassword(generatedPassword);
 
   await prisma.user.create({
     data: {
@@ -29,5 +30,15 @@ export async function seedAdmin() {
     },
   });
 
-  console.log(`[seed] Default admin user created: ${ADMIN_EMAIL}`);
+  console.log("");
+  console.log("═══════════════════════════════════════════════");
+  console.log("  DEFAULT ADMIN ACCOUNT CREATED");
+  console.log("───────────────────────────────────────────────");
+  console.log(`  Email:    ${ADMIN_EMAIL}`);
+  console.log(`  Password: ${generatedPassword}`);
+  console.log("═══════════════════════════════════════════════");
+  console.log("  ⚠  Save this password now — it will not");
+  console.log("     be shown again.");
+  console.log("═══════════════════════════════════════════════");
+  console.log("");
 }

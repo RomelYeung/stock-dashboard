@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import * as yf from "../services/yahoofinance.js";
 import * as cache from "../services/cache.js";
+import { earningsProfileCache } from "../services/cache.js";
 import * as fred from "../services/fred.js";
 import * as marginDebtService from "../services/marginDebt.js";
 import * as sectorScore from "../services/sectorScore.js";
@@ -14,12 +15,14 @@ import { startAuthFlow } from "../services/schwab-callback-server.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import NodeCache from "node-cache";
+import rateLimit from "express-rate-limit";
 import {
   MAX_PORTFOLIO_TICKERS,
   MAX_WISHLIST_TICKERS,
   VALID_PERIODS,
   TICKER_REGEX,
-  YAHOO_FINANCE_DELAY_MS,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_DCF_MAX,
 } from "../constants.js";
 import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
 
@@ -38,7 +41,7 @@ const priceHistoryQuerySchema = z.object({
 });
 
 const dcfQuerySchema = z.object({
-  simulations: z.coerce.number().int().min(100).max(100000).optional().default(1000),
+  simulations: z.coerce.number().int().min(100).max(5000).optional().default(1000),
 });
 
 const tickersBodySchema = z.object({
@@ -53,7 +56,17 @@ const schwabQuotesSchema = z.object({
   fields: z.any().optional(),
 });
 
+// ─── Rate limiters ────────────────────────────────────────────────────
 
+const dcfRateLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_DCF_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({ success: false, error: "DCF rate limit reached. Max 5 requests per minute." });
+  },
+});
 
 // ETFs for sector tracking (GICS + Thematic)
 const sectorEtfs = [
@@ -223,7 +236,7 @@ router.get("/:ticker/comparables", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/dcf?simulations=1000
-router.get("/:ticker/dcf", validate(dcfQuerySchema, "query"), async (req, res) => {
+router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), async (req, res) => {
   const { simulations } = req.query;
   try {
     const [summary, financials, balanceSheet] = await Promise.all([
@@ -508,32 +521,80 @@ router.get("/market/indicators", async (req, res) => {
 // Returns earnings surprise and growth data for top holdings of sector ETFs
 router.get("/market/earnings-profile", async (req, res) => {
   try {
-    const earningsProfile = [];
-    for (const etf of sectorEtfs) {
-      const holdings = await yf.getHoldings(etf.ticker);
+    const cacheKey = "earnings-profile";
+    const cached = earningsProfileCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
+
+    // Fetch all ETF holdings in parallel
+    const holdingsResults = await Promise.allSettled(
+      sectorEtfs.map((etf) =>
+        yf.getHoldings(etf.ticker).then((holdings) => ({ etf, holdings }))
+      )
+    );
+
+    // Collect unique holding symbols and their ETF metadata
+    const symbolSet = new Set();
+    const symbolMeta = new Map();
+
+    for (const result of holdingsResults) {
+      if (result.status === "rejected") {
+        console.error(`[earnings-profile] holdings fetch failed:`, result.reason?.message);
+        continue;
+      }
+      const { etf, holdings } = result.value;
       for (const holding of holdings) {
-        try {
-          const financials = await yf.getFinancials(holding.symbol);
-          const latestSurprise = financials.epsSurprises?.[0];
-          earningsProfile.push({
-            ticker: holding.symbol,
+        const sym = holding.symbol;
+        symbolSet.add(sym);
+        if (!symbolMeta.has(sym)) {
+          symbolMeta.set(sym, {
             name: holding.name,
             sectorEtfTicker: etf.ticker,
             sectorEtfName: etf.name,
-            epsActual: latestSurprise?.actual || null,
-            epsEstimate: latestSurprise?.estimate || null,
-            epsSurprisePercent: latestSurprise?.surprisePercent || null,
-            revenue: financials.totalRevenue,
-            revenueGrowth: financials.revenueGrowth,
-            earningsGrowth: financials.earningsGrowth,
           });
-        } catch (err) {
-          console.error(`[earnings-profile] ${holding.symbol}:`, err.message);
         }
-        await new Promise(resolve => setTimeout(resolve, YAHOO_FINANCE_DELAY_MS));
       }
     }
 
+    const uniqueSymbols = [...symbolSet];
+
+    // Fetch financials in parallel with a concurrency limit
+    const CONCURRENCY = 5;
+    const earningsProfile = [];
+
+    for (let i = 0; i < uniqueSymbols.length; i += CONCURRENCY) {
+      const chunk = uniqueSymbols.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        chunk.map((symbol) => yf.getFinancials(symbol))
+      );
+
+      for (let j = 0; j < chunk.length; j++) {
+        const symbol = chunk[j];
+        const result = results[j];
+        if (result.status === "rejected") {
+          console.error(`[earnings-profile] ${symbol}:`, result.reason?.message);
+          continue;
+        }
+        const financials = result.value;
+        const meta = symbolMeta.get(symbol);
+        const latestSurprise = financials.epsSurprises?.[0];
+        earningsProfile.push({
+          ticker: symbol,
+          name: meta?.name || symbol,
+          sectorEtfTicker: meta?.sectorEtfTicker || null,
+          sectorEtfName: meta?.sectorEtfName || null,
+          epsActual: latestSurprise?.actual || null,
+          epsEstimate: latestSurprise?.estimate || null,
+          epsSurprisePercent: latestSurprise?.surprisePercent || null,
+          revenue: financials.totalRevenue,
+          revenueGrowth: financials.revenueGrowth,
+          earningsGrowth: financials.earningsGrowth,
+        });
+      }
+    }
+
+    earningsProfileCache.set(cacheKey, earningsProfile);
     res.json({ success: true, data: earningsProfile });
   } catch (err) {
     console.error("[earnings-profile]:", err.message);

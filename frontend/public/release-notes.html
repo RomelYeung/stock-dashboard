@@ -334,6 +334,69 @@
         <article class="release-entry">
           <div class="entry-meta">
             <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Faster earnings profile loading</h3>
+          <p>Parallelized API calls and added aggressive caching to the earnings profile endpoint, significantly reducing load times.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Faster insider trading data</h3>
+          <p>Optimized SEC API requests and added module-level caching, reducing load times for insider trading data by up to 80%.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Faster portfolio loading</h3>
+          <p>Replaced sequential API calls with batch fetching, reducing portfolio load times by up to 10x.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Optimize memory usage</h3>
+          <p>Added bounds to in-memory caches to prevent memory leaks and out-of-memory crashes under high load.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-security">Security</span>
+          </div>
+          <h3>Rate-limit DCF endpoint and cap simulation count</h3>
+          <p>The DCF valuation endpoint now enforces a maximum of 5 requests per minute per IP address, and the <code>simulations</code> query parameter is capped at 5,000 (down from 100,000). This prevents resource exhaustion from abusive or runaway Monte Carlo simulation requests.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-security">Security</span>
+          </div>
+          <h3>Generate strong random password for default admin account on first setup</h3>
+          <p>The default admin account (<code>admin@stock-dashboard.local</code>) now receives a cryptographically strong random password on first creation instead of using a hardcoded default. The generated credentials are printed clearly to the console at startup. Existing admin accounts are unaffected — their password is never changed.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-security">Security</span>
+          </div>
+          <h3>Remove real API keys from .env and add backend credentials to .gitignore</h3>
+          <p>Replaced all hardcoded API keys (FRED, Schwab) in <code>backend/.env</code> with placeholders, and generated a strong 64-character random JWT secret. Added <code>backend/.env</code>, <code>backend/.schwab-token.json</code>, and <code>backend/certs/*.pem</code> to <code>.gitignore</code> to prevent accidental credential commits. Created <code>backend/.env.example</code> showing required vars without exposing secrets.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
             <span class="tag tag-fix">Fix</span>
           </div>
           <h3>Fix server connection and login errors caused by restart loop</h3>
@@ -595,6 +658,29 @@
           </div>
           <h3>Added DCF valuation with Monte Carlo simulation</h3>
           <p>Introduced a Discounted Cash Flow model on the stock detail page. Users can adjust growth rates, WACC, and terminal multiples to estimate fair value. Includes a Monte Carlo distribution chart and a WACC × Growth sensitivity matrix.</p>
+        </article>
+      </section>
+
+      <!-- May 2026 -->
+      <section class="month-group">
+        <h2>May 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fixed five backend data regressions</h3>
+          <p>Patched missing <code>try/finally</code> in SEC ticker loading so a failed fetch doesn't permanently block future requests. Added missing <code>await</code> in live price refresh so stale tickers actually get updated before the response returns. Added optional chaining for financial statement and earnings history data to prevent crashes on incomplete API responses. Portfolio summaries now correctly map back to the requested tickers, returning an error entry for any missing quote instead of silently dropping it. Moved the earnings profile cache into the shared cache module so it is included in cache stats and flush operations.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-security">Security</span>
+          </div>
+          <h3>Fixed reflected XSS in OAuth callback server</h3>
+          <p>Error parameters from the Schwab authorization callback are now HTML-escaped before being rendered in the response page, preventing injection of malicious scripts via crafted redirect URLs.</p>
         </article>
       </section>
 

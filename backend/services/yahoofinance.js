@@ -1,9 +1,6 @@
 import * as yfModule from "yahoo-finance2";
 import * as cache from "./cache.js";
-import { YAHOO_FINANCE_DELAY_MS } from "../constants.js";
 const yahooFinance = new yfModule.default();
-// Small delay between calls to be polite to Yahoo's servers
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let pendingFetches = {}; // deduplicate in-flight requests per ticker
 
 /**
@@ -110,7 +107,7 @@ async function getFinancials(ticker) {
   const { financialData, incomeStatementHistory, earningsHistory, earningsTrend } = result;
 
   // Annual income statements — last 4 years
-  const annualIncome = (incomeStatementHistory.incomeStatementHistory || []).map((s) => ({
+  const annualIncome = (incomeStatementHistory?.incomeStatementHistory || []).map((s) => ({
     date: s.endDate,
     totalRevenue: s.totalRevenue,
     grossProfit: s.grossProfit,
@@ -126,7 +123,7 @@ async function getFinancials(ticker) {
   }));
 
   // EPS surprises — last 4 quarters
-  const epsSurprises = (earningsHistory.history || []).map((q) => ({
+  const epsSurprises = (earningsHistory?.history || []).map((q) => ({
     date: q.quarter,
     actual: q.epsActual,
     estimate: q.epsEstimate,
@@ -192,7 +189,7 @@ async function getBalanceSheet(ticker) {
   const { financialData, balanceSheetHistory } = result;
 
   // Annual balance sheets — last 4 years
-  const annualBalanceSheet = (balanceSheetHistory.balanceSheetStatements || []).map((s) => ({
+  const annualBalanceSheet = (balanceSheetHistory?.balanceSheetStatements || []).map((s) => ({
     date: s.endDate,
     totalAssets: s.totalAssets,
     totalLiabilities: s.totalLiab,
@@ -310,21 +307,56 @@ async function getOhlcv(ticker, period = "6mo") {
 }
 
 /**
- * Batch fetch summaries for a portfolio of tickers.
- * Adds a small delay between calls to avoid rate limiting.
+ * Batch fetch summaries for a portfolio of tickers using a single quote call.
  */
 async function getPortfolioSummaries(tickers) {
-  const results = [];
-  for (const ticker of tickers) {
-    try {
-      const summary = await getSummary(ticker);
-      results.push({ ticker, data: summary, error: null });
-    } catch (err) {
-      results.push({ ticker, data: null, error: err.message });
-    }
-    await delay(150); // 150ms between calls
+  try {
+    const quotes = await yahooFinance.quote(tickers);
+    const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
+    return tickers.map((ticker) => {
+      const quote = quoteArray.find(
+        (q) => q.symbol.toUpperCase() === ticker.toUpperCase()
+      );
+      if (!quote) {
+        return { ticker: ticker.toUpperCase(), data: null, error: "No data" };
+      }
+      return {
+        ticker: quote.symbol.toUpperCase(),
+        data: {
+          ticker: quote.symbol.toUpperCase(),
+          name: quote.shortName || quote.longName || null,
+          currentPrice: quote.regularMarketPrice,
+          change: quote.regularMarketChange,
+          changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
+          marketCap: quote.marketCap,
+          currency: quote.currency,
+          trailingPE: quote.trailingPE,
+          forwardPE: quote.forwardPE,
+          priceToBook: quote.priceToBook,
+          enterpriseToEbitda: null,
+          pegRatio: null,
+          netAssets: null,
+          beta: quote.beta ?? null,
+          fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
+          fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
+          fiftyDayAverage: quote.fiftyDayAverage,
+          twoHundredDayAverage: quote.twoHundredDayAverage,
+          volume: quote.regularMarketVolume,
+          avgVolume: quote.averageDailyVolume3Month || quote.averageDailyVolume10Day || null,
+          earningsDate: quote.earningsTimestamp ?? null,
+          sector: null,
+          industry: null,
+        },
+        error: null,
+      };
+    });
+  } catch (err) {
+    return tickers.map((ticker) => ({
+      ticker: ticker.toUpperCase(),
+      data: null,
+      error: err.message,
+    }));
   }
-  return results;
 }
 
 async function getLivePrices(tickers) {
@@ -342,7 +374,7 @@ async function getLivePrices(tickers) {
   }
 
   if (staleTickers.length > 0) {
-    refreshLivePrices(staleTickers);
+    await refreshLivePrices(staleTickers);
   }
 
   return results;
@@ -355,20 +387,18 @@ async function refreshLivePrices(tickers) {
   unique.forEach((t) => (pendingFetches[t] = true));
 
   try {
-    for (const ticker of unique) {
-      try {
-        const quote = await yahooFinance.quote(ticker);
-        const data = {
-          currentPrice: quote.regularMarketPrice,
-          change: quote.regularMarketChange,
-          changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
-        };
-        cache.setLivePrice(ticker, data);
-      } catch (err) {
-        console.error(`[live-price] ${ticker}:`, err.message);
-      }
-      await delay(YAHOO_FINANCE_DELAY_MS);
+    const quotes = await yahooFinance.quote(unique);
+    const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
+    for (const quote of quoteArray) {
+      const data = {
+        currentPrice: quote.regularMarketPrice,
+        change: quote.regularMarketChange,
+        changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
+      };
+      cache.setLivePrice(quote.symbol, data);
     }
+  } catch (err) {
+    console.error(`[live-price] batch fetch failed:`, err.message);
   } finally {
     unique.forEach((t) => delete pendingFetches[t]);
   }

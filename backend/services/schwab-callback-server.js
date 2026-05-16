@@ -15,6 +15,20 @@ const PORT = 3000;
 const HOST = "127.0.0.1";
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** @type {{ authUrl: string, promise: Promise<object> } | null} */
 let activeFlow = null;
 
@@ -74,12 +88,12 @@ export function startAuthFlow() {
       if (errorParam) {
         res.writeHead(400, { "Content-Type": "text/html" });
         res.end(
-          `<h1>Authorization Failed</h1><p>Error: ${errorParam}</p><p>Description: ${url.searchParams.get("error_description") || "N/A"}</p>`
+          `<h1>Authorization Failed</h1><p>Error: ${escapeHtml(errorParam)}</p><p>Description: ${escapeHtml(url.searchParams.get("error_description") || "N/A")}</p>`
         );
         settle();
         reject(
           new Error(
-            `Authorization error: ${errorParam} - ${url.searchParams.get("error_description") || ""}`
+            `Authorization error: ${escapeHtml(errorParam)} - ${escapeHtml(url.searchParams.get("error_description") || "")}`
           )
         );
         return;

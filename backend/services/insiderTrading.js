@@ -5,6 +5,31 @@ const SEC_HEADERS = {
   "User-Agent": "StockDashboard/1.0 (contact@example.com)",
 };
 
+// Module-level cache for the full company tickers mapping (fetched once per server lifecycle)
+let _companyTickersCache = null;
+let _companyTickersLoading = null;
+
+async function _getCompanyTickers() {
+  if (_companyTickersCache) return _companyTickersCache;
+  if (_companyTickersLoading) return _companyTickersLoading;
+
+  _companyTickersLoading = (async () => {
+    try {
+      const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
+        headers: SEC_HEADERS,
+      });
+      if (!res.ok) throw new Error(`SEC ticker mapping failed: ${res.status}`);
+      const data = await res.json();
+      _companyTickersCache = Object.values(data);
+      return _companyTickersCache;
+    } finally {
+      _companyTickersLoading = null;
+    }
+  })();
+
+  return _companyTickersLoading;
+}
+
 const ROLE_MULTIPLIERS = {
   CEO: 2.0,
   CFO: 2.0,
@@ -20,13 +45,8 @@ async function getCIK(ticker) {
   const cached = cache.getFundamentals(cacheKey);
   if (cached) return cached;
 
-  const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
-    headers: SEC_HEADERS,
-  });
-  if (!res.ok) throw new Error(`SEC ticker mapping failed: ${res.status}`);
-
-  const data = await res.json();
-  const match = Object.values(data).find(
+  const entries = await _getCompanyTickers();
+  const match = entries.find(
     (entry) => entry.ticker === ticker.toUpperCase()
   );
   if (!match) throw new Error(`Ticker ${ticker} not found in SEC database`);
@@ -50,7 +70,7 @@ async function getForm4Filings(cik) {
 
   const form4s = [];
   for (let i = 0; i < forms.length; i++) {
-    if (forms[i] === "4" && form4s.length < 20) {
+    if (forms[i] === "4" && form4s.length < 10) {
       form4s.push({
         accessionNumber: accessionNumbers[i],
         filingDate: filingDates[i],
@@ -268,16 +288,25 @@ export async function getInsiderTrading(ticker) {
   const filings = await getForm4Filings(cik);
 
   const insiders = [];
-  for (const filing of filings) {
-    try {
-      const parsed = await parseForm4(cik, filing);
-      if (parsed && parsed.transactions.length > 0) {
-        insiders.push(parsed);
-      }
-    } catch (err) {
-      console.error(`[insider-trading] Failed to parse ${filing.accessionNumber}:`, err.message);
+  const BATCH_SIZE = 3;
+  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+    const batch = filings.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (filing) => {
+        try {
+          const parsed = await parseForm4(cik, filing);
+          if (parsed && parsed.transactions.length > 0) {
+            return parsed;
+          }
+        } catch (err) {
+          console.error(`[insider-trading] Failed to parse ${filing.accessionNumber}:`, err.message);
+        }
+        return null;
+      })
+    );
+    for (const result of results) {
+      if (result) insiders.push(result);
     }
-    await new Promise((r) => setTimeout(r, 150));
   }
 
   const score = calculateSignal(insiders);
