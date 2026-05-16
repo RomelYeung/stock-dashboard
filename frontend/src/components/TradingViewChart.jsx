@@ -5,24 +5,29 @@ import { usePriceHistory } from "../hooks/useStockData";
 const PERIODS = ["1M", "3M", "6M", "1Y", "2Y", "5Y"];
 const PERIOD_MAP = { "1M": "1mo", "3M": "3mo", "6M": "6mo", "1Y": "1y", "2Y": "2y", "5Y": "5y" };
 
-function TradingViewChart({ ticker, period = "5y", setPeriod }) {
+function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
   const { data: priceData, loading } = usePriceHistory(ticker, period);
   const priceContainerRef = useRef(null);
   const volumeContainerRef = useRef(null);
   const volumeWrapperRef = useRef(null);
   const chartRef = useRef(null);
+  const liveSeriesRef = useRef(null);
   const [showVolume, setShowVolume] = useState(true);
   const [showSMA, setShowSMA] = useState(true);
 
   // Main chart creation — runs once when data loads
   useEffect(() => {
-    if (!priceContainerRef.current || !priceData?.length || loading) return;
+    if (!priceContainerRef.current) return;
 
+    // Always clean up old chart before deciding whether to create a new one
     if (chartRef.current) {
       chartRef.current.priceChart.remove();
       chartRef.current.volumeChart.remove();
       chartRef.current = null;
+      liveSeriesRef.current = null;
     }
+
+    if (!priceData?.length || loading) return;
 
     const priceContainer = priceContainerRef.current;
     const volumeContainer = volumeContainerRef.current;
@@ -93,6 +98,17 @@ function TradingViewChart({ ticker, period = "5y", setPeriod }) {
         lineWidth: 2,
       });
       smaSeries.setData(sma200Data);
+    }
+
+    const livePriceSeries = priceChart.addSeries(LineSeries, {
+      color: '#00d4ff',
+      lineWidth: 2,
+      lastValueVisible: true,
+      title: 'Live',
+    });
+    liveSeriesRef.current = livePriceSeries;
+    if (livePrice) {
+      livePriceSeries.setData([{ time: Math.floor(Date.now() / 1000), value: livePrice }]);
     }
 
     priceChart.timeScale().fitContent();
@@ -185,6 +201,7 @@ function TradingViewChart({ ticker, period = "5y", setPeriod }) {
       priceChart.remove();
       volumeChart.remove();
       chartRef.current = null;
+      liveSeriesRef.current = null;
     };
   }, [priceData, loading]);
 
@@ -194,6 +211,13 @@ function TradingViewChart({ ticker, period = "5y", setPeriod }) {
       chartRef.current.smaSeries.applyOptions({ visible: showSMA });
     }
   }, [showSMA]);
+
+  useEffect(() => {
+    if (liveSeriesRef.current && livePrice) {
+      const now = Math.floor(Date.now() / 1000);
+      liveSeriesRef.current.setData([{ time: now, value: livePrice }]);
+    }
+  }, [livePrice]);
 
   const toggleSMA = useCallback(() => setShowSMA((v) => !v), []);
   const toggleVolume = useCallback(() => setShowVolume((v) => !v), []);

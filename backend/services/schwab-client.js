@@ -2,6 +2,9 @@ import { getValidAccessToken } from "./schwab-auth.js";
 
 const BASE_URL = "https://api.schwabapi.com/marketdata/v1";
 
+// Circuit breaker: track last 429 to avoid hammering a rate-limited API
+let last429Time = 0;
+
 /**
  * Build request headers with Bearer token.
  * @param {string} token - Valid access token
@@ -16,11 +19,18 @@ function authHeaders(token) {
 
 /**
  * Perform a GET request to the Schwab Market Data API.
+ * Handles 429 rate limits with Retry-After backoff (one retry)
+ * and a 60-second circuit breaker to skip calls after a 429.
  * @param {string} path - URL path (e.g. "/quotes")
  * @param {object} [params] - Query parameters
  * @returns {Promise<object>} Parsed JSON response
  */
 async function apiGet(path, params = {}) {
+  // Circuit breaker: if 429 received in last 60s, throw immediately
+  if (last429Time > 0 && Date.now() - last429Time < 60000) {
+    throw new Error("Schwab API 429 circuit breaker: too many requests recently, skipping call");
+  }
+
   const token = await getValidAccessToken();
   const url = new URL(`${BASE_URL}${path}`);
   for (const [key, value] of Object.entries(params)) {
@@ -33,6 +43,30 @@ async function apiGet(path, params = {}) {
     method: "GET",
     headers: authHeaders(token),
   });
+
+  if (res.status === 429) {
+    last429Time = Date.now();
+    const retryAfter = res.headers.get("Retry-After");
+    if (retryAfter) {
+      const seconds = parseInt(retryAfter, 10);
+      if (!isNaN(seconds) && seconds > 0) {
+        await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+        const retryRes = await fetch(url.toString(), {
+          method: "GET",
+          headers: authHeaders(token),
+        });
+        if (retryRes.ok) {
+          return retryRes.json();
+        }
+        if (retryRes.status === 429) {
+          throw new Error(`Schwab API 429 on GET ${path} after retry: still rate limited`);
+        }
+        const text = await retryRes.text();
+        throw new Error(`Schwab API ${retryRes.status} on GET ${path} (retry): ${text}`);
+      }
+    }
+    throw new Error(`Schwab API 429 on GET ${path}: rate limited`);
+  }
 
   if (!res.ok) {
     const text = await res.text();

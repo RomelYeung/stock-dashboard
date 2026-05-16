@@ -18,6 +18,7 @@ export const TICKER_REGEX = /^[A-Z0-9\-\.]{1,10}$/;
 // Rate limiting
 export const RATE_LIMIT_GLOBAL_MAX = 100;
 export const RATE_LIMIT_INDICATORS_MAX = 20;
+export const RATE_LIMIT_LIVE_PRICES_MAX = 30; // 30 req/min = 1 every 2s, enough for 30s polling
 export const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
 // Price history

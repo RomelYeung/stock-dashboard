@@ -3,13 +3,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MAX_PORTFOLIO_TICKERS, MAX_WISHLIST_TICKERS } from "../constants.js";
 import TickerAutocomplete from "./TickerAutocomplete";
 
-export default function PortfolioManager({ watchlist, wishlist, onWatchlistChange, onWishlistChange }) {
+export default function PortfolioManager({
+  watchlist,
+  wishlist,
+  onAddToWatchlist,
+  onRemoveFromWatchlist,
+  onAddToWishlist,
+  onRemoveFromWishlist,
+}) {
   const [activeTab, setActiveTab] = useState("watchlist");
   const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(null);
 
-  function handleSelect(ticker) {
+  async function handleSelect(ticker) {
     const list = activeTab === "watchlist" ? watchlist : wishlist;
-    const onChange = activeTab === "watchlist" ? onWatchlistChange : onWishlistChange;
+    const onAdd = activeTab === "watchlist" ? onAddToWatchlist : onAddToWishlist;
     const max = activeTab === "watchlist" ? MAX_PORTFOLIO_TICKERS : MAX_WISHLIST_TICKERS;
 
     if (list.includes(ticker)) {
@@ -20,15 +29,27 @@ export default function PortfolioManager({ watchlist, wishlist, onWatchlistChang
       setError(`Maximum ${max} tickers in ${activeTab === "watchlist" ? "watch list" : "wish list"}`);
       return;
     }
-    onChange([...list, ticker]);
+
+    setAdding(true);
     setError("");
+    try {
+      await onAdd(ticker);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAdding(false);
+    }
   }
 
-  function remove(ticker) {
-    if (activeTab === "watchlist") {
-      onWatchlistChange(watchlist.filter((t) => t !== ticker));
-    } else {
-      onWishlistChange(wishlist.filter((t) => t !== ticker));
+  async function remove(ticker) {
+    const onRemove = activeTab === "watchlist" ? onRemoveFromWatchlist : onRemoveFromWishlist;
+    setRemoving(ticker);
+    try {
+      await onRemove(ticker);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRemoving(null);
     }
   }
 

@@ -7,43 +7,30 @@ import MarketIndicatorsPage from "./components/MarketIndicatorsPage";
 import StockAnalysisPage from "./components/StockAnalysisPage";
 import SchwabAuthAlert from "./components/SchwabAuthAlert";
 import MarketSessionBadge from "./components/MarketSessionBadge";
-import { usePortfolio, useLivePrices } from "./hooks/useStockData";
+import LoginPage from "./components/LoginPage";
+import AdminDashboard from "./components/AdminDashboard";
+import { useAuth } from "./context/AuthContext";
+import { usePortfolio, useLivePrices, usePortfolioItems } from "./hooks/useStockData";
 import { getMarketStatus } from "./utils/marketStatus";
 
-const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL"];
-const STORAGE_KEY = "portfolio-tickers";
-const WISHLIST_STORAGE_KEY = "wishlist-tickers";
-
-function loadTickers() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : null;
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_TICKERS;
-  } catch {
-    return DEFAULT_TICKERS;
-  }
-}
-
-function loadWishlistTickers() {
-  try {
-    const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : null;
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function App() {
-  const [tickers, setTickers] = useState(loadTickers);
-  const [wishlistTickers, setWishlistTickers] = useState(loadWishlistTickers);
+  const { user, loading: authLoading, logout } = useAuth();
+  const {
+    tickers,
+    wishlistTickers,
+    addToWatchlist,
+    removeFromWatchlist,
+    addToWishlist,
+    removeFromWishlist,
+  } = usePortfolioItems(user?.id);
+
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [currentPage, setCurrentPage] = useState("portfolio");
   const [period, setPeriod] = useState("5y");
   const [marketStatus, setMarketStatus] = useState(getMarketStatus);
   const allTickers = [...new Set([...tickers, ...wishlistTickers])];
   const { data, loading, errors, refetch } = usePortfolio(allTickers);
-  const { liveData, isActive: liveActive } = useLivePrices(allTickers);
+  const { liveData } = useLivePrices(allTickers);
 
   const handleCloseModal = useCallback(() => setSelectedTicker(null), []);
   const handleOpenAnalysis = useCallback(() => setCurrentPage("stock"), []);
@@ -65,7 +52,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const page = params.get("page") || "portfolio";
     const ticker = params.get("ticker");
-    if (["portfolio", "indicators", "stock"].includes(page)) {
+    if (["portfolio", "indicators", "stock", "admin"].includes(page)) {
       setCurrentPage(page);
     }
     if (ticker) setSelectedTicker(ticker);
@@ -82,6 +69,9 @@ export default function App() {
       url.searchParams.set("ticker", selectedTicker);
     } else if (currentPage === "indicators") {
       url.searchParams.set("page", "indicators");
+    } else if (currentPage === "admin") {
+      url.searchParams.set("page", "admin");
+      url.searchParams.delete("ticker");
     }
     history.pushState({ currentPage, selectedTicker }, "", url);
   }, [currentPage, selectedTicker]);
@@ -111,15 +101,26 @@ export default function App() {
     };
   }
 
-  function handleTickerChange(newTickers) {
-    setTickers(newTickers);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newTickers));
+  // ─── Auth gates ──────────────────────────────────────────────────────
+
+  if (authLoading) {
+    return (
+      <>
+        <div className="bg-orb bg-orb-1" />
+        <div className="bg-orb bg-orb-2" />
+        <div className="bg-orb bg-orb-3" />
+        <div style={styles.loadingScreen}>
+          <div style={styles.loadingSpinner} />
+        </div>
+      </>
+    );
   }
 
-  function handleWishlistChange(newTickers) {
-    setWishlistTickers(newTickers);
-    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(newTickers));
+  if (!user) {
+    return <LoginPage />;
   }
+
+  // ─── Dashboard ───────────────────────────────────────────────────────
 
   return (
     <>
@@ -144,6 +145,8 @@ export default function App() {
             </div>
 
             <div style={styles.headerMeta}>
+              <span style={styles.userEmail}>{user.email}</span>
+
               <MarketSessionBadge status={marketStatus} variant="header" />
 
               <div style={styles.pageToggle}>
@@ -171,6 +174,20 @@ export default function App() {
                 >
                   Market Indicators
                 </button>
+                {user?.role === "ADMIN" && (
+                  <button
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(currentPage === "admin" ? styles.toggleBtnActive : {}),
+                    }}
+                    onClick={() => {
+                      if (currentPage === "stock") setSelectedTicker(null);
+                      setCurrentPage("admin");
+                    }}
+                  >
+                    Admin
+                  </button>
+                )}
               </div>
 
               <button style={styles.refreshBtn} onClick={refetch}>
@@ -179,6 +196,10 @@ export default function App() {
                   <path d="M6.5 1L8.5 3l-2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Refresh
+              </button>
+
+              <button style={styles.logoutBtn} onClick={logout}>
+                Logout
               </button>
             </div>
           </div>
@@ -192,8 +213,10 @@ export default function App() {
                 <PortfolioManager
                   watchlist={tickers}
                   wishlist={wishlistTickers}
-                  onWatchlistChange={handleTickerChange}
-                  onWishlistChange={handleWishlistChange}
+                  onAddToWatchlist={addToWatchlist}
+                  onRemoveFromWatchlist={removeFromWatchlist}
+                  onAddToWishlist={addToWishlist}
+                  onRemoveFromWishlist={removeFromWishlist}
                 />
               </section>
 
@@ -233,9 +256,7 @@ export default function App() {
                       loading={loading && !data[ticker]}
                       onClick={setSelectedTicker}
                       index={i}
-                      liveActive={liveActive}
                       variant="primary"
-                      marketStatus={marketStatus}
                     />
                   ))}
                 </div>
@@ -263,9 +284,7 @@ export default function App() {
                         loading={loading && !data[ticker]}
                         onClick={setSelectedTicker}
                         index={i}
-                        liveActive={liveActive}
                         variant="secondary"
-                        marketStatus={marketStatus}
                       />
                     ))}
                   </div>
@@ -283,6 +302,21 @@ export default function App() {
               onBack={handleBackFromAnalysis}
             />
           )}
+
+          {currentPage === "admin" && (
+            user?.role === "ADMIN" ? (
+              <AdminDashboard />
+            ) : (
+              <div style={styles.forbidden}>
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" opacity={0.3}>
+                  <circle cx="16" cy="16" r="14" stroke="var(--accent-red)" strokeWidth="1.5" />
+                  <path d="M12 20l8-8M20 20l-8-8" stroke="var(--accent-red)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <h2 style={styles.forbiddenTitle}>Access Denied</h2>
+                <p style={styles.forbiddenText}>You do not have permission to access the admin dashboard.</p>
+              </div>
+            )
+          )}
         </main>
       </div>
 
@@ -295,6 +329,7 @@ export default function App() {
             period={period}
             setPeriod={setPeriod}
             onOpenAnalysis={handleOpenAnalysis}
+            livePrice={liveData[selectedTicker]?.currentPrice}
           />
         )}
       </AnimatePresence>
@@ -362,8 +397,15 @@ const styles = {
   headerMeta: {
     alignItems: "center",
     display: "flex",
-    gap: "20px",
+    gap: "16px",
     flexWrap: "wrap",
+  },
+  userEmail: {
+    color: "var(--text-secondary)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "11px",
+    letterSpacing: "0.02em",
+    opacity: 0.7,
   },
   pageToggle: {
     display: "flex",
@@ -397,6 +439,17 @@ const styles = {
     fontFamily: "var(--font-body)",
     fontSize: "12px",
     gap: "6px",
+    padding: "6px 12px",
+    transition: "all 0.15s",
+  },
+  logoutBtn: {
+    background: "rgba(255,77,109,0.1)",
+    border: "1px solid rgba(255,77,109,0.2)",
+    borderRadius: "8px",
+    color: "var(--accent-red)",
+    cursor: "pointer",
+    fontFamily: "var(--font-body)",
+    fontSize: "11px",
     padding: "6px 12px",
     transition: "all 0.15s",
   },
@@ -465,5 +518,44 @@ const styles = {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
     fontSize: "14px",
+  },
+  forbidden: {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    justifyContent: "center",
+    minHeight: "200px",
+    textAlign: "center",
+  },
+  forbiddenTitle: {
+    color: "var(--text-primary)",
+    fontFamily: "var(--font-display)",
+    fontSize: "18px",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+  },
+  forbiddenText: {
+    color: "var(--text-secondary)",
+    fontFamily: "var(--font-body)",
+    fontSize: "13px",
+    lineHeight: "1.5",
+    maxWidth: "320px",
+  },
+  loadingScreen: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "100vh",
+    position: "relative",
+    zIndex: 1,
+  },
+  loadingSpinner: {
+    width: "28px",
+    height: "28px",
+    border: "2px solid rgba(255,255,255,0.08)",
+    borderTopColor: "var(--accent-blue)",
+    borderRadius: "50%",
+    animation: "spin 0.6s linear infinite",
   },
 };

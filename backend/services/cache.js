@@ -56,10 +56,19 @@ export const flush = () => {
   livePriceCache.flushAll();
 };
 
-export const stats = () => ({
-  fundamentals: fundamentalsCache.getStats(),
-  price: priceCache.getStats(),
-  insider: insiderCache.getStats(),
-  comparables: comparablesCache.getStats(),
-  livePrice: livePriceCache.getStats(),
-});
+export const stats = () => {
+  const segments = [
+    fundamentalsCache.getStats(),
+    priceCache.getStats(),
+    insiderCache.getStats(),
+    comparablesCache.getStats(),
+    livePriceCache.getStats(),
+  ];
+  return {
+    keys: segments.reduce((s, c) => s + c.keys, 0),
+    hits: segments.reduce((s, c) => s + c.hits, 0),
+    misses: segments.reduce((s, c) => s + c.misses, 0),
+    ksize: segments.reduce((s, c) => s + c.ksize, 0),
+    vsize: segments.reduce((s, c) => s + c.vsize, 0),
+  };
+};

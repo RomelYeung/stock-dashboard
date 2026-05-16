@@ -6,7 +6,7 @@ import TradingViewChart from "./TradingViewChart";
 import { formatPrice, isPositive } from "../utils/formatters";
 
 
-function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis }) {
+function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, livePrice }) {
   const { data, loading, error } = useStockDetail(ticker);
   const { data: dcfData, loading: dcfLoading } = useDCF(ticker);
 
@@ -76,7 +76,7 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis }
               <div style={{ display: "flex", gap: "16px" }}>
                 {/* Chart Panel */}
                 <div style={{ flex: 4, display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} />
+                  <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePrice} />
                 </div>
 
                 {/* DCF Summary Sidebar */}

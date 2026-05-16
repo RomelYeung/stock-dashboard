@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import MarketSessionBadge from "./MarketSessionBadge";
 import {
   formatPrice,
   formatMarketCap,
   formatPercent,
   formatMultiple,
-  formatChange,
   formatPriceChange,
   isPositive,
 } from "../utils/formatters";
@@ -82,8 +80,8 @@ const metricStyles = {
   },
 };
 
-export default function StockCard({ ticker, data, error, loading, onClick, index, liveActive, variant, marketStatus }) {
-  const positive = data ? isPositive(data.changePercent) : null;
+export default function StockCard({ ticker, data, error, loading, onClick, index, variant }) {
+  const positive = data ? isPositive(data.changePercent ?? data.change) : null;
   const isSecondary = variant === "secondary";
   const hasEarningsSoon = data && isEarningsSoon(data.earningsDate);
   const [flash, setFlash] = useState(null);
@@ -144,16 +142,24 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           {data && (
             <div style={styles.priceBlock}>
               <div style={{ ...styles.price, ...(isSecondary ? styles.priceSecondary : {}) }}>{formatPrice(data.currentPrice)}</div>
-              <div style={{
-                ...styles.change,
-                ...(isSecondary ? styles.changeSecondary : {}),
-                color: positive ? "var(--accent-green)" : "var(--accent-red)",
-                background: positive ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
-              }}>
-                {positive ? "▲" : "▼"} {formatChange(data.changePercent)}
-              </div>
-              {liveActive && (
-                <div style={styles.liveDot} title="Live updates active" />
+              {data.change != null || data.changePercent != null ? (
+                <div style={{
+                  ...styles.change,
+                  ...(isSecondary ? styles.changeSecondary : {}),
+                  color: positive ? "var(--accent-green)" : "var(--accent-red)",
+                  background: positive ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
+                }}>
+                  {positive ? "▲" : "▼"} {formatPriceChange(data.change)}{" "}
+                  {data.changePercent != null ? `(${formatPercent(data.changePercent)})` : ""}
+                </div>
+              ) : (
+                <div style={{
+                  ...styles.change,
+                  color: "var(--text-secondary)",
+                  background: "rgba(255,255,255,0.04)",
+                }}>
+                  —
+                </div>
               )}
             </div>
           )}
@@ -165,13 +171,6 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
 
       {/* Divider */}
       <div style={styles.divider} />
-
-      {/* Market session badge */}
-      {marketStatus && (
-        <div style={styles.badgeRow}>
-          <MarketSessionBadge status={marketStatus} variant="card" />
-        </div>
-      )}
 
       {/* Metrics */}
       {data && (
@@ -208,9 +207,7 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
               52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
             </span>
           )}
-          {liveActive ? (
-            <span style={styles.liveFooterText}>Live · updated just now</span>
-          ) : data.earningsDate ? (
+          {data.earningsDate ? (
             <span style={isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText}>
               {formatEarningsDate(data.earningsDate)}
             </span>
@@ -295,11 +292,6 @@ const styles = {
     position: "relative",
     zIndex: 1,
   },
-  badgeRow: {
-    display: "flex",
-    position: "relative",
-    zIndex: 1,
-  },
   metrics: {
     display: "flex",
     flexDirection: "column",
@@ -334,22 +326,6 @@ const styles = {
     fontSize: "11px",
     fontWeight: 600,
     textShadow: "0 0 8px rgba(255, 215, 0, 0.5)",
-  },
-  liveDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    background: "var(--accent-green)",
-    boxShadow: "0 0 0 2px rgba(0,229,160,0.15)",
-    animation: "blink 2s ease-in-out infinite",
-    flexShrink: 0,
-  },
-  liveFooterText: {
-    color: "var(--accent-green)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    fontWeight: 300,
-    opacity: 1,
   },
   skeleton: {
     background: "rgba(255,255,255,0.06)",

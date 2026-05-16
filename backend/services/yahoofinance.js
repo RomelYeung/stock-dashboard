@@ -54,7 +54,7 @@ async function getSummary(ticker) {
     name: price.longName || price.shortName,
     currentPrice: price.regularMarketPrice,
     change: price.regularMarketChange,
-    changePercent: price.regularMarketChangePercent,
+    changePercent: price.regularMarketChangePercent != null ? price.regularMarketChangePercent / 100 : null,
     marketCap: price.marketCap,
     currency: price.currency,
 
@@ -361,7 +361,7 @@ async function refreshLivePrices(tickers) {
         const data = {
           currentPrice: quote.regularMarketPrice,
           change: quote.regularMarketChange,
-          changePercent: quote.regularMarketChangePercent,
+          changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
         };
         cache.setLivePrice(ticker, data);
       } catch (err) {

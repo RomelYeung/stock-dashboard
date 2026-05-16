@@ -1,4 +1,5 @@
 import express from "express";
+import { z } from "zod";
 import * as yf from "../services/yahoofinance.js";
 import * as cache from "../services/cache.js";
 import * as fred from "../services/fred.js";
@@ -10,6 +11,8 @@ import * as comparables from "../services/comparables.js";
 import { getQuotes, getPriceHistory, getOptionChain, getMovers } from "../services/schwab-client.js";
 import { getTokenHealth } from "../services/schwab-auth.js";
 import { startAuthFlow } from "../services/schwab-callback-server.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js";
 import NodeCache from "node-cache";
 import {
   MAX_PORTFOLIO_TICKERS,
@@ -24,14 +27,33 @@ const router = express.Router();
 const MAX_BATCH_TICKERS = MAX_PORTFOLIO_TICKERS + MAX_WISHLIST_TICKERS;
 const searchCache = new NodeCache({ stdTTL: 300, checkperiod: 60 }); // 5 min TTL
 
-// Only allow requests originating from localhost
-function requireLocal(req, res, next) {
-  const ip = req.ip || req.connection?.remoteAddress;
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
-    return next();
-  }
-  return res.status(403).json({ success: false, error: 'Forbidden: local access only.' });
-}
+// ─── Zod validation schemas ─────────────────────────────────────────────
+
+const searchQuerySchema = z.object({
+  q: z.string().min(1, 'Query parameter "q" is required.'),
+});
+
+const priceHistoryQuerySchema = z.object({
+  period: z.enum(VALID_PERIODS).optional().default("1y"),
+});
+
+const dcfQuerySchema = z.object({
+  simulations: z.coerce.number().int().min(100).max(100000).optional().default(1000),
+});
+
+const tickersBodySchema = z.object({
+  tickers: z
+    .array(z.string().min(1).max(10).transform((s) => s.toUpperCase()))
+    .min(1, "Provide a non-empty tickers array.")
+    .max(MAX_BATCH_TICKERS, `Maximum ${MAX_BATCH_TICKERS} tickers per request.`),
+});
+
+const schwabQuotesSchema = z.object({
+  symbols: z.array(z.string().min(1)).min(1, "symbols array required"),
+  fields: z.any().optional(),
+});
+
+
 
 // ETFs for sector tracking (GICS + Thematic)
 const sectorEtfs = [
@@ -74,11 +96,8 @@ router.param("ticker", (req, res, next, ticker) => {
 
 // GET /api/stocks/search?q=apple
 // Search tickers via Yahoo Finance
-router.get("/search", async (req, res) => {
+router.get("/search", validate(searchQuerySchema, "query"), async (req, res) => {
   const { q } = req.query;
-  if (!q || q.trim().length < 1) {
-    return res.status(400).json({ success: false, error: "Query parameter 'q' is required." });
-  }
 
   try {
     const cacheKey = `search:${q.trim().toUpperCase()}`;
@@ -152,11 +171,8 @@ router.get("/:ticker/balance-sheet", async (req, res) => {
 
 // GET /api/stocks/:ticker/price-history?period=1y
 // Returns OHLCV data. period: 1mo | 3mo | 6mo | 1y | 2y | 5y
-router.get("/:ticker/price-history", async (req, res) => {
-  const period = req.query.period || "1y";
-  if (!VALID_PERIODS.includes(period)) {
-    return res.status(400).json({ success: false, error: `Invalid period. Use one of: ${VALID_PERIODS.join(", ")}` });
-  }
+router.get("/:ticker/price-history", validate(priceHistoryQuerySchema, "query"), async (req, res) => {
+  const { period } = req.query;
   try {
     const data = await yf.getPriceHistory(req.ticker, period);
     res.json({ success: true, data });
@@ -207,8 +223,8 @@ router.get("/:ticker/comparables", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/dcf?simulations=1000
-router.get("/:ticker/dcf", async (req, res) => {
-  const simulations = Math.min(Math.max(parseInt(req.query.simulations) || 1000, 100), 100000);
+router.get("/:ticker/dcf", validate(dcfQuerySchema, "query"), async (req, res) => {
+  const { simulations } = req.query;
   try {
     const [summary, financials, balanceSheet] = await Promise.all([
       yf.getSummary(req.ticker),
@@ -309,18 +325,11 @@ router.get("/:ticker/dcf", async (req, res) => {
 // POST /api/stocks/portfolio
 // Body: { tickers: ["AAPL", "MSFT", "GOOG"] }
 // Returns summary data for all tickers with per-ticker error handling
-router.post("/portfolio", async (req, res) => {
+router.post("/portfolio", validate(tickersBodySchema), async (req, res) => {
   const { tickers } = req.body;
 
-  if (!Array.isArray(tickers) || tickers.length === 0) {
-    return res.status(400).json({ success: false, error: "Provide a non-empty 'tickers' array in the request body." });
-  }
-  if (tickers.length > MAX_BATCH_TICKERS) {
-    return res.status(400).json({ success: false, error: `Maximum ${MAX_BATCH_TICKERS} tickers per request.` });
-  }
-
   try {
-    const results = await yf.getPortfolioSummaries(tickers.map((t) => t.toUpperCase()));
+    const results = await yf.getPortfolioSummaries(tickers);
     const errors = results.filter((r) => r.error);
     res.json({
       success: true,
@@ -341,47 +350,64 @@ router.post("/portfolio", async (req, res) => {
 // Body: { tickers: ["AAPL", "MSFT", "GOOG"] }
 // Returns lightweight live price data (currentPrice, change, changePercent)
 // Uses Schwab batch quotes as primary source, falls back to Yahoo Finance
-router.post("/portfolio/live", async (req, res) => {
+router.post("/portfolio/live", validate(tickersBodySchema), async (req, res) => {
   const { tickers } = req.body;
+  const symbols = tickers;
 
-  if (!Array.isArray(tickers) || tickers.length === 0) {
-    return res.status(400).json({ success: false, error: "Provide a non-empty 'tickers' array in the request body." });
+  // Check cache for each symbol first — only fetch missing/stale from Schwab
+  const cachedResults = [];
+  const missingSymbols = [];
+  for (const symbol of symbols) {
+    const cached = cache.getLivePrice(symbol);
+    if (cached) {
+      cachedResults.push({
+        ticker: symbol,
+        data: {
+          currentPrice: cached.currentPrice ?? null,
+          change: cached.change ?? null,
+          changePercent: cached.changePercent ?? null,
+        },
+        stale: false,
+      });
+    } else {
+      missingSymbols.push(symbol);
+    }
   }
-  if (tickers.length > MAX_BATCH_TICKERS) {
-    return res.status(400).json({ success: false, error: `Maximum ${MAX_BATCH_TICKERS} tickers per request.` });
+
+  // All symbols are cached — return immediately
+  if (missingSymbols.length === 0) {
+    return res.json({ success: true, data: cachedResults });
   }
 
-  const symbols = tickers.map((t) => t.toUpperCase());
-
+  // Fetch missing symbols from Schwab
   try {
-    // Primary: Schwab batch quotes
-    const schwabQuotes = await getQuotes(symbols);
-    const results = symbols.map((symbol) => {
+    const schwabQuotes = await getQuotes(missingSymbols);
+    const schwabResults = missingSymbols.map((symbol) => {
       const entry = schwabQuotes[symbol];
       if (entry?.quote) {
         const { quote } = entry;
-        return {
-          ticker: symbol,
-          data: {
-            currentPrice: quote.extended?.lastPrice ?? quote.lastPrice ?? null,
-            change: quote.netChange ?? null,
-            changePercent: quote.netPercentChangeInDouble ?? null,
-          },
-          stale: false,
+        const data = {
+          currentPrice: quote.extended?.lastPrice ?? quote.lastPrice ?? null,
+          change: quote.netChange ?? null,
+          changePercent: quote.netPercentChangeInDouble ?? null,
         };
+        cache.setLivePrice(symbol, data);
+        return { ticker: symbol, data, stale: false };
       }
       return { ticker: symbol, data: null, stale: true };
     });
-    return res.json({ success: true, data: results });
+    return res.json({ success: true, data: [...cachedResults, ...schwabResults] });
   } catch (schwabErr) {
-    // Fallback: Yahoo Finance
+    // Fallback: Yahoo Finance for missing symbols only
     console.error("[portfolio/live] Schwab failed, falling back to Yahoo:", schwabErr.message);
     try {
-      const results = await yf.getLivePrices(symbols);
-      return res.json({ success: true, data: results });
+      const yfResults = await yf.getLivePrices(missingSymbols);
+      return res.json({ success: true, data: [...cachedResults, ...yfResults] });
     } catch (yfErr) {
       console.error("[portfolio/live] Yahoo also failed:", yfErr.message);
-      return res.status(500).json({ success: false, error: yfErr.message });
+      // Return cached results, mark missing as stale
+      const errorResults = missingSymbols.map(s => ({ ticker: s, data: null, stale: true }));
+      return res.json({ success: true, data: [...cachedResults, ...errorResults] });
     }
   }
 });
@@ -565,7 +591,7 @@ router.get("/sector-rotation", async (req, res) => {
 
 // POST /api/stocks/market/update-margin-debt
 // Manual trigger to refresh margin debt data from FINRA
-router.post("/market/update-margin-debt", requireLocal, async (req, res) => {
+router.post("/market/update-margin-debt", requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await marginDebtService.updateMarginDebt();
     res.json({ success: true, message: "Margin debt data updated successfully", lastUpdated: result.lastUpdated });
@@ -578,12 +604,12 @@ router.post("/market/update-margin-debt", requireLocal, async (req, res) => {
 // ─── Cache management ─────────────────────────────────────────────────────────
 
 // GET /api/stocks/cache/stats
-router.get("/cache/stats", requireLocal, (req, res) => {
+router.get("/cache/stats", requireAuth, requireAdmin, (req, res) => {
   res.json({ success: true, data: cache.stats() });
 });
 
 // DELETE /api/stocks/cache
-router.delete("/cache", requireLocal, (req, res) => {
+router.delete("/cache", requireAuth, requireAdmin, (req, res) => {
   cache.flush();
   res.json({ success: true, message: "Cache cleared." });
 });
@@ -613,12 +639,9 @@ router.get("/schwab/auth", async (req, res) => {
 });
 
 // POST /api/schwab/quotes — batch quotes
-router.post("/schwab/quotes", async (req, res) => {
+router.post("/schwab/quotes", validate(schwabQuotesSchema), async (req, res) => {
   try {
     const { symbols, fields } = req.body;
-    if (!symbols || !Array.isArray(symbols)) {
-      return res.status(400).json({ error: "symbols array required" });
-    }
     const quotes = await getQuotes(symbols, fields);
     res.json(quotes);
   } catch (e) {

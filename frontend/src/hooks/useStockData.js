@@ -65,6 +65,7 @@ export function usePortfolio(tickers) {
  * Poll for live price updates every 30s during market hours.
  * Automatically stops polling when market closes or component unmounts.
  * On network failure, retries with exponential backoff (30s → 60s → 120s → max 300s).
+ * On 429 rate limit, backs off to 120s immediately.
  *
  * @param {string[]} tickers - Array of ticker symbols
  * @returns {{ liveData: Record<string, {currentPrice, change, changePercent}>, isActive: boolean }}
@@ -76,17 +77,20 @@ export function useLivePrices(tickers) {
   const backoffRef = useRef(30000);
   const errorCountRef = useRef(0);
   const mountedRef = useRef(true);
+  const tickersRef = useRef(tickers);
+
+  // Keep a ref to the latest tickers so the interval callback doesn't stale
+  useEffect(() => {
+    tickersRef.current = tickers;
+  }, [tickers]);
 
   const fetchLivePrices = useCallback(async () => {
-    if (!tickers.length) return;
+    const currentTickers = tickersRef.current;
+    if (!currentTickers.length) return;
 
     const marketStatus = getMarketStatus();
     if (!marketStatus.isOpen) {
       setIsActive(false);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      intervalRef.current = setInterval(fetchLivePrices, getPollingInterval(false));
       return;
     }
 
@@ -96,8 +100,15 @@ export function useLivePrices(tickers) {
       const res = await fetch("/api/stocks/portfolio/live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tickers }),
+        body: JSON.stringify({ tickers: currentTickers }),
       });
+
+      // Handle 429 rate limit specifically
+      if (res.status === 429) {
+        const json = await res.json().catch(() => ({ error: "Rate limited" }));
+        throw new Error(json.error || "Rate limited");
+      }
+
       const json = await res.json();
 
       if (!json.success) {
@@ -121,15 +132,31 @@ export function useLivePrices(tickers) {
       console.error("[live-prices] fetch failed:", err.message);
       errorCountRef.current++;
 
-      const nextBackoff = Math.min(backoffRef.current * 2, 300000);
-      backoffRef.current = nextBackoff;
+      // On 429, jump to 120s backoff immediately
+      if (err.message.includes("Rate limited") || err.message.includes("429")) {
+        backoffRef.current = 120000;
+      } else {
+        const nextBackoff = Math.min(backoffRef.current * 2, 300000);
+        backoffRef.current = nextBackoff;
+      }
+
+      // Stop polling after 5 consecutive failures
+      if (errorCountRef.current >= 5) {
+        console.warn("[live-prices] 5 consecutive failures, stopping polling");
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setIsActive(false);
+        return;
+      }
 
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        intervalRef.current = setInterval(fetchLivePrices, nextBackoff);
+        intervalRef.current = setInterval(fetchLivePrices, backoffRef.current);
       }
     }
-  }, [tickers]);
+  }, []); // stable — reads tickers from ref
 
   useEffect(() => {
     mountedRef.current = true;
@@ -148,11 +175,13 @@ export function useLivePrices(tickers) {
 
     const marketCheckInterval = setInterval(() => {
       const status = getMarketStatus();
-      if (status.isOpen && tickers.length > 0) {
+      if (status.isOpen && tickersRef.current.length > 0) {
         setIsActive(true);
         if (intervalRef.current) clearInterval(intervalRef.current);
         fetchLivePrices();
         intervalRef.current = setInterval(fetchLivePrices, getPollingInterval(true));
+      } else if (!status.isOpen) {
+        setIsActive(false);
       }
     }, 60000);
 
@@ -160,10 +189,11 @@ export function useLivePrices(tickers) {
       mountedRef.current = false;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
       clearInterval(marketCheckInterval);
     };
-  }, [fetchLivePrices, tickers]);
+  }, [fetchLivePrices, tickers.length]); // depend on length, not array reference
 
   return { liveData, isActive };
 }
@@ -273,4 +303,93 @@ export function useComparables(ticker) {
   });
 
   return { data, loading: isLoading, error: error?.message };
+}
+
+/**
+ * Fetch and mutate the user's portfolio and wishlist items from the backend.
+ * Enabled only when a userId is provided (user is logged in).
+ *
+ * @param {string | undefined} userId - The authenticated user's ID (undefined = not logged in)
+ * @returns {{ portfolio, wishlist, tickers, wishlistTickers, loading, addToWatchlist, removeFromWatchlist, addToWishlist, removeFromWishlist, refetch }}
+ */
+export function usePortfolioItems(userId) {
+  const query = useQuery({
+    queryKey: ["portfolioItems", userId],
+    queryFn: async () => {
+      const res = await fetch("/api/portfolio", { credentials: "include" });
+      if (!res.ok) {
+        if (res.status === 401) return { portfolio: [], wishlist: [] };
+        throw new Error("Failed to fetch portfolio");
+      }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "API error");
+      return json;
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: () => ({ portfolio: [], wishlist: [] }),
+  });
+
+  const portfolio = query.data?.portfolio || [];
+  const wishlist = query.data?.wishlist || [];
+  const tickers = portfolio.map((p) => p.ticker);
+  const wishlistTickers = wishlist.map((w) => w.ticker);
+
+  const addToWatchlist = async (ticker) => {
+    const res = await fetch("/api/portfolio/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ ticker, shares: 0, averagePrice: 0 }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to add to watchlist");
+    await query.refetch();
+  };
+
+  const removeFromWatchlist = async (ticker) => {
+    const res = await fetch(`/api/portfolio/items/${ticker}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to remove from watchlist");
+    await query.refetch();
+  };
+
+  const addToWishlist = async (ticker) => {
+    const res = await fetch("/api/portfolio/wishlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ ticker }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to add to wishlist");
+    await query.refetch();
+  };
+
+  const removeFromWishlist = async (ticker) => {
+    const res = await fetch(`/api/portfolio/wishlist/${ticker}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to remove from wishlist");
+    await query.refetch();
+  };
+
+  return {
+    portfolio,
+    wishlist,
+    tickers,
+    wishlistTickers,
+    loading: query.isLoading,
+    error: query.error,
+    addToWatchlist,
+    removeFromWatchlist,
+    addToWishlist,
+    removeFromWishlist,
+    refetch: query.refetch,
+  };
 }

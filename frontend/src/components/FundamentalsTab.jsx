@@ -32,25 +32,60 @@ function useWindowWidth() {
 
 
 // ─── StatBox (matching existing StockAnalysisPage pattern) ───────────────────
-function StatBox({ label, value, sub, positive, peerDiff }) {
-  const peerColor = peerDiff?.favorable === true
-    ? "var(--accent-green)"
-    : peerDiff?.favorable === false
-      ? "var(--accent-red)"
-      : "var(--text-secondary)";
-  const peerBg = peerDiff?.favorable === true
-    ? "rgba(0, 229, 160, 0.08)"
-    : peerDiff?.favorable === false
-      ? "rgba(255, 77, 109, 0.08)"
-      : "rgba(255,255,255,0.04)";
-  const peerArrow = peerDiff != null
-    ? (peerDiff.favorable === true ? "▲" : peerDiff.favorable === false ? "▼" : "•")
-    : null;
+function StatBox({ label, value, sub, positive, historicalData, higherIsBetter = true }) {
+  let trendBadge = null;
+
+  if (historicalData && historicalData.length >= 2) {
+    const pastIdx = Math.max(0, historicalData.length - 5);
+    const pastVal = historicalData[pastIdx].value;
+    const currentVal = historicalData[historicalData.length - 1].value;
+    
+    const diff = currentVal - pastVal;
+    const pctChange = pastVal !== 0 ? ((diff / Math.abs(pastVal)) * 100).toFixed(1) : 0;
+    const isPositiveChange = diff > 0;
+    const isNegativeChange = diff < 0;
+    
+    let favorable = null;
+    if (isPositiveChange) favorable = higherIsBetter;
+    else if (isNegativeChange) favorable = !higherIsBetter;
+
+    const trendColor = favorable === true
+      ? "var(--accent-green)"
+      : favorable === false
+        ? "var(--accent-red)"
+        : "var(--text-secondary)";
+    
+    const trendBg = favorable === true
+      ? "rgba(0, 229, 160, 0.08)"
+      : favorable === false
+        ? "rgba(255, 77, 109, 0.08)"
+        : "rgba(255,255,255,0.04)";
+        
+    const trendArrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "•";
+    const trendText = `${trendArrow} ${Math.abs(pctChange)}% YoY`;
+
+    trendBadge = (
+      <span
+        style={{
+          fontSize: "11px",
+          fontFamily: "var(--font-body)",
+          fontWeight: 500,
+          padding: "2px 6px",
+          borderRadius: "4px",
+          whiteSpace: "nowrap",
+          color: trendColor,
+          background: trendBg,
+        }}
+      >
+        {trendText}
+      </span>
+    );
+  }
 
   return (
     <div style={sbox.box}>
       <span style={sbox.label}>{label}</span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "nowrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", width: "100%" }}>
         <span
           style={{
             ...sbox.value,
@@ -64,23 +99,7 @@ function StatBox({ label, value, sub, positive, peerDiff }) {
         >
           {value}
         </span>
-        {peerDiff != null && (
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "var(--font-body)",
-              fontWeight: 500,
-              padding: "2px 6px",
-              borderRadius: "4px",
-              whiteSpace: "nowrap",
-              color: peerColor,
-              background: peerBg,
-            }}
-          >
-            {peerArrow} vs peers
-          </span>
-        )}
-
+        {trendBadge}
       </div>
       {sub && <span style={sbox.sub}>{sub}</span>}
     </div>
@@ -283,20 +302,6 @@ function generateInsight(metrics, ticker) {
   }
 
   return sentences.join(" ");
-}
-
-function findPeerDiff(comparablesData, metricKey) {
-  if (!comparablesData?.categories) return null;
-  for (const cat of Object.values(comparablesData.categories)) {
-    if (!cat?.metrics) continue;
-    const found = cat.metrics.find((m) => m.key === metricKey);
-    if (found && found.peerAvg != null && found.baseValue != null) {
-      const diffPct = ((found.baseValue - found.peerAvg) / found.peerAvg) * 100;
-      const favorable = Math.abs(diffPct) <= 5 ? null : (found.fmt === "x" ? diffPct < 0 : diffPct > 0);
-      return { value: diffPct, favorable };
-    }
-  }
-  return null;
 }
 
 function computeDiffColor(metric) {
@@ -548,6 +553,21 @@ export default function FundamentalsTab({
   const financials = financialData.financials || {};
   const balanceSheet = financialData.balanceSheet || {};
 
+  // Helper to extract historical data for StatBox
+  const getHistory = (source, key) => {
+    if (!source || !Array.isArray(source)) return null;
+    const sorted = [...source].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const vals = sorted.map(item => ({ value: item[key] })).filter(d => d.value != null);
+    return vals.length >= 2 ? vals : null;
+  };
+
+  const getComputedHistory = (source, computeFn) => {
+    if (!source || !Array.isArray(source)) return null;
+    const sorted = [...source].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const vals = sorted.map(item => ({ value: computeFn(item) })).filter(d => d.value != null && isFinite(d.value));
+    return vals.length >= 2 ? vals : null;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
       {/* ─── 1. KEY METRICS ────────────────────────────────────────────────── */}
@@ -566,17 +586,17 @@ export default function FundamentalsTab({
               <StatBox
                 label="Forward P/E"
                 value={formatMultiple(summary.forwardPE)}
-                peerDiff={findPeerDiff(comparablesData, "forwardPE")}
+                higherIsBetter={false}
               />
               <StatBox
                 label="P/B"
                 value={formatMultiple(summary.priceToBook)}
-                peerDiff={findPeerDiff(comparablesData, "priceToBook")}
+                higherIsBetter={false}
               />
               <StatBox
                 label="PEG Ratio"
                 value={formatMultiple(summary.pegRatio)}
-                peerDiff={findPeerDiff(comparablesData, "pegRatio")}
+                higherIsBetter={false}
               />
             </div>
           </Section>
@@ -587,17 +607,16 @@ export default function FundamentalsTab({
               <StatBox
                 label="Operating Margin"
                 value={formatPercent(financials.operatingMargins)}
-                peerDiff={findPeerDiff(comparablesData, "operatingMargin")}
+                historicalData={getComputedHistory(financials.annualIncome, item => item.totalRevenue ? item.operatingIncome / item.totalRevenue : null)}
               />
               <StatBox
                 label="Net Margin"
                 value={formatPercent(financials.profitMargins)}
-                peerDiff={findPeerDiff(comparablesData, "profitMargin")}
+                historicalData={getComputedHistory(financials.annualIncome, item => item.totalRevenue ? item.netIncome / item.totalRevenue : null)}
               />
               <StatBox
                 label="ROA"
                 value={formatPercent(financials.returnOnAssets)}
-                peerDiff={findPeerDiff(comparablesData, "returnOnAssets")}
               />
             </div>
             <MarginsChart annualIncome={financials.annualIncome} />
@@ -606,11 +625,15 @@ export default function FundamentalsTab({
           {/* Revenue & Earnings */}
           <Section title="Revenue & Earnings">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
-              <StatBox label="Total Revenue" value={formatRevenue(financials.totalRevenue)} />
+              <StatBox
+                label="Total Revenue"
+                value={formatRevenue(financials.totalRevenue)}
+                historicalData={getHistory(financials.annualIncome, 'totalRevenue')}
+              />
               <StatBox
                 label="Earnings Growth"
                 value={formatPercent(financials.earningsGrowth)}
-                peerDiff={findPeerDiff(comparablesData, "earningsGrowth")}
+                historicalData={comparablesData?.base?.sparklines?.earningsGrowth}
               />
               <StatBox
                 label="EPS Est. (This Yr)"
@@ -635,20 +658,31 @@ export default function FundamentalsTab({
           {/* Balance Sheet & Cash Flow */}
           <Section title="Balance Sheet & Cash Flow">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-              <StatBox label="Total Cash" value={formatRevenue(balanceSheet.totalCash)} />
-              <StatBox label="Total Debt" value={formatRevenue(balanceSheet.totalDebt)} />
+              <StatBox
+                label="Total Cash"
+                value={formatRevenue(balanceSheet.totalCash)}
+                historicalData={getHistory(balanceSheet.annualBalanceSheet, 'cash')}
+              />
+              <StatBox
+                label="Total Debt"
+                value={formatRevenue(balanceSheet.totalDebt)}
+                historicalData={getHistory(balanceSheet.annualBalanceSheet, 'totalDebt')}
+                higherIsBetter={false}
+              />
               <StatBox
                 label="Current Ratio"
                 value={formatMultiple(balanceSheet.currentRatio)}
-                peerDiff={findPeerDiff(comparablesData, "currentRatio")}
+                historicalData={getHistory(balanceSheet.annualBalanceSheet, 'currentRatio')}
               />
               <StatBox
                 label="Free Cash Flow"
                 value={formatRevenue(balanceSheet.freeCashflow)}
+                historicalData={getHistory(balanceSheet.annualCashFlow, 'freeCashFlow')}
               />
               <StatBox
                 label="Operating CF"
                 value={formatRevenue(balanceSheet.operatingCashflow)}
+                historicalData={getHistory(balanceSheet.annualCashFlow, 'operatingCashFlow')}
               />
             </div>
             <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />

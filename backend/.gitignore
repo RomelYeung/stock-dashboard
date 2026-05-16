@@ -6,3 +6,5 @@ data/
 .schwab-token.json
 schwab-token.json
 certs/*.pem
+
+/generated/prisma
