@@ -50,6 +50,4 @@ model HistoricalIV {
   createdAt DateTime @default(now())
 
   @@unique([ticker, date])
-  @@index([ticker])
-  @@index([ticker, date])
 }
