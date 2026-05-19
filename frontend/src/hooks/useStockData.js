@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMarketStatus } from "../utils/marketStatus";
 
-export const getPollingInterval = (isOpen) => (isOpen ? 30000 : 300000);
+export const getPollingInterval = (isOpen) => (isOpen ? 5000 : 300000);
 
 const BASE = "/api/stocks";
 
@@ -62,9 +62,9 @@ export function usePortfolio(tickers) {
 }
 
 /**
- * Poll for live price updates every 30s during market hours.
+ * Poll for live price updates every 5s during market hours.
  * Automatically stops polling when market closes or component unmounts.
- * On network failure, retries with exponential backoff (30s → 60s → 120s → max 300s).
+ * On network failure, retries with exponential backoff (5s → 10s → 20s → max 300s).
  * On 429 rate limit, backs off to 120s immediately.
  *
  * @param {string[]} tickers - Array of ticker symbols
@@ -74,7 +74,7 @@ export function useLivePrices(tickers) {
   const [liveData, setLiveData] = useState({});
   const [isActive, setIsActive] = useState(false);
   const intervalRef = useRef(null);
-  const backoffRef = useRef(30000);
+  const backoffRef = useRef(5000);
   const errorCountRef = useRef(0);
   const mountedRef = useRef(true);
   const tickersRef = useRef(tickers);
@@ -115,7 +115,7 @@ export function useLivePrices(tickers) {
         throw new Error(json.error || "API error");
       }
 
-      backoffRef.current = 30000;
+      backoffRef.current = 5000;
       errorCountRef.current = 0;
 
       const newData = {};
@@ -303,6 +303,23 @@ export function useComparables(ticker) {
   });
 
   return { data, loading: isLoading, error: error?.message };
+}
+
+// Fetch options scanner data for a single ticker
+export function useOptionsScanner(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["optionsScanner", ticker],
+    queryFn: async () => {
+      const res = await fetch(`/api/options/scan/${ticker}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "API error");
+      return json.data;
+    },
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
 }
 
 /**

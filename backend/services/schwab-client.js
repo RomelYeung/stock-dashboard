@@ -143,6 +143,63 @@ async function getOptionChain(symbol, opts = {}) {
 }
 
 /**
+ * Fetch an option chain and parse it into a clean array of option contracts
+ * with bid, ask, implied volatility, and Greeks.
+ * @param {string} symbol
+ * @param {object} [opts] - Query params passed through to /chains (e.g. strikeCount, range)
+ * @returns {Promise<{ symbol: string, underlyingPrice: number, calls: object[], puts: object[] }>}
+ */
+async function getOptionChainParsed(symbol, opts = {}) {
+  const raw = await getOptionChain(symbol, opts);
+
+  function parseLeg(leg) {
+    return {
+      symbol: leg.symbol,
+      strike: leg.strikePrice,
+      expiration: leg.expirationDate,
+      expirationStr: new Date(leg.expirationDate).toISOString().split("T")[0],
+      dte: leg.daysToExpiration,
+      type: leg.putCall === "CALL" ? "call" : "put",
+      bid: leg.bid,
+      ask: leg.ask,
+      last: leg.last,
+      volume: leg.totalVolume,
+      openInterest: leg.openInterest,
+      iv: leg.volatility,
+      delta: leg.delta,
+      gamma: leg.gamma,
+      theta: leg.theta,
+      vega: leg.vega,
+      rho: leg.rho,
+      itm: leg.inTheMoney,
+      theoretical: leg.theoreticalOptionValue,
+      intrinsic: leg.intrinsicValue,
+      multiplier: leg.multiplier || 100,
+    };
+  }
+
+  function flattenMap(expDateMap) {
+    const contracts = [];
+    for (const dateKey of Object.keys(expDateMap || {})) {
+      const byStrike = expDateMap[dateKey];
+      for (const strikeKey of Object.keys(byStrike)) {
+        for (const leg of byStrike[strikeKey]) {
+          contracts.push(parseLeg(leg));
+        }
+      }
+    }
+    return contracts;
+  }
+
+  return {
+    symbol: raw.underlying || symbol,
+    underlyingPrice: raw.underlyingPrice,
+    calls: flattenMap(raw.callExpDateMap),
+    puts: flattenMap(raw.putExpDateMap),
+  };
+}
+
+/**
  * Get market movers for an index.
  * GET /movers/{index}
  * @param {string} index - $DJI, $COMPX, $SPX, NYSE, NASDAQ, OTCBB
@@ -185,6 +242,7 @@ export {
   getQuote,
   getPriceHistory,
   getOptionChain,
+  getOptionChainParsed,
   getMovers,
   getMarketHours,
   getInstruments,

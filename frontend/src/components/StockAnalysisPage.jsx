@@ -3,9 +3,10 @@ import { useStockDetail, useDCF, useComparables } from "../hooks/useStockData";
 import DCFAnalysis from "./DCFAnalysis";
 import InsiderTradingTab from "./InsiderTradingTab";
 import FundamentalsTab from "./FundamentalsTab";
+import OptionsScannerTab from "./OptionsScannerTab";
 import { formatPrice, isPositive } from "../utils/formatters";
 
-const TABS = ["DCF", "Fundamentals", "Insider Activity"];
+const TABS = ["DCF", "Fundamentals", "Options Scanner", "Insider Activity"];
 
 function TabBar({ active, onChange }) {
   return (
@@ -122,6 +123,10 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
               refetchComparables();
             }}
           />
+        )}
+
+        {activeTab === "Options Scanner" && (
+          <OptionsScannerTab ticker={ticker} />
         )}
 
         {activeTab === "Insider Activity" && (

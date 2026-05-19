@@ -513,6 +513,37 @@ export async function searchTickers(query, options = {}) {
   return results.quotes || [];
 }
 
+/**
+ * Fetch daily close prices for the past 1 year — used for volatility calculations.
+ * Yahoo Finance chart data does not include historical implied volatility.
+ * @param {string} ticker
+ * @returns {Promise<{ date: string, close: number }[]>}
+ */
+async function getHistoricalDailyData(ticker) {
+  const cacheKey = `vol-prices:${ticker}`;
+  const cached = cache.getPrice(cacheKey);
+  if (cached) return cached;
+
+  const now = new Date();
+  const period1 = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+
+  const chartData = await yahooFinance.chart(ticker, {
+    period1,
+    interval: "1d",
+  });
+
+  const result = (chartData.quotes || [])
+    .filter((d) => Number.isFinite(d.close))
+    .map((d) => ({
+      date: d.date.toISOString().split("T")[0],
+      close: d.close,
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date)); // oldest first
+
+  cache.setPrice(cacheKey, result);
+  return result;
+}
+
 export {
   getSummary,
   getFinancials,
@@ -523,4 +554,5 @@ export {
   getPortfolioSummaries,
   getHoldings,
   getLivePrices,
+  getHistoricalDailyData,
 };

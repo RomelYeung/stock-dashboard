@@ -333,6 +333,114 @@
 
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add historical IV tracking for IVR/IVP calculations</h3>
+          <p>The Options Scanner now stores daily implied volatility data per ticker, enabling accurate IV Rank (IVR) and IV Percentile (IVP) calculations based on a ticker's own volatility history rather than the current chain-wide IV distribution. IVR/IVP values fall back to chain-wide distribution when insufficient historical data is available.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix option chain calls always parsing as puts in the backend</h3>
+          <p>The Schwab API returns option type in a <code>putCall</code> field (<code>"CALL"</code>/<code>"PUT"</code>), not <code>optionType</code> (<code>"C"</code>/<code>"P"</code>). The backend was checking a non-existent field, causing all options — including calls from <code>callExpDateMap</code> — to be classified as puts. Also fixed the <code>volume</code> field to read <code>totalVolume</code> instead of a non-existent <code>vol</code> field. Both sides of the option chain now render correctly.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Calls column in Option Chain showing no data</h3>
+          <p>The Calls side of the side-by-side Option Chain was rendering empty even though Calls existed in the ±10% moneyness range. Fixed a React Rules of Hooks violation where <code>useMemo</code> was called after an early return, causing inconsistent hook state. Both Calls and Puts now display correctly side-by-side.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Redesign Option Chain layout and filtering</h3>
+          <p>The Option Chain has been completely redesigned for better readability and focus. It now filters out deep OTM options (showing only strikes within ±10% of the underlying price) and displays Calls and Puts side-by-side. The At-The-Money (ATM) strike is visually anchored in the center with a subtle glow, and the table density has been increased to show more relevant data at a glance.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add liquidity and moneyness filters to Best Opportunities ranking</h3>
+          <p>Deep OTM options with negligible volume and open interest no longer clutter the Best Opportunities list. Options must now have at least some trading volume or 10+ open interest, and their strike price must be within 15% of the underlying price to qualify. This ensures ranked opportunities are actually tradeable.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Refine Options Scanner UI with top 5 highlighting</h3>
+          <p>Reduced the Best Opportunities table to show the top 5 contracts instead of 20 for better focus. The top 5 opportunities are now individually color-coded (Gold, Cyan, Magenta, Orange, Lime) across both the table and the 3D volatility surface for instant visual identification. Added a brief flash animation to the option chain when selecting a contract from the 3D chart to provide clear visual feedback.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Exclude 0DTE options from Best Opportunities ranking</h3>
+          <p>Options expiring today (0DTE, DTE &lt; 1) are now excluded from the global Best Opportunities table. Their near-zero vega, extreme IV smile, and tick-size noise produce unreliable edge estimates that drown out longer-dated opportunities. Select a specific expiration from the dropdown to view its chain directly.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Enhance Options Scanner with Global DTE Filter and UI Fixes</h3>
+          <p>Added a prominent global Date to Expiration (DTE) filter that updates the 3D volatility surface, best opportunities table, and option chain simultaneously. Fixed 3D plot color coding to clearly distinguish underpriced (green) and overpriced (red) options against a refined glass-morphism surface. Added a detailed interpretation guide for the Gamma Exposure (GEX) profile.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add interactive option chain highlighting from 3D surface</h3>
+          <p>Clicking any scatter point on the 3D volatility surface now automatically selects the corresponding expiration date and highlights the specific option contract in the data table below, making it easier to drill down into specific opportunities.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Enhance 3D volatility surface visualization</h3>
+          <p>Improved the Options Scanner's 3D volatility surface chart by color-coding scatter points based on their theoretical edge. Green points indicate underpriced options, red points indicate overpriced options, and white points are fairly priced. Added detailed hover tooltips and a clear visual guide below the chart.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Options Scanner UI with 3D volatility surface</h3>
+          <p>Introduced a new Options Scanner tab on the stock detail page. Features an interactive 3D volatility surface chart (SVI fitted vs market IV), a ranked list of the best spread-adjusted edge opportunities, full option chains with inline edge highlighting, and a Gamma Exposure (GEX) profile sidebar.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-18">May 18, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add options scanner API with SVI surface fitting</h3>
+          <p>New <code>GET /api/options/scan/:ticker</code> endpoint provides a comprehensive options scan: realized volatility, IV Rank/Percentile, Gamma Exposure (GEX), SVI volatility surface fitting per expiration, and spread-adjusted edge for each contract. Powers advanced quantitative options analysis.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-05-16">May 16, 2026</time>
             <span class="tag tag-fix">Fix</span>
           </div>
@@ -414,6 +522,24 @@
 
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix five backend data regressions</h3>
+          <p>Patched missing <code>try/finally</code> in SEC ticker loading so a failed fetch doesn't permanently block future requests. Added missing <code>await</code> in live price refresh so stale tickers actually get updated before the response returns. Added optional chaining for financial statement and earnings history data to prevent crashes on incomplete API responses. Portfolio summaries now correctly map back to the requested tickers, returning an error entry for any missing quote instead of silently dropping it. Moved the earnings profile cache into the shared cache module so it is included in cache stats and flush operations.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-16">May 16, 2026</time>
+            <span class="tag tag-security">Security</span>
+          </div>
+          <h3>Fix reflected XSS in OAuth callback server</h3>
+          <p>Error parameters from the Schwab authorization callback are now HTML-escaped before being rendered in the response page, preventing injection of malicious scripts via crafted redirect URLs.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-05-15">May 15, 2026</time>
             <span class="tag tag-improvement">Improvement</span>
           </div>
@@ -485,77 +611,100 @@
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-14">May 14, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add Sentry error tracking for frontend and backend</h3>
           <p>Errors are now automatically reported to Sentry from both the browser and server. Frontend errors include session replays for debugging user interactions. Backend errors include performance profiling. Set <code>SENTRY_DSN</code> and <code>VITE_SENTRY_DSN</code> environment variables to enable — Sentry is safely disabled when no DSN is configured.</p>
-          <span class="tag tag-feature">Feature</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-14">May 14, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add user accounts with persisted portfolio and wishlist</h3>
           <p>Portfolio and wishlist data is now stored in the database instead of localStorage. New users can create an account or sign in to access their saved tickers from any device. The dashboard requires authentication — unauthenticated visitors see a login screen. A logout button is available in the header.</p>
-          <span class="tag tag-feature">Feature</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-14">May 14, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
           <h3>Add backend input validation and centralized error handling</h3>
           <p>All API endpoints now validate request data using Zod schemas, returning clear error messages for invalid email, password, ticker, or query parameters. A centralized error handler catches all errors and returns a consistent JSON response format. Prisma database errors are also caught and sanitized — no internal details leak in production.</p>
-          <span class="tag tag-improvement">Improvement</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-14">May 14, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-14">May 14, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
           <h3>Fix stale chart data persisting when switching periods</h3>
           <p>Switching time periods in the stock detail modal no longer shows stale candlestick/volume data. The chart now clears immediately when entering a loading state, so users see a clean state instead of outdated chart content.</p>
-          <span class="tag tag-fix">Fix</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
           <h3>Clean up StockCard live indicators and fix percentage display</h3>
           <p>Remove redundant live indicators from stock cards; percentage change now displays correctly alongside price updates.</p>
-          <span class="tag tag-fix">Fix</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add live price overlay to stock chart</h3>
           <p>Stock charts now display a live price line that updates in real-time alongside historical candlestick data.</p>
-          <span class="tag tag-feature">Feature</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
           <h3>Fix live price 429 errors during market hours</h3>
           <p>Add backend caching and Schwab rate-limit backoff to prevent Too Many Requests errors on live price updates.</p>
-          <span class="tag tag-fix">Fix</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add market session badge with context-aware polling</h3>
           <p>A new animated badge in the header and on every stock card shows the current market session (Open, Pre-market, After-hours, or Closed). Live price polling now runs every 30 seconds during market hours and slows to 5 minutes when the market is closed, saving bandwidth and API calls.</p>
-          <span class="tag tag-feature">Feature</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
           <h3>Switch live price source to Schwab API with Yahoo fallback</h3>
           <p>Portfolio live prices now pull from Schwab's real-time batch quotes first, falling back to Yahoo Finance when Schwab is unavailable. Extended-hours prices are used when available.</p>
-          <span class="tag tag-improvement">Improvement</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-13">May 13, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-13">May 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add Schwab token refresh alert with one-click re-authorization</h3>
           <p>When the Schwab API token expires or approaches expiration, a banner now appears with a direct link to re-authorize. No CLI required.</p>
-          <span class="tag tag-feature">Feature</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-12">May 12, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-12">May 12, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
           <h3>Fix page flash and autocomplete lockup after adding stocks</h3>
           <p>
             Fixed an issue where adding a ticker to your watchlist or wishlist caused all
@@ -563,29 +712,32 @@
             dropdown failing to appear when typing a second search query after selecting
             a ticker.
           </p>
-          <span class="tag tag-fix">Fix</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-12">May 12, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-12">May 12, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
           <h3>Fix ticker autocomplete getting stuck in searching state</h3>
           <p>
             Resolved an issue where the ticker search autocomplete would get stuck showing "Searching…"
             due to a missing backend route and lack of timeout handling. Search now fails gracefully
             with a clear error message instead of hanging indefinitely.
           </p>
-          <span class="tag tag-fix">Fix</span>
         </article>
 
         <article class="release-entry">
-          <time datetime="2026-05-12">May 12, 2026</time>
+          <div class="entry-meta">
+            <time datetime="2026-05-12">May 12, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
           <h3>Refine portfolio dashboard UX</h3>
           <p>
             Redesigned the portfolio page with sticky section labels, differentiated watch/wish list card sizes,
             compact ticker manager, and removed distracting continuous animations. Navigation and visual hierarchy
             are now clearer when scrolling through your stock lists.
           </p>
-          <span class="tag tag-improvement">Improvement</span>
         </article>
 
         <article class="release-entry">
@@ -667,29 +819,6 @@
           </div>
           <h3>Added DCF valuation with Monte Carlo simulation</h3>
           <p>Introduced a Discounted Cash Flow model on the stock detail page. Users can adjust growth rates, WACC, and terminal multiples to estimate fair value. Includes a Monte Carlo distribution chart and a WACC × Growth sensitivity matrix.</p>
-        </article>
-      </section>
-
-      <!-- May 2026 -->
-      <section class="month-group">
-        <h2>May 2026</h2>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-16">May 16, 2026</time>
-            <span class="tag tag-fix">Fix</span>
-          </div>
-          <h3>Fixed five backend data regressions</h3>
-          <p>Patched missing <code>try/finally</code> in SEC ticker loading so a failed fetch doesn't permanently block future requests. Added missing <code>await</code> in live price refresh so stale tickers actually get updated before the response returns. Added optional chaining for financial statement and earnings history data to prevent crashes on incomplete API responses. Portfolio summaries now correctly map back to the requested tickers, returning an error entry for any missing quote instead of silently dropping it. Moved the earnings profile cache into the shared cache module so it is included in cache stats and flush operations.</p>
-        </article>
-
-        <article class="release-entry">
-          <div class="entry-meta">
-            <time datetime="2026-05-16">May 16, 2026</time>
-            <span class="tag tag-security">Security</span>
-          </div>
-          <h3>Fixed reflected XSS in OAuth callback server</h3>
-          <p>Error parameters from the Schwab authorization callback are now HTML-escaped before being rendered in the response page, preventing injection of malicious scripts via crafted redirect URLs.</p>
         </article>
       </section>
 

@@ -20,6 +20,7 @@ import rateLimit from "express-rate-limit";
 import stockRoutes from "./routes/stocks.js";
 import authRoutes from "./routes/auth.js";
 import portfolioRoutes from "./routes/portfolio.js";
+import optionsRoutes from "./routes/options.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { autoUpdateCheck } from "./services/marginDebt.js";
 import { seedAdmin } from "./scripts/seed.js";
@@ -94,6 +95,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolio", portfolioRoutes);
+app.use("/api/options", optionsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
