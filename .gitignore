@@ -13,3 +13,4 @@ build/
 backend/.env
 backend/.schwab-token.json
 backend/certs/*.pem
+.worktrees/
