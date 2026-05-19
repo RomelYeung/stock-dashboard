@@ -336,6 +336,15 @@
             <time datetime="2026-05-19">May 19, 2026</time>
             <span class="tag tag-feature">Feature</span>
           </div>
+          <h3>Add automated daily IV ingestion worker</h3>
+          <p>A new background worker (<code>historical-iv-worker.js</code>) automatically fetches and stores ATM implied volatility for major tickers (SPY, QQQ, IWM, AAPL, MSFT, and more) every weekday at 5 PM EST — one hour after market close. The worker logs each ticker's success or failure and can be run standalone with <code>node scripts/historical-iv-worker.js</code>. This ensures the IV history database is populated daily without manual intervention.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
           <h3>Add historical IV tracking for IVR/IVP calculations</h3>
           <p>The Options Scanner now stores daily implied volatility data per ticker, enabling accurate IV Rank (IVR) and IV Percentile (IVP) calculations based on a ticker's own volatility history rather than the current chain-wide IV distribution. IVR/IVP values fall back to chain-wide distribution when insufficient historical data is available.</p>
         </article>
