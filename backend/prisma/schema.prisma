@@ -41,3 +41,15 @@ model WishListItem {
 
   @@index([userId])
 }
+
+model HistoricalIV {
+  id        String   @id @default(uuid())
+  ticker    String
+  date      DateTime
+  iv        Float
+  createdAt DateTime @default(now())
+
+  @@unique([ticker, date])
+  @@index([ticker])
+  @@index([ticker, date])
+}
