@@ -232,7 +232,7 @@ export function useMarketIndicators() {
       if (!json.success) throw new Error(json.error || "API error");
       return json.data;
     },
-    staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days for indicators
+    staleTime: 1000 * 60 * 60, // 1 hour for indicators
   });
 
   return { data, loading: isLoading, error: error?.message };
@@ -276,6 +276,17 @@ export function useDCF(ticker, simulations = 1000) {
     queryFn: () => apiFetch(`/${ticker}/dcf?simulations=${simulations}`),
     enabled: !!ticker,
     staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+export function useAIValuation(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["aiValuation", ticker],
+    queryFn: () => apiFetch(`/${ticker}/ai-valuation`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
 
   return { data, loading: isLoading, error: error?.message, refetch };

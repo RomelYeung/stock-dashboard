@@ -84,6 +84,13 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
   const positive = data ? isPositive(data.changePercent ?? data.change) : null;
   const isSecondary = variant === "secondary";
   const hasEarningsSoon = data && isEarningsSoon(data.earningsDate);
+  const low = data?.fiftyTwoWeekLow;
+  const high = data?.fiftyTwoWeekHigh;
+  const current = data?.currentPrice;
+  let pct = 0;
+  if (low != null && high != null && current != null && high > low) {
+    pct = Math.max(0, Math.min(100, ((current - low) / (high - low)) * 100));
+  }
   const [flash, setFlash] = useState(null);
   const prevPriceRef = useRef(data?.currentPrice);
 
@@ -201,19 +208,38 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
 
       {/* Footer */}
       {data && (
-        <div style={styles.footer}>
-          {!isSecondary && (
-            <span style={styles.footerText}>
-              52W: {formatPrice(data.fiftyTwoWeekLow)} – {formatPrice(data.fiftyTwoWeekHigh)}
-            </span>
+        <div style={{ ...styles.footer, flexDirection: isSecondary ? "row" : "column", gap: isSecondary ? "0" : "12px", alignItems: isSecondary ? "center" : "stretch" }}>
+          {!isSecondary && low != null && high != null && (
+            <div
+              style={styles.rangeContainer}
+              title={`52-Week Range: ${formatPrice(low)} - ${formatPrice(high)} | Current sits at ${pct.toFixed(0)}% of the range`}
+            >
+              <div style={styles.rangeLabels}>
+                <span>L: {formatPrice(low)}</span>
+                <span>H: {formatPrice(high)}</span>
+              </div>
+              <div style={styles.rangeTrack}>
+                <div
+                  style={{
+                    ...styles.rangeCurrentDot,
+                    left: `${pct}%`,
+                    backgroundColor: positive ? "var(--accent-green)" : "var(--accent-red)",
+                    boxShadow: positive ? "0 0 8px var(--accent-green)" : "0 0 8px var(--accent-red)",
+                  }}
+                />
+              </div>
+            </div>
           )}
-          {data.earningsDate ? (
-            <span style={isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText}>
-              {formatEarningsDate(data.earningsDate)}
-            </span>
-          ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            {data.earningsDate ? (
+              <span style={isEarningsSoon(data.earningsDate) ? styles.earningsCta : styles.footerText}>
+                {formatEarningsDate(data.earningsDate)}
+              </span>
+            ) : (
+              <span style={styles.footerText}>No upcoming earnings</span>
+            )}
             <span style={styles.footerCta}>View details →</span>
-          )}
+          </div>
         </div>
       )}
     </motion.div>
@@ -301,7 +327,6 @@ const styles = {
   footer: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     position: "relative",
     zIndex: 1,
     marginTop: "auto",
@@ -352,5 +377,36 @@ const styles = {
   },
   changeSecondary: {
     fontSize: "10px",
+  },
+  rangeContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+    width: "100%",
+    position: "relative",
+  },
+  rangeLabels: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontFamily: "var(--font-mono)",
+    fontSize: "9px",
+    color: "var(--text-secondary)",
+  },
+  rangeTrack: {
+    height: "4px",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: "2px",
+    position: "relative",
+    width: "100%",
+  },
+  rangeCurrentDot: {
+    position: "absolute",
+    top: "-3px",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    border: "2px solid var(--bg-surface)",
+    transform: "translateX(-50%)",
+    transition: "left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
   },
 };

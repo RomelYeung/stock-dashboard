@@ -333,6 +333,96 @@
 
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-05-23">May 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Integrate historical IV worker cron into backend startup and clean database placeholders</h3>
+          <p>Integrated the historical Implied Volatility (IV) worker cron job directly into the Express server startup process to guarantee daily scheduled ingestion whenever the backend server is active. Cleaned up invalid negative placeholder entries (such as -999 for SPY) from the historical IV database table to restore calculation integrity for true IV Rank (IVR) and IV Percentile (IVP) in the options scanner.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-23">May 23, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add live AI Debate streaming with multi-agent threaded chat</h3>
+          <p>Upgraded the AI Debate panel to support real-time Server-Sent Events (SSE) streaming. Users can now click "Start Debate" to watch multiple specialized AI agents (such as Warren Buffett, Benjamin Graham, Peter Lynch, and RenTech) debate the stock's valuation dynamically. The interface features a modern threaded chat design with distinct agent styling, typing indicators, auto-scrolling, and glassmorphic UI elements.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-22">May 22, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add interactive Valuation & AI panel with DDM, RIM, and RenTech quant checks</h3>
+          <p>Transformed the static DCF tab into a premium Valuation & AI dashboard featuring a split-screen glassmorphic layout. The left pane introduces interactive WACC and growth rate sliders that dynamically recalculate DCF fair value and shift the Monte Carlo histogram in real-time, alongside new Gordon Growth (DDM) and Residual Income (RIM) models and a RenTech quantitative checks section. The right pane features a persistent, vertically scrolling AI Debate Committee panel providing synthesized analysis and conviction scores from simulated personas like Warren Buffett, Benjamin Graham, Peter Lynch, and RenTech.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-22">May 22, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix invalid implied volatility ATM detection</h3>
+          <p>Resolved an issue where option scanning and historical IV data ingestion would collect invalid negative values (such as -999) returned as placeholders from the Schwab API. The ATM volatility selection algorithm now safely ignores non-positive implied volatility values to ensure database and scanner calculation integrity.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-21">May 21, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Integrate valuation status teaser and refine RSI cache and design</h3>
+          <p>Cleaned up the detailed stock chart modal layout by removing the redundant DCF summary panel from the body, maximizing vertical space for the main stock chart. Integrated a premium, interactive glassmorphic valuation teaser pill directly in the header next to the ticker symbol, displaying the stock's undervaluation or overvaluation status and functioning as a unified gateway to the full analysis page. Added automatic local caching for indicator visibility states (SMA 200, Volume, and RSI) so preferences persist across different stocks. Redesigned the RSI indicator chart pane with a modern gradient-filled area series and clean threshold price lines displaying scale labels directly on the right axis.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-20">May 20, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Refine DCF sensitivity matrix, baseline indicators, and stock detail header layout</h3>
+          <p>Redesigned the DCF sensitivity matrix to base its visual heatmap gradient on the baseline valuation rather than the market price, restoring a clear green-to-red diagonal heatmap for all stocks. Added interactive hover states that apply a high-contrast focus border to the active cell. Restructured the stock detail modal header: positioned the 'Open Full Analysis' gateway button directly next to the ticker symbol for immediate access, and stacked the daily percentage change badge vertically underneath the stock price on the right side of the header for optimal symmetry.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Improve UI/UX with dynamic DCF matrix, custom tooltips, visual 52W range gauges, premium TradingView chart panels, and non-scrollable DCF summary layouts</h3>
+          <p>Replaced static DCF sensitivity tables with live, interactive valuation formulas centered on each stock's custom WACC and growth rate, featuring scale animations and upside/downside tooltip breakdowns. Enhanced macro indicator Recharts charts with dynamically formatted tooltips showing correct prefixes/suffixes. Swapped text-based 52-week boundaries on watchlist cards for high-contrast visual range sliders. Upgraded the detailed stock chart panel to align price candles and volume bars under a standardized price scale axis, added a real-time OHLCV heads-up display (HUD) overlay updating on crosshair movement, integrated a toggleable and synchronized 14-period RSI indicator chart pane, and added a smooth CSS sliding active pill background animation to the timeframe selector buttons. Restructured the detailed stock modal layout by moving the 'Open Full Analysis' gateway button to the modal header next to the close button for instant visibility, placing a horizontal DCF summary bar directly above the chart, and optimizing the price chart height to 360px to completely eliminate the need for vertical scrolling.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix option scanner edge sign and Schwab API buffer overflow</h3>
+          <p>Prevented Options Scanner failures on highly active tickers (e.g., SPY) by passing a strike count limit of 60 to the Schwab options chain API, which avoids the gateway buffer overflow (502 Bad Gateway) and speeds up response times to ~1.3 seconds. Corrected the theoretical option edge calculation to Model IV minus Market IV, ensuring that underpriced options are correctly highlighted in green (positive edge) and overpriced options in red (negative edge) in the 3D surface and option chain tables.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix AAII Sentiment chart updates and reduce client-side caching</h3>
+          <p>Reduced the client-side caching (staleTime) of macro market indicators from 7 days to 1 hour, allowing VIX, Federal Reserve, and AAII sentiment charts to update reliably on tab switches. Configured the backend downloader to follow HTTP redirects, preventing WAF false-positives and ensuring the weekly sentiment survey spreadsheet is successfully fetched. Added an "As of Date" indicator to the sentiment card so users can see the exact date of the latest reading.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-19">May 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix SVI calibration bounds and optimize options scanner fitting</h3>
+          <p>The options scanner now correctly fits volatility smiles for high-implied-volatility assets (IV &gt; 100%) by dynamically scaling the SVI parameter bounds and initial values. Converted all options scan computations (implied volatilities, SVI fitting, raw and adjusted edges, and IV percentiles) to consistently use decimal representations, correcting a scale mismatch where percentage volatilities caused fit errors and distorted edges. Added safety guards to prevent negative variance, and verified all quantitative option metrics with unit tests.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-05-19">May 19, 2026</time>
             <span class="tag tag-feature">Feature</span>
           </div>
@@ -810,6 +900,15 @@
           </div>
           <h3>Redesigned Fundamentals tab with consolidated peer comparison</h3>
           <p>Merged the Financials and Comparables tabs into a single Fundamentals view. Removed duplicated metrics and elevated the peer comparison table to the top with a glass-morphism card design, a Diff column showing variance from peer averages, and responsive breakpoints for mobile and tablet.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-08">May 8, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add categorized market indicators and new FRED macroeconomic data points</h3>
+          <p>Reorganized the Market Indicators tab into four thematic, visually organized sections: Monetary Policy, Bond Market, Market Risk &amp; Leverage, and Sentiment &amp; Economy. Integrated five new macroeconomic indicators powered by the Federal Reserve Economic Data (FRED) API: the Federal Reserve Balance Sheet (WALCL) to track QE/QT trends, the 10-Year Treasury Yield (DGS10), the Yield Curve Spread (10Y-2Y spread) as a recession warning signal, the University of Michigan Consumer Sentiment Index, and the Unemployment Rate. Each indicator includes historical charting and tailored economic interpretations.</p>
         </article>
 
         <article class="release-entry">

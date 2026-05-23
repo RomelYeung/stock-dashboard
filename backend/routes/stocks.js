@@ -25,6 +25,8 @@ import {
   RATE_LIMIT_DCF_MAX,
 } from "../constants.js";
 import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
+import { evaluateAIValuation } from "../services/aiValuation.js";
+import { streamAiDebate } from "../services/aiDebateEngine.js";
 
 const router = express.Router();
 const MAX_BATCH_TICKERS = MAX_PORTFOLIO_TICKERS + MAX_WISHLIST_TICKERS;
@@ -278,7 +280,7 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
 
     const dcf = projectFCF(
       params.fcf, params.projectionGrowth, params.terminalGrowth,
-      params.wacc, params.cash, params.debt, params.sharesOutstanding
+      params.wacc, params.cash, params.debt, params.sharesOutstanding, params.projectionYears
     );
 
     const currentPrice = summary?.currentPrice || 0;
@@ -288,7 +290,7 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
 
     const mc = monteCarlo(
       params.fcf, params.projectionGrowth, params.wacc,
-      params.cash, params.debt, params.sharesOutstanding, simulations, params.terminalGrowth
+      params.cash, params.debt, params.sharesOutstanding, simulations, params.terminalGrowth, params.projectionYears
     );
 
     res.json({
@@ -300,6 +302,7 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
           revenueGrowth: params.revenueGrowth,
           historicalFCFGrowth: params.historicalFCFGrowth,
           projectionGrowth: params.projectionGrowth,
+          projectionYears: params.projectionYears,
           wacc: Math.round(params.wacc * 10000) / 10000,
           terminalGrowth: params.terminalGrowth,
           sharesOutstanding: params.sharesOutstanding,
@@ -330,6 +333,77 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
   } catch (err) {
     console.error(`[dcf] ${req.ticker}:`, err.message);
     res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/ai-valuation
+// Returns AI debate, quant checks, DDM, and RIM valuations
+router.get("/:ticker/ai-valuation", async (req, res) => {
+  try {
+    const [summary, financials, balanceSheet, priceHistory, optionChain, insiderData] = await Promise.all([
+      yf.getSummary(req.ticker).catch(() => null),
+      yf.getFinancials(req.ticker).catch(() => null),
+      yf.getBalanceSheet(req.ticker).catch(() => null),
+      yf.getPriceHistory(req.ticker, "1y").catch(() => null),
+      getOptionChain(req.ticker, {}).catch(() => null),
+      insiderTrading.getInsiderTrading(req.ticker).catch(() => null)
+    ]);
+
+    const valuationResult = evaluateAIValuation({
+      ticker: req.ticker,
+      summary,
+      financials,
+      balanceSheet,
+      priceHistory,
+      optionChain,
+      insiderData
+    });
+
+    res.json({ success: true, data: valuationResult });
+  } catch (err) {
+    console.error(`[ai-valuation] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/ai-debate
+// Streams sequential LLM debate using SSE
+router.get("/:ticker/ai-debate", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    const [summary, financials, balanceSheet, priceHistory, optionChain, insiderData] = await Promise.all([
+      yf.getSummary(req.ticker).catch(() => null),
+      yf.getFinancials(req.ticker).catch(() => null),
+      yf.getBalanceSheet(req.ticker).catch(() => null),
+      yf.getPriceHistory(req.ticker, "1y").catch(() => null),
+      getOptionChain(req.ticker, {}).catch(() => null),
+      insiderTrading.getInsiderTrading(req.ticker).catch(() => null)
+    ]);
+
+    const quantData = {
+      summary,
+      financials,
+      balanceSheet,
+      priceHistory: priceHistory ? priceHistory.slice(-20) : [], // limit to recent for context size
+      optionChain: optionChain ? { hasOptions: true } : { hasOptions: false },
+      insiderData
+    };
+
+    for await (const chunk of streamAiDebate(req.ticker, quantData)) {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      if (res.flush) res.flush();
+    }
+  } catch (err) {
+    console.error(`[ai-debate] error:`, err.message);
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    if (res.flush) res.flush();
+  } finally {
+    res.write(`data: [DONE]\n\n`);
+    if (res.flush) res.flush();
+    res.end();
   }
 });
 

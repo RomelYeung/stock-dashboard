@@ -12,7 +12,7 @@ function getAtmIV(options, underlyingPrice) {
   let best = null;
   let bestDist = Infinity;
   for (const opt of options) {
-    if (opt.iv != null && Number.isFinite(opt.iv)) {
+    if (opt.iv != null && Number.isFinite(opt.iv) && opt.iv > 0) {
       const dist = Math.abs(opt.strike - underlyingPrice);
       if (dist < bestDist) {
         bestDist = dist;
@@ -31,7 +31,7 @@ function getAtmIV(options, underlyingPrice) {
 export async function ingestHistoricalIV(ticker) {
   let chain;
   try {
-    chain = await getOptionChainParsed(ticker);
+    chain = await getOptionChainParsed(ticker, { strikeCount: 10 });
   } catch {
     return null;
   }

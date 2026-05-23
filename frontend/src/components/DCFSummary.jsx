@@ -1,23 +1,18 @@
 import { formatPrice } from "../utils/formatters";
 
-function SummaryLine({ label, value, color }) {
-  return (
-    <div style={summ.line}>
-      <span style={{ ...summ.dot, background: color }} />
-      <span style={summ.label}>{label}</span>
-      <span style={{ ...summ.value, color }}>{value}</span>
-    </div>
-  );
-}
-
-export default function DCFSummary({ dcfData, currentPrice, loading, onOpenAnalysis }) {
+export default function DCFSummary({ dcfData, currentPrice, loading }) {
   if (loading) {
     return (
       <div style={summ.wrap}>
-        <div style={summ.title}>DCF ANALYSIS</div>
-        <div style={summ.skel} />
-        <div style={summ.skel} />
-        <div style={summ.skel} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={summ.skel} />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={summ.skel} />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={summ.skel} />
+        </div>
       </div>
     );
   }
@@ -26,97 +21,199 @@ export default function DCFSummary({ dcfData, currentPrice, loading, onOpenAnaly
   const mc = dcfData?.monteCarlo;
   const hasData = dcf && dcf.fairValue > 0 && mc;
 
+  if (!hasData) {
+    return (
+      <div style={{ ...summ.wrap, justifyContent: "center", padding: "28px" }}>
+        <div style={summ.unavailable}>
+          <span style={summ.warning}>{dcfData?.warning || "Analysis unavailable for this asset"}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const hasUpside = dcf.upsidePercent >= 0;
+  const statusText = hasUpside ? "UNDERVALUED" : "OVERVALUED";
+
   return (
     <div style={summ.wrap}>
-      <div style={summ.title}>DCF ANALYSIS</div>
-
-      {!hasData ? (
-        <div style={summ.unavailable}>
-          <span style={summ.warning}>{dcfData?.warning || "Analysis unavailable"}</span>
+      {/* Col 1: Valuation Grade & Margin of Safety */}
+      <div style={summ.col1}>
+        <div style={summ.label}>Valuation Status</div>
+        <div style={{
+          ...summ.statusText,
+          color: hasUpside ? "var(--accent-green)" : "var(--accent-red)",
+        }}>
+          {statusText}
         </div>
-      ) : (
-        <>
-          <div style={summ.fvSection}>
-            <span style={summ.fvLabel}>Fair Value</span>
-            <span style={summ.fairValue}>{formatPrice(dcf.fairValue)}</span>
-            {dcf.upsidePercent != null && (
-              <span style={{
-                ...summ.upside,
-                color: dcf.upsidePercent >= 0 ? "var(--accent-green)" : "var(--accent-red)",
-              }}>
-                {dcf.upsidePercent >= 0 ? "▲" : "▼"} {Math.abs(dcf.upsidePercent).toFixed(1)}%
-              </span>
-            )}
+        <div style={summ.safetyMargin}>
+          {hasUpside ? "Margin of Safety: " : "Premium: "}
+          <span style={{ fontWeight: 600, color: hasUpside ? "var(--accent-green)" : "var(--accent-red)" }}>
+            {Math.abs(dcf.upsidePercent).toFixed(1)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Vertical separator */}
+      <div style={summ.vDivider} />
+
+      {/* Col 2: Price vs Intrinsic Fair Value */}
+      <div style={summ.col2}>
+        <div style={summ.metricsRow}>
+          <div>
+            <div style={summ.label}>Current Price</div>
+            <div style={summ.priceVal}>{formatPrice(currentPrice)}</div>
           </div>
-
-          <div style={summ.divider} />
-
-          <div style={summ.entrySection}>
-            <span style={summ.sectionLabel}>Entry Zones</span>
-            <SummaryLine label="Bear" value={formatPrice(mc.bear)} color="var(--accent-red)" />
-            <SummaryLine label="Base" value={formatPrice(mc.base)} color="var(--accent-amber)" />
-            <SummaryLine label="Bull" value={formatPrice(mc.bull)} color="var(--accent-green)" />
+          <div style={summ.arrowCol}>
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ opacity: 0.3 }}>
+              <path d="M10 1L15 6M15 6L10 11M15 6H1" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-        </>
-      )}
+          <div>
+            <div style={summ.label}>DCF Fair Value</div>
+            <div style={summ.priceValPrimary}>{formatPrice(dcf.fairValue)}</div>
+          </div>
+        </div>
+      </div>
 
-      {onOpenAnalysis && (
-        <button style={summ.openBtn} onClick={onOpenAnalysis}>
-          Open Full Analysis →
-        </button>
-      )}
+      {/* Vertical separator */}
+      <div style={summ.vDivider} />
+
+      {/* Col 3: Monte Carlo Entry Zones */}
+      <div style={summ.col3}>
+        <div style={summ.label}>Monte Carlo Entry Zones</div>
+        <div style={summ.zonesRow}>
+          <div style={summ.zoneCell}>
+            <span style={summ.zoneName}>Bear</span>
+            <span style={{ ...summ.zoneVal, color: "var(--accent-red)" }}>{formatPrice(mc.bear)}</span>
+          </div>
+          <div style={summ.zoneCell}>
+            <span style={summ.zoneName}>Base</span>
+            <span style={{ ...summ.zoneVal, color: "var(--accent-amber)" }}>{formatPrice(mc.base)}</span>
+          </div>
+          <div style={summ.zoneCell}>
+            <span style={summ.zoneName}>Bull</span>
+            <span style={{ ...summ.zoneVal, color: "var(--accent-green)" }}>{formatPrice(mc.bull)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 const summ = {
   wrap: {
-    display: "flex", flexDirection: "column", gap: "14px",
-    padding: "16px", background: "rgba(255,255,255,0.025)",
-    border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "24px",
+    padding: "20px 24px",
+    background: "rgba(255,255,255,0.025)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: "16px",
+    width: "100%",
   },
-  title: {
-    color: "var(--text-secondary)", fontFamily: "var(--font-display)",
-    fontSize: "10px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase",
+  col1: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    flex: 1,
+    minWidth: "160px",
   },
-  fvSection: { display: "flex", flexDirection: "column", gap: "4px" },
-  fvLabel: {
-    color: "var(--text-secondary)", fontFamily: "var(--font-body)",
-    fontSize: "10px", textTransform: "uppercase",
+  label: {
+    color: "var(--text-secondary)",
+    fontFamily: "var(--font-body)",
+    fontSize: "10px",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
   },
-  fairValue: {
-    color: "var(--accent-blue)", fontFamily: "var(--font-mono)",
-    fontSize: "22px", fontWeight: 500,
+  statusText: {
+    fontFamily: "var(--font-display)",
+    fontSize: "18px",
+    fontWeight: 700,
+    letterSpacing: "-0.01em",
   },
-  upside: { fontFamily: "var(--font-mono)", fontSize: "11px" },
-  divider: { height: "1px", background: "rgba(255,255,255,0.06)" },
-  entrySection: { display: "flex", flexDirection: "column", gap: "6px" },
-  sectionLabel: {
-    color: "var(--text-secondary)", fontFamily: "var(--font-body)",
-    fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px",
+  safetyMargin: {
+    color: "var(--text-secondary)",
+    fontFamily: "var(--font-body)",
+    fontSize: "11px",
   },
-  line: { display: "flex", alignItems: "center", gap: "8px" },
-  dot: { width: "6px", height: "6px", borderRadius: "50%", flexShrink: 0 },
-  label: { color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px" },
-  value: {
-    fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, marginLeft: "auto",
+  vDivider: {
+    width: "1px",
+    height: "40px",
+    background: "rgba(255,255,255,0.06)",
   },
-  openBtn: {
-    background: "rgba(79,141,255,0.1)", border: "1px solid rgba(79,141,255,0.2)",
-    borderRadius: "8px", color: "var(--accent-blue)", cursor: "pointer",
-    fontFamily: "var(--font-body)", fontSize: "11px", padding: "8px 12px",
-    textAlign: "center", width: "100%", marginTop: "4px",
+  col2: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1.2,
+  },
+  metricsRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+  },
+  arrowCol: {
+    display: "flex",
+    alignItems: "center",
+    marginTop: "14px",
+  },
+  priceVal: {
+    color: "var(--text-primary)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "18px",
+    fontWeight: 500,
+    marginTop: "4px",
+  },
+  priceValPrimary: {
+    color: "var(--accent-blue)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "20px",
+    fontWeight: 600,
+    marginTop: "4px",
+  },
+  col3: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    flex: 1.2,
+  },
+  zonesRow: {
+    display: "flex",
+    gap: "16px",
+    marginTop: "4px",
+  },
+  zoneCell: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    flex: 1,
+  },
+  zoneName: {
+    color: "var(--text-secondary)",
+    fontSize: "10px",
+    fontFamily: "var(--font-body)",
+  },
+  zoneVal: {
+    fontFamily: "var(--font-mono)",
+    fontSize: "13px",
+    fontWeight: 600,
   },
   unavailable: {
-    display: "flex", flexDirection: "column", gap: "8px",
-    alignItems: "center", padding: "16px 0",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   warning: {
-    color: "var(--text-secondary)", fontFamily: "var(--font-body)",
-    fontSize: "11px", textAlign: "center", lineHeight: 1.4,
+    color: "var(--text-secondary)",
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    textAlign: "center",
   },
   skel: {
-    height: "14px", background: "rgba(255,255,255,0.04)",
-    borderRadius: "6px", animation: "pulse 1.5s ease-in-out infinite",
+    height: "20px",
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: "6px",
+    animation: "pulse 1.5s ease-in-out infinite",
   },
 };

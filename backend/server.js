@@ -24,6 +24,7 @@ import optionsRoutes from "./routes/options.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { autoUpdateCheck } from "./services/marginDebt.js";
 import { seedAdmin } from "./scripts/seed.js";
+import { startCronJob as startHistoricalIVCron } from "./scripts/historical-iv-worker.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -130,4 +131,7 @@ app.listen(PORT, () => {
 
   // Seed default admin user if none exists
   seedAdmin();
+
+  // Start daily scheduled IV ingestion cron job
+  startHistoricalIVCron();
 });

@@ -3,7 +3,7 @@ import * as yf from "../services/yahoofinance.js";
 import { getOptionChainParsed } from "../services/schwab-client.js";
 import { getHistoricalIV } from "../services/historical-iv.js";
 import { calcRealizedVolatility, calcIVRank, calcIVPercentile } from "../src/quant/context.js";
-import { fitSVI, sviTotalVariance } from "../src/quant/svi.js";
+import { fitSVI, sviImpliedVol } from "../src/quant/svi.js";
 import { logStrike, calcSpreadAdjustedEdge, calcGEX } from "../src/quant/mathUtils.js";
 import { TICKER_REGEX } from "../constants.js";
 
@@ -30,7 +30,7 @@ router.get("/scan/:ticker", async (req, res) => {
   try {
     // ─── 1. Fetch data in parallel ───────────────────────────────────────
     const [chain, historicalDaily, historicalIV] = await Promise.all([
-      getOptionChainParsed(ticker),
+      getOptionChainParsed(ticker, { strikeCount: 60 }),
       yf.getHistoricalDailyData(ticker).catch(() => []),
       getHistoricalIV(ticker).catch(() => []),
     ]);
@@ -77,7 +77,7 @@ router.get("/scan/:ticker", async (req, res) => {
       for (const opt of group) {
         if (opt.iv != null && Number.isFinite(opt.iv) && opt.strike > 0) {
           kData.push(logStrike(opt.strike, underlyingPrice));
-          ivData.push(opt.iv);
+          ivData.push(opt.iv / 100); // Fit in decimal representation (e.g. 0.30 instead of 30.0)
         }
       }
 
@@ -97,9 +97,17 @@ router.get("/scan/:ticker", async (req, res) => {
           opt.strike > 0
         ) {
           const k = logStrike(opt.strike, underlyingPrice);
-          sviIv = Math.sqrt(sviTotalVariance(k, sviParams));
-          rawEdge = Number((opt.iv - sviIv).toFixed(6));
-          if (opt.ask != null && opt.bid != null && opt.vega != null) {
+          sviIv = sviImpliedVol(k, sviParams); // Returns decimal IV (e.g. 0.30)
+          
+          const optIvDec = opt.iv / 100; // Convert market IV to decimal for consistent math
+          rawEdge = Number((sviIv - optIvDec).toFixed(6));
+          
+          if (
+            opt.ask != null &&
+            opt.bid != null &&
+            opt.vega != null &&
+            Number.isFinite(opt.vega)
+          ) {
             adjustedEdge = Number(
               calcSpreadAdjustedEdge(rawEdge, opt.ask, opt.bid, opt.vega).toFixed(6),
             );
@@ -114,7 +122,7 @@ router.get("/scan/:ticker", async (req, res) => {
           last: opt.last,
           volume: opt.volume,
           openInterest: opt.openInterest,
-          iv: opt.iv,
+          iv: Number((opt.iv / 100).toFixed(6)), // Return in decimal representation to the frontend
           delta: opt.delta,
           gamma: opt.gamma,
           theta: opt.theta,
@@ -122,7 +130,7 @@ router.get("/scan/:ticker", async (req, res) => {
           rho: opt.rho,
           dte: opt.dte,
           itm: opt.itm,
-          sviIv,
+          sviIv: sviIv != null ? Number(sviIv.toFixed(6)) : null, // Return in decimal representation to the frontend
           rawEdge,
           adjustedEdge,
         };
@@ -149,7 +157,7 @@ router.get("/scan/:ticker", async (req, res) => {
             source: ivrSourceType,
           },
           ivp: {
-            value: ivp,
+            value: ivp / 100, // Return as decimal (e.g. 0.0996) to match frontend expectation
             count: ivrSource.length,
             source: ivrSourceType,
           },
@@ -191,7 +199,7 @@ function getAtmIV(options, underlyingPrice) {
   let best = null;
   let bestDist = Infinity;
   for (const opt of options) {
-    if (opt.iv != null && Number.isFinite(opt.iv)) {
+    if (opt.iv != null && Number.isFinite(opt.iv) && opt.iv > 0) {
       const dist = Math.abs(opt.strike - underlyingPrice);
       if (dist < bestDist) {
         bestDist = dist;

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useStockDetail, useDCF, useComparables } from "../hooks/useStockData";
+import { useStockDetail, useDCF, useAIValuation, useComparables } from "../hooks/useStockData";
 import DCFAnalysis from "./DCFAnalysis";
 import InsiderTradingTab from "./InsiderTradingTab";
 import FundamentalsTab from "./FundamentalsTab";
 import OptionsScannerTab from "./OptionsScannerTab";
 import { formatPrice, isPositive } from "../utils/formatters";
 
-const TABS = ["DCF", "Fundamentals", "Options Scanner", "Insider Activity"];
+const TABS = ["Valuation & AI", "Fundamentals", "Options Scanner", "Insider Activity"];
 
 function TabBar({ active, onChange }) {
   return (
@@ -50,9 +50,10 @@ const tab = {
 };
 
 export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
-  const [activeTab, setActiveTab] = useState("DCF");
+  const [activeTab, setActiveTab] = useState("Valuation & AI");
   const { data, loading, error, refetch: refetchDetail } = useStockDetail(ticker);
   const { data: dcfData, loading: dcfLoading, refetch: dcfRefetch } = useDCF(ticker);
+  const { data: aiValuationData, loading: aiLoading } = useAIValuation(ticker);
   const { data: comparablesData, loading: comparablesLoading, error: comparablesError, refetch: refetchComparables } = useComparables(ticker);
 
   const summary = data?.summary;
@@ -101,11 +102,13 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
           <div style={page.error}>{error}</div>
         )}
 
-        {activeTab === "DCF" && (
+        {activeTab === "Valuation & AI" && (
           <DCFAnalysis
+            ticker={ticker}
             dcfData={dcfData}
-            currentPrice={currentPrice}
-            loading={dcfLoading}
+            aiValuationData={aiValuationData}
+            currentPrice={currentPrice || summary?.currentPrice}
+            loading={dcfLoading || aiLoading}
             onRefetch={dcfRefetch}
           />
         )}

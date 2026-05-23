@@ -37,7 +37,8 @@ export function sviTotalVariance(k, { a, b, rho, m, sigma }) {
  * @returns {number} implied volatility (sqrt of total variance / sqrt(T)? — caller normalizes)
  */
 export function sviImpliedVol(k, params) {
-  return Math.sqrt(sviTotalVariance(k, params));
+  const variance = sviTotalVariance(k, params);
+  return Math.sqrt(Math.max(0, variance));
 }
 
 /**
@@ -49,9 +50,9 @@ export function sviImpliedVol(k, params) {
  * @param {number[]} ivData - Array of implied volatilities (decimal, e.g. 0.25 for 25%)
  * @param {object} [opts] - Optional configuration
  * @param {number[]} [opts.weights] - Per-point weights (higher = more influence, e.g. volume or 1/spread)
- * @param {number[]} [opts.initialValues] - Initial [a, b, rho, m, sigma]; defaults to [0.04, 0.1, 0, 0, 0.1]
- * @param {number[]} [opts.minValues] - Lower bounds; defaults to [-1, 1e-6, -0.999, -1, 1e-4]
- * @param {number[]} [opts.maxValues] - Upper bounds; defaults to [1, 5, 0.999, 1, 1]
+ * @param {number[]} [opts.initialValues] - Initial [a, b, rho, m, sigma]
+ * @param {number[]} [opts.minValues] - Lower bounds
+ * @param {number[]} [opts.maxValues] - Upper bounds
  * @param {number} [opts.maxIterations=200] - Max solver iterations
  * @param {number} [opts.errorTolerance=1e-8] - Convergence tolerance
  * @returns {{ a: number, b: number, rho: number, m: number, sigma: number, error: number, iterations: number } | null}
@@ -67,11 +68,23 @@ export function fitSVI(kData, ivData, opts = {}) {
   // Convert IV to total variance for fitting
   const wData = ivData.map((v) => v * v);
 
+  const minW = Math.min(...wData);
+  const maxW = Math.max(...wData);
+  
+  // Dynamically scale bounds and initial values based on the data
+  const initialA = Math.max(1e-4, minW);
+  const maxA = Math.max(10, maxW * 2);
+  
+  const minK = Math.min(...kData);
+  const maxK = Math.max(...kData);
+  const minM = minK - 0.5;
+  const maxM = maxK + 0.5;
+
   const {
     weights,
-    initialValues = [0.04, 0.1, 0, 0, 0.1],
-    minValues = [-1, 1e-6, -0.999, -1, 1e-4],
-    maxValues = [1, 5, 0.999, 1, 1],
+    initialValues = [initialA, 0.1, 0.0, 0.0, 0.1],
+    minValues = [0.0, 1e-6, -0.999, minM, 1e-4],
+    maxValues = [maxA, 10.0, 0.999, maxM, 2.0],
     maxIterations = 200,
     errorTolerance = 1e-8,
   } = opts;

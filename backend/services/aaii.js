@@ -17,7 +17,7 @@ const TMP_FILE_PATH = path.join(DATA_DIR, 'sentiment.xls.tmp');
 // AAII uses Imperva WAF which often blocks Node's fetch. Curl is more successful.
 function downloadExcel() {
   return new Promise((resolve, reject) => {
-    const cmd = `curl -s -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -H "Accept: application/vnd.ms-excel" -H "Accept-Language: en-US,en;q=0.9" -o "${TMP_FILE_PATH}" https://www.aaii.com/files/surveys/sentiment.xls`;
+    const cmd = `curl -sL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -H "Accept: application/vnd.ms-excel" -H "Accept-Language: en-US,en;q=0.9" -o "${TMP_FILE_PATH}" https://www.aaii.com/files/surveys/sentiment.xls`;
     exec(cmd, (error) => {
       if (error) {
         return reject(error);

@@ -96,7 +96,7 @@ export function getInflationInterpretation(currentValue) {
   return { color, text };
 }
 
-export function getAAIIInterpretation(currentValue) {
+export function getAAIIInterpretation(currentValue, history = []) {
   // currentValue is the spread (Bullish - Bearish)
   const isExtremeBullish = currentValue > 20; // Example threshold
   const isExtremeBearish = currentValue < -20; // Example threshold
@@ -107,10 +107,13 @@ export function getAAIIInterpretation(currentValue) {
     isExtremeBearish ? "var(--accent-green)" : 
     "var(--accent-yellow)";
     
+  const lastDate = history[history.length - 1]?.date;
+  const dateSuffix = lastDate ? ` (As of ${lastDate})` : "";
+  
   const text = 
-    isExtremeBullish ? "Extreme Bullishness (Contrarian Bearish Signal)" :
+    (isExtremeBullish ? "Extreme Bullishness (Contrarian Bearish Signal)" :
     isExtremeBearish ? "Extreme Bearishness (Contrarian Bullish Signal)" :
-    "Neutral Sentiment (No clear contrarian signal)";
+    "Neutral Sentiment (No clear contrarian signal)") + dateSuffix;
     
   return { color, text };
 }

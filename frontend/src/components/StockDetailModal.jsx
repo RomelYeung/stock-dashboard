@@ -1,7 +1,6 @@
 import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStockDetail, useDCF } from "../hooks/useStockData";
-import DCFSummary from "./DCFSummary";
 import TradingViewChart from "./TradingViewChart";
 import { formatPrice, isPositive } from "../utils/formatters";
 
@@ -12,6 +11,12 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
 
   const summary = data?.summary;
   const isUp = summary ? isPositive(summary.changePercent) : true;
+
+  const dcf = dcfData?.dcf;
+  const mc = dcfData?.monteCarlo;
+  const hasData = dcf && dcf.fairValue > 0 && mc;
+  const hasUpside = dcf ? dcf.upsidePercent >= 0 : false;
+  const statusText = hasUpside ? "UNDERVALUED" : "OVERVALUED";
 
   return (
     <AnimatePresence>
@@ -35,21 +40,75 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
             <div>
               <div style={styles.tickerRow}>
                 <span style={styles.ticker}>{ticker}</span>
-                {summary && (
-                  <span style={{
-                    ...styles.changeBadge,
-                    color: isUp ? "var(--accent-green)" : "var(--accent-red)",
-                    background: isUp ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
-                  }}>
-                    {isUp ? "▲" : "▼"} {summary.changePercent != null ? `${(summary.changePercent * 100).toFixed(2)}%` : "—"}
-                  </span>
+                {onOpenAnalysis && (
+                  <motion.button
+                    style={{
+                      ...styles.teaserBtn,
+                      ...(dcfLoading ? styles.teaserLoading : {}),
+                      ...(hasData ? (hasUpside ? styles.teaserUndervalued : styles.teaserOvervalued) : styles.teaserDefault)
+                    }}
+                    onClick={onOpenAnalysis}
+                    whileHover={{
+                      scale: 1.02,
+                      y: -1,
+                      boxShadow: hasData
+                        ? (hasUpside ? "0 4px 20px rgba(0, 229, 160, 0.15)" : "0 4px 20px rgba(255, 73, 118, 0.15)")
+                        : "0 4px 20px rgba(79, 141, 255, 0.15)",
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {dcfLoading ? (
+                      <>
+                        <span style={styles.spinnerMini} />
+                        <span style={{ color: "var(--text-secondary)" }}>Valuation: Loading...</span>
+                      </>
+                    ) : hasData ? (
+                      <>
+                        <span style={{
+                          ...styles.statusBadge,
+                          background: hasUpside ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
+                          color: hasUpside ? "var(--accent-green)" : "var(--accent-red)",
+                        }}>
+                          {statusText}
+                        </span>
+                        <span style={styles.teaserDivider} />
+                        <span style={styles.teaserAction}>
+                          Open Full Analysis <span style={styles.arrow}>→</span>
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{
+                          ...styles.statusBadge,
+                          background: "rgba(255, 255, 255, 0.05)",
+                          color: "var(--text-secondary)",
+                        }}>
+                          N/A
+                        </span>
+                        <span style={styles.teaserDivider} />
+                        <span style={styles.teaserAction}>
+                          Open Full Analysis <span style={styles.arrow}>→</span>
+                        </span>
+                      </>
+                    )}
+                  </motion.button>
                 )}
               </div>
               {summary && <div style={styles.companyName}>{summary.name}</div>}
             </div>
             <div style={styles.headerRight}>
               {summary && (
-                <div style={styles.currentPrice}>{formatPrice(summary.currentPrice)}</div>
+                <div style={styles.priceContainer}>
+                  <div style={styles.currentPrice}>{formatPrice(summary.currentPrice)}</div>
+                  <span style={{
+                    ...styles.changeBadge,
+                    color: isUp ? "var(--accent-green)" : "var(--accent-red)",
+                    background: isUp ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
+                    alignSelf: "flex-end",
+                  }}>
+                    {isUp ? "▲" : "▼"} {summary.changePercent != null ? `${(summary.changePercent * 100).toFixed(2)}%` : "—"}
+                  </span>
+                </div>
               )}
               <button style={styles.closeBtn} onClick={onClose}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -73,21 +132,8 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
             )}
 
             {data && (
-              <div style={{ display: "flex", gap: "16px" }}>
-                {/* Chart Panel */}
-                <div style={{ flex: 4, display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePrice} />
-                </div>
-
-                {/* DCF Summary Sidebar */}
-                <div style={{ flex: 0.9, minWidth: "180px", alignSelf: "stretch" }}>
-                  <DCFSummary
-                    dcfData={dcfData}
-                    currentPrice={summary?.currentPrice}
-                    loading={dcfLoading}
-                    onOpenAnalysis={onOpenAnalysis}
-                  />
-                </div>
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePrice} />
               </div>
             )}
           </div>
@@ -134,7 +180,7 @@ const styles = {
   tickerRow: {
     alignItems: "center",
     display: "flex",
-    gap: "12px",
+    gap: "16px",
     marginBottom: "4px",
   },
   ticker: {
@@ -161,7 +207,13 @@ const styles = {
     alignItems: "center",
     display: "flex",
     flexDirection: "row",
-    gap: "12px",
+    gap: "20px",
+  },
+  priceContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: "6px",
   },
   currentPrice: {
     color: "var(--text-primary)",
@@ -169,6 +221,69 @@ const styles = {
     fontSize: "28px",
     fontWeight: 800,
     lineHeight: 1,
+  },
+  teaserBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "rgba(255, 255, 255, 0.03)",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    borderRadius: "12px",
+    padding: "4px 12px 4px 6px",
+    cursor: "pointer",
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    fontWeight: 500,
+    transition: "all 0.2s ease-in-out",
+    whiteSpace: "nowrap",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  },
+  teaserUndervalued: {
+    borderColor: "rgba(0, 229, 160, 0.15)",
+    background: "rgba(0, 229, 160, 0.03)",
+  },
+  teaserOvervalued: {
+    borderColor: "rgba(255, 73, 118, 0.15)",
+    background: "rgba(255, 73, 118, 0.03)",
+  },
+  teaserDefault: {
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  teaserLoading: {
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    opacity: 0.8,
+  },
+  statusBadge: {
+    fontFamily: "var(--font-display)",
+    fontSize: "9px",
+    fontWeight: 800,
+    letterSpacing: "0.06em",
+    padding: "4px 8px",
+    borderRadius: "8px",
+    textTransform: "uppercase",
+  },
+  teaserDivider: {
+    width: "1px",
+    height: "12px",
+    background: "rgba(255, 255, 255, 0.12)",
+  },
+  teaserAction: {
+    color: "var(--text-secondary)",
+    fontWeight: 600,
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+  },
+  arrow: {
+    transition: "transform 0.2s ease",
+  },
+  spinnerMini: {
+    width: "12px",
+    height: "12px",
+    border: "1.5px solid rgba(255,255,255,0.1)",
+    borderTop: "1.5px solid var(--text-secondary)",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
   },
   closeBtn: {
     alignItems: "center",

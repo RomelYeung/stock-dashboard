@@ -69,27 +69,27 @@ const styles = {
   },
 };
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div
-        style={{
-          background: "rgba(9,13,23,0.95)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: "8px",
-          padding: "8px 12px",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          color: "var(--text-primary)",
-        }}
-      >
-        <p style={{ margin: 0 }}>{label}</p>
-        <p style={{ margin: 0, color: "#4f8dff" }}>
-          {payload[0].value.toFixed(2)}
-        </p>
-      </div>
-    );
-  };
+const CustomTooltip = ({ active, payload, label, formatter }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: "rgba(9,13,23,0.95)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "8px",
+        padding: "8px 12px",
+        fontFamily: "var(--font-mono)",
+        fontSize: "12px",
+        color: "var(--text-primary)",
+      }}
+    >
+      <p style={{ margin: 0 }}>{label}</p>
+      <p style={{ margin: 0, color: "#4f8dff" }}>
+        {formatter ? formatter(payload[0].value) : payload[0].value.toFixed(2)}
+      </p>
+    </div>
+  );
+};
 
 export default function MetricCard({
   title,
@@ -126,7 +126,7 @@ export default function MetricCard({
               {...axisStyle}
             />
             <YAxis {...axisStyle} tickFormatter={yAxisTickFormatter} width={45} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip formatter={valueFormatter} />} />
             <Line
               type="monotone"
               dataKey="value"
@@ -150,12 +150,12 @@ export default function MetricCard({
               {...axisStyle}
             />
               <YAxis {...axisStyle} tickFormatter={yAxisTickFormatter} width={45} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip formatter={valueFormatter} />} />
             <Bar dataKey="value" fill="#4f8dff" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     );
-  }, [chartData, chartType]);
+  }, [chartData, chartType, valueFormatter, yAxisTickFormatter]);
 
   return (
     <motion.div

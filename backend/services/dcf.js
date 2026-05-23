@@ -31,7 +31,14 @@ function projectFCF(currentFCF, growthRate, terminalGrowth, wacc, cash, debt, sh
   let pvFCF = 0;
 
   for (let t = 1; t <= years; t++) {
-    fcf = fcf * (1 + growthRate);
+    let currentGrowthRate = growthRate;
+    if (years > 5 && t > 5) {
+      // Linear fade from base growth down to terminal growth
+      const fadeYears = years - 5;
+      const fadeStep = (growthRate - terminalGrowth) / fadeYears;
+      currentGrowthRate = Math.max(terminalGrowth, growthRate - fadeStep * (t - 5));
+    }
+    fcf = fcf * (1 + currentGrowthRate);
     projectedFCFs.push(fcf);
     pvFCF += fcf / Math.pow(1 + wacc, t);
   }
@@ -71,7 +78,7 @@ function triangularRandom(min, mode, max) {
 /**
  * Run Monte Carlo simulation.
  */
-function monteCarlo(currentFCF, baseGrowth, baseWACC, cash, debt, shares, iterations = 1000, terminalGrowthBase = 0.025) {
+function monteCarlo(currentFCF, baseGrowth, baseWACC, cash, debt, shares, iterations = 1000, terminalGrowthBase = 0.025, years = 5) {
   const results = [];
 
   for (let i = 0; i < iterations; i++) {
@@ -80,7 +87,7 @@ function monteCarlo(currentFCF, baseGrowth, baseWACC, cash, debt, shares, iterat
     const terminalGrowth = triangularRandom(0.015, terminalGrowthBase, 0.035);
 
     const { fairValue } = projectFCF(
-      Math.max(currentFCF, 0), growthRate, terminalGrowth, wacc, cash, debt, shares
+      Math.max(currentFCF, 0), growthRate, terminalGrowth, wacc, cash, debt, shares, years
     );
     results.push(fairValue);
   }
@@ -159,33 +166,64 @@ function aggregateDCFInputs(summary, financials, balanceSheet, annualIncome, ann
     taxRate = Math.max(0, Math.min(taxRate, 0.45));
   }
 
-  const fcfGrowth = Math.max(-0.5, Math.min(revenueGrowth, 0.5));
+  let smoothedFCF = freeCashflow;
+  let projGrowth = revenueGrowth || 0.05;
 
-  let histGrowth = fcfGrowth;
-  if (annualCashFlow?.length >= 3) {
-    const recent = annualCashFlow.slice(-3);
-    const fcfs = recent.map(y => y.freeCashFlow).filter(f => f != null && !isNaN(f));
-    if (fcfs.length >= 2) {
-      const first = fcfs[0];
-      const last = fcfs[fcfs.length - 1];
-      if (first > 0) {
-        const years = fcfs.length - 1;
-        histGrowth = Math.pow(last / first, 1 / years) - 1;
+  if (annualIncome?.length >= 2 && annualCashFlow?.length >= 2) {
+    // 1. Sort chronologically (oldest first) to ensure correct CAGR math
+    const sortedIncome = [...annualIncome].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const sortedCF = [...annualCashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // 2. Calculate historical Revenue CAGR
+    const recentIncome = sortedIncome.slice(-4);
+    const revs = recentIncome.map(y => y.totalRevenue).filter(r => r != null && r > 0);
+    
+    if (revs.length >= 2) {
+      const firstRev = revs[0];
+      const lastRev = revs[revs.length - 1];
+      const years = revs.length - 1;
+      projGrowth = Math.pow(lastRev / firstRev, 1 / years) - 1;
+    }
+
+    // 3. Calculate Average FCF Margin
+    const recentCF = sortedCF.slice(-4);
+    let totalRev = 0;
+    let totalFCF = 0;
+    
+    for (const cf of recentCF) {
+      const cfYear = new Date(cf.date).getFullYear();
+      const inc = recentIncome.find(i => new Date(i.date).getFullYear() === cfYear);
+      if (inc && inc.totalRevenue > 0 && cf.freeCashFlow != null) {
+        totalRev += inc.totalRevenue;
+        totalFCF += cf.freeCashFlow;
+      }
+    }
+
+    if (totalRev > 0) {
+      const avgFCFMargin = totalFCF / totalRev;
+      const latestRev = revs.length > 0 ? revs[revs.length - 1] : 0;
+      
+      // 3. Smooth FCF based on margin
+      if (latestRev > 0 && avgFCFMargin > 0) {
+        smoothedFCF = latestRev * avgFCFMargin;
       }
     }
   }
 
+  // 4. Winsorize (Cap) the growth rate
+  projGrowth = Math.max(-0.15, Math.min(projGrowth, 0.25));
+
+  const projectionYears = projGrowth > 0.15 ? 10 : 5;
+
   const sectorParams = getSectorParams(sector);
   const { wacc, erp, sizePremium } = calculateWACC(marketCap, debt, beta, interestExpense, taxRate, sector);
 
-  // Use historical FCF growth as primary estimate, fall back to revenue growth
-  const projectionGrowth = !isNaN(histGrowth) && histGrowth !== fcfGrowth ? histGrowth : fcfGrowth;
-
   return {
-    fcf: freeCashflow,
-    revenueGrowth: fcfGrowth,
-    historicalFCFGrowth: histGrowth,
-    projectionGrowth,
+    fcf: smoothedFCF > 0 ? smoothedFCF : freeCashflow,
+    revenueGrowth: projGrowth,
+    historicalFCFGrowth: projGrowth,
+    projectionGrowth: projGrowth,
+    projectionYears,
     wacc,
     terminalGrowth: sectorParams.terminalGrowth,
     sharesOutstanding,

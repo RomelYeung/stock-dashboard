@@ -6,7 +6,7 @@ const mockGetOptionChainParsed = jest.fn();
 const mockGetHistoricalDailyData = jest.fn();
 const mockGetHistoricalIV = jest.fn();
 const mockFitSVI = jest.fn();
-const mockSviTotalVariance = jest.fn();
+const mockSviImpliedVol = jest.fn();
 const mockLogStrike = jest.fn();
 const mockCalcSpreadAdjustedEdge = jest.fn();
 const mockCalcGEX = jest.fn();
@@ -25,7 +25,7 @@ jest.unstable_mockModule("../../services/historical-iv.js", () => ({
 
 jest.unstable_mockModule("../../src/quant/svi.js", () => ({
   fitSVI: mockFitSVI,
-  sviTotalVariance: mockSviTotalVariance,
+  sviImpliedVol: mockSviImpliedVol,
 }));
 
 jest.unstable_mockModule("../../src/quant/mathUtils.js", () => ({
@@ -92,7 +92,7 @@ describe("GET /api/options/scan/:ticker", () => {
 
     // SVI/mathUtils stubs
     mockFitSVI.mockReturnValue(null);
-    mockSviTotalVariance.mockReturnValue(0);
+    mockSviImpliedVol.mockReturnValue(0);
     mockLogStrike.mockReturnValue(0);
     mockCalcSpreadAdjustedEdge.mockReturnValue(0);
     mockCalcGEX.mockReturnValue({ total: 0, callGex: 0, putGex: 0, contractCount: 0 });
@@ -109,7 +109,7 @@ describe("GET /api/options/scan/:ticker", () => {
       source: "historical",
     });
     expect(body.data.context.ivp).toEqual({
-      value: 100,       // currentIV > all historical values
+      value: 1,       // currentIV > all historical values (as decimal, e.g. 1 = 100%)
       count: 2,
       source: "historical",
     });
@@ -121,7 +121,7 @@ describe("GET /api/options/scan/:ticker", () => {
     mockGetHistoricalIV.mockResolvedValue([]);
 
     mockFitSVI.mockReturnValue(null);
-    mockSviTotalVariance.mockReturnValue(0);
+    mockSviImpliedVol.mockReturnValue(0);
     mockLogStrike.mockReturnValue(0);
     mockCalcSpreadAdjustedEdge.mockReturnValue(0);
     mockCalcGEX.mockReturnValue({ total: 0, callGex: 0, putGex: 0, contractCount: 0 });

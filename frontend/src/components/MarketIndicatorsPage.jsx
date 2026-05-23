@@ -168,7 +168,8 @@ export default function MarketIndicatorsPage() {
 
   // Sentiment & Economy
   const aaiiValue = aaiiSentiment?.currentValue;
-  const { color: aaiiColor, text: aaiiText } = getAAIIInterpretation(aaiiValue);
+  const aaiiHistory = aaiiSentiment?.history || [];
+  const { color: aaiiColor, text: aaiiText } = getAAIIInterpretation(aaiiValue, aaiiHistory);
 
   const csValue = consumerSentiment?.currentValue;
   const { color: csColor, text: csText } = getConsumerSentimentInterpretation(csValue);

@@ -53,7 +53,7 @@ describe("ingestHistoricalIV", () => {
 
     const result = await ingestHistoricalIV("AAPL");
 
-    expect(mockGetOptionChainParsed).toHaveBeenCalledWith("AAPL");
+    expect(mockGetOptionChainParsed).toHaveBeenCalledWith("AAPL", { strikeCount: 10 });
     expect(mockUpsert).toHaveBeenCalledWith({
       where: { ticker_date: { ticker: "AAPL", date: expect.any(Date) } },
       update: { iv: 0.30 },
