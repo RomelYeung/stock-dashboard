@@ -333,6 +333,42 @@
 
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-05-24">May 24, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Rewrite README to reflect actual project state</h3>
+          <p>Updated the README with the complete tech stack (Prisma+SQLite, Schwab API, FRED API, Gemini, node-cache, 20+ additional dependencies), corrected port numbers (backend:3001, frontend:3002), added all missing features (DCF/Monte Carlo, AI valuation &amp; debate, options scanner, sector rotation, insider trading, market indicators, Schwab OAuth, admin dashboard), replaced the project tree with verified directory structure, added environment variable documentation, and listed the full API surface with 30+ endpoints.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-23">May 23, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add Behavioral Finance Analyst and update default AI model to resolve 429 quota errors</h3>
+          <p>Introduced a Behavioral Finance Analyst agent to the AI Debate Committee to analyze market psychology, sentiment, and insider trading patterns. Switched the default model to <code>gemini-2.5-flash</code> (with fallback/configuration support via the <code>GEMINI_MODEL</code> environment variable) to avoid the restrictive 20 requests/day free tier quota limits on <code>gemini-3.5-flash</code> for developer API keys.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-23">May 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Show 52-week range bar on Wish List stock cards</h3>
+          <p>Wish List cards were missing the 52-week high/low range bar that portfolio cards displayed. The range visualization is now shown on both portfolio and wish list cards, giving consistent price context across all tracked stocks.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-05-23">May 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix stock detail chart crash on live price updates</h3>
+          <p>Resolved a crash (displaying "Something went wrong. Value is null") in the stock detail modal when viewing stocks with active live price updates. The TradingView chart component was mixing string dates and numeric Unix timestamps, which has been corrected by consistently formatting the live price time as a date string matching the exchange timezone.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-05-23">May 23, 2026</time>
             <span class="tag tag-fix">Fix</span>
           </div>
