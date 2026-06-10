@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { RevenueChart, MarginsChart, CashFlowChart } from "./Charts";
 import { formatMarketCap, formatPercent, formatMultiple, formatRevenue } from "../utils/formatters";
@@ -11,24 +11,6 @@ const CATEGORY_LABELS = {
   profitability: "Profitability",
   health: "Health",
 };
-
-// ─── Responsive hook ───────────────────────────────────────────────────────
-function useWindowWidth() {
-  const [width, setWidth] = useState(window.innerWidth);
-  useEffect(() => {
-    let timeout;
-    const handleResize = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => setWidth(window.innerWidth), 150);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      clearTimeout(timeout);
-    };
-  }, []);
-  return width;
-}
 
 
 // ─── StatBox (matching existing StockAnalysisPage pattern) ───────────────────
@@ -83,7 +65,7 @@ function StatBox({ label, value, sub, positive, historicalData, higherIsBetter =
   }
 
   return (
-    <div style={sbox.box}>
+    <div className="stat-box-modern">
       <span style={sbox.label}>{label}</span>
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "nowrap", width: "100%" }}>
         <span
@@ -107,15 +89,6 @@ function StatBox({ label, value, sub, positive, historicalData, higherIsBetter =
 }
 
 const sbox = {
-  box: {
-    background: "rgba(255,255,255,0.035)",
-    border: "none",
-    borderRadius: "10px",
-    padding: "14px 16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
   label: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
@@ -193,7 +166,7 @@ function Sparkline({ data, color, label }) {
   const pctChange = first !== 0 ? (((last - first) / Math.abs(first)) * 100).toFixed(0) : 0;
   return (
     <div
-      style={{ width: "80px", height: "32px" }}
+      style={{ width: "80px", height: "32px", margin: "0 auto" }}
       role="img"
       aria-label={`${label || "Metric"} trend: ${direction} ${Math.abs(pctChange)}% over period`}
     >
@@ -206,9 +179,8 @@ function Sparkline({ data, color, label }) {
   );
 }
 
-function MetricRow({ metric, isMobile, isTablet }) {
+function MetricRow({ metric }) {
   const { label, fmt, baseValue, peerAvg, sparklineData, diff, diffColor } = metric;
-  const [hovered, setHovered] = useState(false);
   const isHigher = baseValue != null && peerAvg != null && baseValue > peerAvg;
   const isLower = baseValue != null && peerAvg != null && baseValue < peerAvg;
 
@@ -240,29 +212,21 @@ function MetricRow({ metric, isMobile, isTablet }) {
     );
   };
 
-  const wLabel = isMobile ? "40%" : isTablet ? "30%" : COL_WIDTHS.metric;
-  const wValue = isMobile ? "30%" : isTablet ? "22%" : COL_WIDTHS.thisStock;
-  const wPeer = isTablet ? "20%" : COL_WIDTHS.peerAvg;
-  const wDiff = isMobile ? "30%" : isTablet ? "16%" : COL_WIDTHS.diff;
-  const wSpark = isTablet ? "12%" : COL_WIDTHS.trend;
-
   return (
     <tr
+      className="peer-row-modern"
       style={{
         ...tbl.row,
-        background: hovered ? "rgba(255,255,255,0.03)" : "transparent",
-        transition: "background 0.15s ease",
+        background: "transparent",
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
-      <td style={{ ...tbl.cellLabel, width: wLabel }}>{label}</td>
-      <td style={{ ...tbl.cellValue, color, width: wValue }}>{fmtVal(baseValue)}</td>
-      {!isMobile && <td style={{ ...tbl.cellPeer, width: wPeer }}>{fmtVal(peerAvg)}</td>}
-      <td style={{ ...tbl.cellDiff, width: wDiff }}>{fmtDiff()}</td>
-      {!isMobile && <td style={{ ...tbl.cellSpark, width: wSpark }}>
+      <td style={{ ...tbl.cellLabel, width: COL_WIDTHS.metric }}>{label}</td>
+      <td style={{ ...tbl.cellValue, color, width: COL_WIDTHS.thisStock }}>{fmtVal(baseValue)}</td>
+      <td className="peer-col-tablet-only" style={{ ...tbl.cellPeer, width: COL_WIDTHS.peerAvg }}>{fmtVal(peerAvg)}</td>
+      <td style={{ ...tbl.cellDiff, width: COL_WIDTHS.diff }}>{fmtDiff()}</td>
+      <td className="peer-col-desktop-only" style={{ ...tbl.cellSpark, width: COL_WIDTHS.trend }}>
         <Sparkline data={sparklineData} color={color} />
-      </td>}
+      </td>
     </tr>
   );
 }
@@ -321,16 +285,16 @@ function computeDiffColor(metric) {
   return { diff, diffColor: "var(--text-secondary)" };
 }
 
-function CategoryTable({ category, baseSparklines, ticker, isMobile, isTablet }) {
+function CategoryTable({ category, baseSparklines, ticker }) {
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", tableLayout: "fixed" }}>
       <thead>
         <tr>
-          <th style={{ ...tbl.head, width: isMobile ? "40%" : isTablet ? "30%" : COL_WIDTHS.metric }}>Metric</th>
-          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "30%" : isTablet ? "22%" : COL_WIDTHS.thisStock }}>This Stock</th>
-          {!isMobile && <th style={{ ...tbl.head, textAlign: "right", width: isTablet ? "20%" : COL_WIDTHS.peerAvg }}>Peer Avg</th>}
-          <th style={{ ...tbl.head, textAlign: "right", width: isMobile ? "30%" : isTablet ? "16%" : COL_WIDTHS.diff }}>Diff</th>
-          {!isMobile && <th style={{ ...tbl.head, width: isTablet ? "12%" : COL_WIDTHS.trend }}>Trend</th>}
+          <th style={{ ...tbl.head, width: COL_WIDTHS.metric }}>Metric</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.thisStock }}>This Stock</th>
+          <th className="peer-col-tablet-only" style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.peerAvg }}>Peer Avg</th>
+          <th style={{ ...tbl.head, textAlign: "right", width: COL_WIDTHS.diff }}>Diff</th>
+          <th className="peer-col-desktop-only" style={{ ...tbl.head, width: COL_WIDTHS.trend, textAlign: "center" }}>Trend</th>
         </tr>
       </thead>
       <tbody>
@@ -340,8 +304,6 @@ function CategoryTable({ category, baseSparklines, ticker, isMobile, isTablet })
             <MetricRow
               key={m.key}
               metric={{ ...m, sparklineData: baseSparklines?.[m.key], diff, diffColor }}
-              isMobile={isMobile}
-              isTablet={isTablet}
             />
           );
         })}
@@ -350,7 +312,7 @@ function CategoryTable({ category, baseSparklines, ticker, isMobile, isTablet })
   );
 }
 
-function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) {
+function PeerComparisonSection({ comparablesData, ticker }) {
   const defaultCategory = (() => {
     for (const key of CATEGORY_ORDER) {
       const cat = comparablesData?.categories?.[key];
@@ -378,6 +340,7 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
           gap: "4px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           padding: "16px 20px 12px 20px",
+          overflowX: "auto"
         }}
       >
         {CATEGORY_ORDER.map((key) => (
@@ -411,6 +374,7 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
               fontWeight: activeCategory === key ? 600 : 400,
               transition: "all 0.2s ease",
               outline: "none",
+              whiteSpace: "nowrap"
             }}
             onMouseEnter={(e) => {
               if (activeCategory !== key) {
@@ -437,14 +401,12 @@ function PeerComparisonSection({ comparablesData, ticker, isMobile, isTablet }) 
 
       {/* Category Table */}
       {category && category.metrics?.length > 0 && (
-        <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+        <div style={{ overflowX: "visible" }}>
           <div style={{ padding: "0 20px" }}>
             <CategoryTable
               category={category}
               baseSparklines={comparablesData.base?.sparklines}
               ticker={ticker}
-              isMobile={isMobile}
-              isTablet={isTablet}
             />
             {/* Insight box */}
             {(() => {
@@ -495,7 +457,7 @@ export default function FundamentalsTab({
   onRetry,
 }) {
   // ── Loading state ───────────────────────────────────────────────────────
-  if (financialLoading && !financialData && comparablesLoading && !comparablesData) {
+  if ((financialLoading && !financialData) || (comparablesLoading && !comparablesData)) {
     return (
       <div style={states.skeleton}>
         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -545,10 +507,6 @@ export default function FundamentalsTab({
     return <div style={states.error}>No data available</div>;
   }
 
-  const width = useWindowWidth();
-  const isMobile = width < 768;
-  const isTablet = width >= 768 && width < 1024;
-
   const summary = financialData.summary || {};
   const financials = financialData.financials || {};
   const balanceSheet = financialData.balanceSheet || {};
@@ -569,19 +527,13 @@ export default function FundamentalsTab({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+    <div className="fundamentals-container" style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
       {/* ─── 1. KEY METRICS ────────────────────────────────────────────────── */}
       <Section title="Key Metrics">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr",
-            gap: "24px",
-          }}
-        >
+        <div className="fundamentals-grid">
           {/* Valuation */}
           <Section title="Valuation">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+            <div className="stat-group-grid-2">
               <StatBox label="Market Cap" value={formatMarketCap(summary.marketCap)} />
               <StatBox
                 label="Forward P/E"
@@ -603,7 +555,7 @@ export default function FundamentalsTab({
 
           {/* Profitability */}
           <Section title="Profitability">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+            <div className="stat-group-grid-3">
               <StatBox
                 label="Operating Margin"
                 value={formatPercent(financials.operatingMargins)}
@@ -624,7 +576,7 @@ export default function FundamentalsTab({
 
           {/* Revenue & Earnings */}
           <Section title="Revenue & Earnings">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+            <div className="stat-group-grid-2">
               <StatBox
                 label="Total Revenue"
                 value={formatRevenue(financials.totalRevenue)}
@@ -639,7 +591,9 @@ export default function FundamentalsTab({
                 label="EPS Est. (This Yr)"
                 value={
                   financials.estimates?.currentYear != null
-                    ? `$${financials.estimates.currentYear.toFixed(2)}`
+                    ? (typeof financials.estimates.currentYear === "object"
+                        ? (financials.estimates.currentYear.avg != null ? `$${financials.estimates.currentYear.avg.toFixed(2)}` : "—")
+                        : `$${financials.estimates.currentYear.toFixed(2)}`)
                     : "—"
                 }
               />
@@ -647,7 +601,9 @@ export default function FundamentalsTab({
                 label="EPS Est. (Next Yr)"
                 value={
                   financials.estimates?.nextYear != null
-                    ? `$${financials.estimates.nextYear.toFixed(2)}`
+                    ? (typeof financials.estimates.nextYear === "object"
+                        ? (financials.estimates.nextYear.avg != null ? `$${financials.estimates.nextYear.avg.toFixed(2)}` : "—")
+                        : `$${financials.estimates.nextYear.toFixed(2)}`)
                     : "—"
                 }
               />
@@ -657,7 +613,7 @@ export default function FundamentalsTab({
 
           {/* Balance Sheet & Cash Flow */}
           <Section title="Balance Sheet & Cash Flow">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+            <div className="stat-group-grid-3">
               <StatBox
                 label="Total Cash"
                 value={formatRevenue(balanceSheet.totalCash)}
@@ -701,7 +657,7 @@ export default function FundamentalsTab({
         </Section>
       ) : comparablesData ? (
         <Section title="Peer Comparison">
-          <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} isMobile={isMobile} isTablet={isTablet} />
+          <PeerComparisonSection comparablesData={comparablesData} ticker={ticker} />
         </Section>
       ) : (
         <Section title="Peer Comparison">

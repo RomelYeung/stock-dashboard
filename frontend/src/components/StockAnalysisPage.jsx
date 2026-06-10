@@ -4,9 +4,11 @@ import DCFAnalysis from "./DCFAnalysis";
 import InsiderTradingTab from "./InsiderTradingTab";
 import FundamentalsTab from "./FundamentalsTab";
 import OptionsScannerTab from "./OptionsScannerTab";
+import EarningsTab from "./EarningsTab";
+import NewsTab from "./NewsTab";
 import { formatPrice, isPositive } from "../utils/formatters";
 
-const TABS = ["Valuation & AI", "Fundamentals", "Options Scanner", "Insider Activity"];
+const TABS = ["Valuation & AI", "Fundamentals", "Earnings", "News", "Options Scanner", "Insider Activity"];
 
 function TabBar({ active, onChange }) {
   return (
@@ -49,7 +51,7 @@ const tab = {
   active: { color: "var(--accent-blue)", borderBottom: "2px solid var(--accent-blue)" },
 };
 
-export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
+export default function StockAnalysisPage({ ticker, livePriceData, onBack }) {
   const [activeTab, setActiveTab] = useState("Valuation & AI");
   const { data, loading, error, refetch: refetchDetail } = useStockDetail(ticker);
   const { data: dcfData, loading: dcfLoading, refetch: dcfRefetch } = useDCF(ticker);
@@ -57,6 +59,8 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
   const { data: comparablesData, loading: comparablesLoading, error: comparablesError, refetch: refetchComparables } = useComparables(ticker);
 
   const summary = data?.summary;
+  const displayPrice = livePriceData?.currentPrice ?? summary?.currentPrice;
+  const displayChangePercent = livePriceData?.changePercent ?? summary?.changePercent;
 
   return (
     <div style={page.wrap}>
@@ -73,13 +77,13 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
           {summary && (
             <>
               <span style={page.name}>{summary.name}</span>
-              <span style={page.price}>{formatPrice(summary.currentPrice)}</span>
-              {summary.changePercent != null && (
+              <span style={page.price}>{displayPrice != null ? formatPrice(displayPrice) : "—"}</span>
+              {displayChangePercent != null && (
                 <span style={{
                   ...page.change,
-                  color: isPositive(summary.changePercent) ? "var(--accent-green)" : "var(--accent-red)",
+                  color: isPositive(displayChangePercent) ? "var(--accent-green)" : "var(--accent-red)",
                 }}>
-                  {isPositive(summary.changePercent) ? "▲" : "▼"} {(summary.changePercent * 100).toFixed(2)}%
+                  {isPositive(displayChangePercent) ? "▲" : "▼"} {(displayChangePercent * 100).toFixed(2)}%
                 </span>
               )}
             </>
@@ -107,7 +111,7 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
             ticker={ticker}
             dcfData={dcfData}
             aiValuationData={aiValuationData}
-            currentPrice={currentPrice || summary?.currentPrice}
+            currentPrice={displayPrice}
             loading={dcfLoading || aiLoading}
             onRefetch={dcfRefetch}
           />
@@ -126,6 +130,14 @@ export default function StockAnalysisPage({ ticker, currentPrice, onBack }) {
               refetchComparables();
             }}
           />
+        )}
+
+        {activeTab === "Earnings" && (
+          <EarningsTab ticker={ticker} />
+        )}
+
+        {activeTab === "News" && (
+          <NewsTab ticker={ticker} />
         )}
 
         {activeTab === "Options Scanner" && (

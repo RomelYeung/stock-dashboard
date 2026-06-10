@@ -62,7 +62,7 @@ const containerStyles = {
 // Annual Revenue & Net Income Bar Chart
 export function RevenueChart({ annualIncome }) {
   const data = [...(annualIncome || [])]
-    .reverse()
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
       year: formatYear(y.date),
       Revenue: y.totalRevenue,
@@ -97,7 +97,7 @@ export function RevenueChart({ annualIncome }) {
 // Margin Trend Line Chart
 export function MarginsChart({ annualIncome }) {
   const data = [...(annualIncome || [])]
-    .reverse()
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
       year: formatYear(y.date),
       "Gross Margin": y.grossMargin != null ? +(y.grossMargin * 100).toFixed(1) : null,
@@ -129,7 +129,7 @@ export function MarginsChart({ annualIncome }) {
 // Free Cash Flow Bar Chart
 export function CashFlowChart({ annualCashFlow }) {
   const data = [...(annualCashFlow || [])]
-    .reverse()
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
       year: formatYear(y.date),
       "Operating CF": y.operatingCashFlow,
@@ -194,11 +194,11 @@ export function PriceChart({ data, ticker }) {
       .filter((d) => d?.date && Number.isFinite(d.close))
       .map((d) => ({
         time: d.date,
-        open: d.open,
-        high: d.high,
-        low: d.low,
+        open: d.open ?? d.close,
+        high: d.high ?? d.close,
+        low: d.low ?? d.close,
         close: d.close,
-        volume: d.volume,
+        volume: d.volume || 0,
       }));
 
     if (!formattedData.length) return;
@@ -268,26 +268,29 @@ export function PriceChart({ data, ticker }) {
       });
       rsiLine.setData(rsiData);
 
-      const overbought = rsiChart.addSeries(LineSeries, {
+      rsiLine.createPriceLine({
+        price: 70,
         color: "rgba(255,77,109,0.25)",
         lineWidth: 1,
         lineStyle: 2,
+        axisLabelVisible: false,
       });
-      overbought.setData([{ time: rsiData[0].time, value: 70 }, { time: rsiData[rsiData.length - 1].time, value: 70 }]);
 
-      const oversold = rsiChart.addSeries(LineSeries, {
+      rsiLine.createPriceLine({
+        price: 30,
         color: "rgba(0,229,160,0.25)",
         lineWidth: 1,
         lineStyle: 2,
+        axisLabelVisible: false,
       });
-      oversold.setData([{ time: rsiData[0].time, value: 30 }, { time: rsiData[rsiData.length - 1].time, value: 30 }]);
 
-      // Lock RSI range to 0-100
-      const rsi50 = rsiChart.addSeries(LineSeries, {
+      rsiLine.createPriceLine({
+        price: 50,
         color: "rgba(255,255,255,0.05)",
         lineWidth: 1,
+        lineStyle: 1,
+        axisLabelVisible: false,
       });
-      rsi50.setData([{ time: rsiData[0].time, value: 50 }, { time: rsiData[rsiData.length - 1].time, value: 50 }]);
 
       rsiChart.priceScale("right").applyOptions({
         scaleMargins: { top: 0.05, bottom: 0.05 },

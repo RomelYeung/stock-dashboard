@@ -298,7 +298,7 @@ export default function App() {
           {currentPage === "stock" && selectedTicker && (
             <StockAnalysisPage
               ticker={selectedTicker}
-              currentPrice={mergedData[selectedTicker]?.currentPrice}
+              livePriceData={liveData[selectedTicker]}
               onBack={handleBackFromAnalysis}
             />
           )}
@@ -329,7 +329,7 @@ export default function App() {
             period={period}
             setPeriod={setPeriod}
             onOpenAnalysis={handleOpenAnalysis}
-            livePrice={liveData[selectedTicker]?.currentPrice}
+            livePriceData={liveData[selectedTicker]}
           />
         )}
       </AnimatePresence>

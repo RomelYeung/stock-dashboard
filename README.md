@@ -122,7 +122,8 @@ Create `backend/.env` based on `.env.example`:
 | `SCHWAB_CLIENT_ID` | No | Schwab API OAuth client ID (for live prices & options) |
 | `SCHWAB_CLIENT_SECRET` | No | Schwab API OAuth client secret |
 | `FRED_API_KEY` | No | FRED API key (for macro indicators) |
-| `GEMINI_API_KEY` | No | Google Gemini API key (for AI valuation & debate) |
+| `GOOGLE_CLOUD_PROJECT` | No | Google Cloud project for Vertex AI (default: dumb-money-dashboard) |
+| `GOOGLE_CLOUD_LOCATION` | No | Google Cloud region for Vertex AI (default: us-central1) |
 | `GEMINI_MODEL` | No | Gemini model name (default: gemini-2.5-flash) |
 
 The app works without Schwab/FRED/Gemini keys — live prices fall back to Yahoo Finance, and features that require those APIs will be gracefully unavailable.

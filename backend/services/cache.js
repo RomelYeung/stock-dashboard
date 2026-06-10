@@ -6,6 +6,8 @@ import {
   CACHE_TTL_INSIDER,
   CACHE_TTL_COMPARABLES,
   CACHE_TTL_LIVE_PRICE,
+  CACHE_TTL_NEWS,
+  CACHE_TTL_NEWS_AI,
   CACHE_PERSIST_INTERVAL_MS,
 } from "../constants.js";
 
@@ -15,6 +17,8 @@ const insiderCache = new NodeCache({ stdTTL: CACHE_TTL_INSIDER, maxKeys: 1000, u
 const comparablesCache = new NodeCache({ stdTTL: CACHE_TTL_COMPARABLES, maxKeys: 1000, useClones: false });
 const livePriceCache = new NodeCache({ stdTTL: CACHE_TTL_LIVE_PRICE, maxKeys: 1000, useClones: false, checkperiod: 60 });
 const earningsProfileCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+const newsCache = new NodeCache({ stdTTL: CACHE_TTL_NEWS, maxKeys: 500, useClones: false });
+const newsSummaryCache = new NodeCache({ stdTTL: CACHE_TTL_NEWS_AI, maxKeys: 500, useClones: false });
 
 // Load persisted cache on startup
 loadCache(fundamentalsCache, priceCache);
@@ -54,6 +58,11 @@ export const setEarningsProfile = (key, value) => earningsProfileCache.set(key, 
 
 export { earningsProfileCache };
 
+export const getNews = (key) => newsCache.get(key);
+export const setNews = (key, value) => newsCache.set(key, value);
+export const getNewsSummary = (key) => newsSummaryCache.get(key);
+export const setNewsSummary = (key, value) => newsSummaryCache.set(key, value);
+
 export const flush = () => {
   fundamentalsCache.flushAll();
   priceCache.flushAll();
@@ -61,6 +70,8 @@ export const flush = () => {
   comparablesCache.flushAll();
   livePriceCache.flushAll();
   earningsProfileCache.flushAll();
+  newsCache.flushAll();
+  newsSummaryCache.flushAll();
 };
 
 export const stats = () => {
@@ -71,6 +82,8 @@ export const stats = () => {
     comparablesCache.getStats(),
     livePriceCache.getStats(),
     earningsProfileCache.getStats(),
+    newsCache.getStats(),
+    newsSummaryCache.getStats(),
   ];
   return {
     keys: segments.reduce((s, c) => s + c.keys, 0),

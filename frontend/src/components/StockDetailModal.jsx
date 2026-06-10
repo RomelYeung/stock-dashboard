@@ -5,12 +5,14 @@ import TradingViewChart from "./TradingViewChart";
 import { formatPrice, isPositive } from "../utils/formatters";
 
 
-function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, livePrice }) {
+function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, livePriceData }) {
   const { data, loading, error } = useStockDetail(ticker);
   const { data: dcfData, loading: dcfLoading } = useDCF(ticker);
 
   const summary = data?.summary;
-  const isUp = summary ? isPositive(summary.changePercent) : true;
+  const displayPrice = livePriceData?.currentPrice ?? summary?.currentPrice;
+  const displayChangePercent = livePriceData?.changePercent ?? summary?.changePercent;
+  const isUp = displayChangePercent != null ? isPositive(displayChangePercent) : true;
 
   const dcf = dcfData?.dcf;
   const mc = dcfData?.monteCarlo;
@@ -97,16 +99,16 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
               {summary && <div style={styles.companyName}>{summary.name}</div>}
             </div>
             <div style={styles.headerRight}>
-              {summary && (
+              {(displayPrice != null || displayChangePercent != null) && (
                 <div style={styles.priceContainer}>
-                  <div style={styles.currentPrice}>{formatPrice(summary.currentPrice)}</div>
+                  <div style={styles.currentPrice}>{displayPrice != null ? formatPrice(displayPrice) : "—"}</div>
                   <span style={{
                     ...styles.changeBadge,
                     color: isUp ? "var(--accent-green)" : "var(--accent-red)",
                     background: isUp ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
                     alignSelf: "flex-end",
                   }}>
-                    {isUp ? "▲" : "▼"} {summary.changePercent != null ? `${(summary.changePercent * 100).toFixed(2)}%` : "—"}
+                    {isUp ? "▲" : "▼"} {displayChangePercent != null ? `${(displayChangePercent * 100).toFixed(2)}%` : "—"}
                   </span>
                 </div>
               )}
@@ -133,7 +135,7 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
 
             {data && (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePrice} />
+                <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePriceData?.currentPrice} />
               </div>
             )}
           </div>

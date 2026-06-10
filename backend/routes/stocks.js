@@ -9,6 +9,9 @@ import * as sectorScore from "../services/sectorScore.js";
 import * as aaii from "../services/aaii.js";
 import * as insiderTrading from "../services/insiderTrading.js";
 import * as comparables from "../services/comparables.js";
+import * as earnings from "../services/earnings.js";
+import * as newsService from "../services/newsService.js";
+import * as secGuidance from "../services/secGuidance.js";
 import { getQuotes, getPriceHistory, getOptionChain, getMovers } from "../services/schwab-client.js";
 import { getTokenHealth } from "../services/schwab-auth.js";
 import { startAuthFlow } from "../services/schwab-callback-server.js";
@@ -26,7 +29,7 @@ import {
 } from "../constants.js";
 import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
 import { evaluateAIValuation } from "../services/aiValuation.js";
-import { streamAiDebate } from "../services/aiDebateEngine.js";
+import { streamAdviserChat, getSessionHistory } from "../services/aiFinancialAdviser.js";
 
 const router = express.Router();
 const MAX_BATCH_TICKERS = MAX_PORTFOLIO_TICKERS + MAX_WISHLIST_TICKERS;
@@ -237,6 +240,67 @@ router.get("/:ticker/comparables", async (req, res) => {
   }
 });
 
+// GET /api/stocks/:ticker/earnings
+// Returns earnings surprises, estimates, peer comparisons (No AI)
+router.get("/:ticker/earnings", async (req, res) => {
+  try {
+    const data = await earnings.getEarningsInsights(req.ticker);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(`[earnings] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/earnings-sentiment
+// Returns deep forensic AI sentiment analysis
+router.get("/:ticker/earnings-sentiment", async (req, res) => {
+  try {
+    const data = await earnings.getEarningsSentiment(req.ticker);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(`[earnings-sentiment] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/sec-guidance
+// Returns parsed 8-K filing guidance (Items 2.02, 7.01, forward-looking statements)
+router.get("/:ticker/sec-guidance", async (req, res) => {
+  try {
+    const data = await secGuidance.getSecGuidance(req.ticker);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error(`[sec-guidance] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/news
+// Returns news articles (no AI summary — use /news/summary for that)
+router.get("/:ticker/news", async (req, res) => {
+  try {
+    const articles = await newsService.getStockNews(req.ticker);
+    res.json({ success: true, data: { articles } });
+  } catch (err) {
+    console.error(`[news] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
+// GET /api/stocks/:ticker/news/summary
+// Returns AI-generated summary and sentiment for the ticker's news
+router.get("/:ticker/news/summary", async (req, res) => {
+  try {
+    const articles = await newsService.getStockNews(req.ticker);
+    const aiSummary = await newsService.getNewsAISummary(req.ticker, articles);
+    res.json({ success: true, data: { sentiment: aiSummary.sentiment, summary: aiSummary.summary } });
+  } catch (err) {
+    console.error(`[news-summary] ${req.ticker}:`, err.message);
+    res.status(502).json({ success: false, error: err.message, ticker: req.ticker });
+  }
+});
+
 // GET /api/stocks/:ticker/dcf?simulations=1000
 router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), async (req, res) => {
   const { simulations } = req.query;
@@ -366,14 +430,43 @@ router.get("/:ticker/ai-valuation", async (req, res) => {
   }
 });
 
-// GET /api/stocks/:ticker/ai-debate
-// Streams sequential LLM debate using SSE
-router.get("/:ticker/ai-debate", async (req, res) => {
+// GET /api/stocks/:ticker/advisor-chat/sessions
+router.get("/:ticker/advisor-chat/sessions", async (req, res) => {
+  try {
+    const userId = req.user?.id || null;
+    const { getSessionsList } = await import("../services/aiFinancialAdviser.js");
+    const sessions = await getSessionsList(userId, req.ticker);
+    res.json({ success: true, data: sessions });
+  } catch (err) {
+    console.error(`[advisor-chat-sessions] error:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/stocks/:ticker/advisor-chat/session
+router.get("/:ticker/advisor-chat/session", async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId;
+    const userId = req.user?.id || null;
+    
+    const { sessionId: currentSessionId, messages } = await getSessionHistory(sessionId, userId, req.ticker);
+    res.json({ success: true, data: { sessionId: currentSessionId, history: messages } });
+  } catch (err) {
+    console.error(`[advisor-chat-session] error:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/stocks/:ticker/advisor-chat
+router.post("/:ticker/advisor-chat", async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
   try {
+    const { message, sessionId } = req.body;
+    const userId = req.user?.id || null;
+
     const [summary, financials, balanceSheet, priceHistory, optionChain, insiderData] = await Promise.all([
       yf.getSummary(req.ticker).catch(() => null),
       yf.getFinancials(req.ticker).catch(() => null),
@@ -384,20 +477,18 @@ router.get("/:ticker/ai-debate", async (req, res) => {
     ]);
 
     const quantData = {
-      summary,
-      financials,
-      balanceSheet,
-      priceHistory: priceHistory ? priceHistory.slice(-20) : [], // limit to recent for context size
+      summary, financials, balanceSheet,
+      priceHistory: priceHistory ? priceHistory.slice(-20) : [],
       optionChain: optionChain ? { hasOptions: true } : { hasOptions: false },
       insiderData
     };
 
-    for await (const chunk of streamAiDebate(req.ticker, quantData)) {
+    for await (const chunk of streamAdviserChat(sessionId, userId, req.ticker, message, quantData)) {
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       if (res.flush) res.flush();
     }
   } catch (err) {
-    console.error(`[ai-debate] error:`, err.message);
+    console.error(`[advisor-chat] error:`, err.message);
     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
     if (res.flush) res.flush();
   } finally {
@@ -473,10 +564,19 @@ router.post("/portfolio/live", validate(tickersBodySchema), async (req, res) => 
       const entry = schwabQuotes[symbol];
       if (entry?.quote) {
         const { quote } = entry;
+        const currentPrice = quote.extended?.lastPrice ?? quote.lastPrice ?? null;
+        let change = quote.netChange ?? null;
+        let changePercent = quote.netPercentChangeInDouble ?? null;
+
+        if (currentPrice != null && quote.closePrice != null && quote.closePrice > 0) {
+          change = currentPrice - quote.closePrice;
+          changePercent = change / quote.closePrice;
+        }
+
         const data = {
-          currentPrice: quote.extended?.lastPrice ?? quote.lastPrice ?? null,
-          change: quote.netChange ?? null,
-          changePercent: quote.netPercentChangeInDouble ?? null,
+          currentPrice,
+          change,
+          changePercent,
         };
         cache.setLivePrice(symbol, data);
         return { ticker: symbol, data, stale: false };

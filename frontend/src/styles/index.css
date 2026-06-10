@@ -147,3 +147,196 @@ body {
   padding-left: 10px;
   font-family: var(--font-display);
 }
+
+/* AI Financial Adviser Chat */
+.chat-container {
+  overflow-y: auto;
+  container-type: scroll-state;
+  scroll-behavior: smooth;
+}
+
+.last-message {
+  scroll-initial-target: nearest;
+}
+
+.scroll-to-bottom-fab {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: 50%;
+  width: 40px; 
+  height: 40px;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  visibility: visible;
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+@supports (container-type: scroll-state) {
+  .scroll-to-bottom-fab {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  @container scroll-state(scrollable: bottom) {
+    .scroll-to-bottom-fab {
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+}
+
+/* Markdown Styles inside chat */
+.markdown-body p {
+  margin-bottom: 8px;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body ul, .markdown-body ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+.markdown-body li {
+  margin-bottom: 4px;
+}
+.markdown-body strong {
+  font-weight: 600;
+  color: #fff;
+}
+.markdown-body pre {
+  background: rgba(0,0,0,0.3);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+.markdown-body code {
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--glass-border);
+  padding: 6px 8px;
+  text-align: left;
+}
+.markdown-body th {
+  background: rgba(255,255,255,0.05);
+  font-weight: 500;
+}
+
+/* Modern Chat Input states */
+.modern-chat-input:focus {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(79, 141, 255, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(79, 141, 255, 0.1), inset 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.modern-chat-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(79, 141, 255, 0.6) !important;
+}
+
+.modern-chat-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.95);
+}
+
+.suggestion-chip:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+/* ─── Fundamentals Tab Redesign ─── */
+.fundamentals-container {
+  container-type: inline-size;
+  container-name: fundamentals;
+}
+
+.fundamentals-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+@container fundamentals (min-width: 600px) {
+  .fundamentals-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.stat-group-grid-2 {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.stat-group-grid-3 {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Micro-animations */
+.stat-box-modern {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-box-modern:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.peer-row-modern {
+  transition: background 0.15s ease;
+}
+
+.peer-row-modern:hover {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+/* Container Queries for Peer Table Columns */
+.peer-col-desktop-only,
+.peer-col-tablet-only {
+  display: none;
+}
+
+@container fundamentals (min-width: 500px) {
+  .peer-col-tablet-only {
+    display: table-cell;
+  }
+}
+
+@container fundamentals (min-width: 800px) {
+  .peer-col-desktop-only {
+    display: table-cell;
+  }
+}

@@ -105,11 +105,11 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
       .filter((d) => d?.date && Number.isFinite(d.close))
       .map((d) => ({
         time: d.date,
-        open: d.open,
-        high: d.high,
-        low: d.low,
+        open: d.open ?? d.close,
+        high: d.high ?? d.close,
+        low: d.low ?? d.close,
         close: d.close,
-        volume: d.volume,
+        volume: d.volume || 0,
       }));
 
     if (!formattedData.length) return;
@@ -153,7 +153,8 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
     });
     liveSeriesRef.current = livePriceSeries;
     if (livePrice) {
-      livePriceSeries.setData([{ time: Math.floor(Date.now() / 1000), value: livePrice }]);
+      const todayStr = new Date().toISOString().split("T")[0];
+      livePriceSeries.setData([{ time: todayStr, value: livePrice }]);
     }
 
     priceChart.timeScale().fitContent();
@@ -398,8 +399,8 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
 
   useEffect(() => {
     if (liveSeriesRef.current && livePrice) {
-      const now = Math.floor(Date.now() / 1000);
-      liveSeriesRef.current.setData([{ time: now, value: livePrice }]);
+      const todayStr = new Date().toISOString().split("T")[0];
+      liveSeriesRef.current.setData([{ time: todayStr, value: livePrice }]);
     }
   }, [livePrice]);
 

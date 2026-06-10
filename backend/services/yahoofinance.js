@@ -46,12 +46,22 @@ async function getSummary(ticker) {
   });
 
   const { price, summaryDetail, defaultKeyStatistics, calendarEvents, assetProfile } = result;
+  const currentPrice = price.postMarketPrice ?? price.preMarketPrice ?? price.regularMarketPrice ?? null;
+  const previousClose = price.regularMarketPreviousClose ?? null;
+  let change = price.regularMarketChange ?? null;
+  let changePercent = price.regularMarketChangePercent != null ? price.regularMarketChangePercent / 100 : null;
+
+  if (currentPrice != null && previousClose != null && previousClose > 0) {
+    change = currentPrice - previousClose;
+    changePercent = change / previousClose;
+  }
+
   const data = {
     ticker: ticker.toUpperCase(),
     name: price.longName || price.shortName,
-    currentPrice: price.regularMarketPrice,
-    change: price.regularMarketChange,
-    changePercent: price.regularMarketChangePercent != null ? price.regularMarketChangePercent / 100 : null,
+    currentPrice,
+    change,
+    changePercent,
     marketCap: price.marketCap,
     currency: price.currency,
 
@@ -91,33 +101,43 @@ async function getSummary(ticker) {
  * Covers: gross/net/operating margins, ROE, ROA, revenue, EPS (TTM + historical)
  */
 async function getFinancials(ticker) {
-  const cacheKey = `financials:${ticker}`;
+  const cacheKey = `financials_v2:${ticker}`;
   const cached = cache.getFundamentals(cacheKey);
   if (cached) return cached;
 
   const result = await yahooFinance.quoteSummary(ticker, {
     modules: [
       "financialData",
-      "incomeStatementHistory",
       "earningsHistory",
       "earningsTrend",
+      "recommendationTrend",
+      "upgradeDowngradeHistory"
     ],
   });
 
-  const { financialData, incomeStatementHistory, earningsHistory, earningsTrend } = result;
+  const { financialData, earningsHistory, earningsTrend, recommendationTrend, upgradeDowngradeHistory } = result;
 
-  // Annual income statements — last 4 years
-  const annualIncome = (incomeStatementHistory?.incomeStatementHistory || []).map((s) => ({
-    date: s.endDate,
-    totalRevenue: s.totalRevenue,
-    grossProfit: s.grossProfit,
-    operatingIncome: s.operatingIncome || s.totalOperatingExpenses,
-    netIncome: s.netIncome,
-    eps: s.dilutedEPS,
-    interestExpense: s.interestExpense,
-    incomeTaxExpense: s.incomeTaxExpense,
-    ebt: s.ebt,
-    ebit: s.ebit || s.operatingIncome,
+  // Annual income statements — last 4 years using fundamentalsTimeSeries
+  const periodStart = new Date();
+  periodStart.setFullYear(periodStart.getFullYear() - 5);
+  periodStart.setMonth(0, 1);
+  const incomeSeries = await yahooFinance.fundamentalsTimeSeries(ticker, {
+    period1: periodStart.toISOString().split("T")[0],
+    type: "annual",
+    module: "financials",
+  }).catch(() => []);
+
+  const annualIncome = (incomeSeries || []).map((s) => ({
+    date: s.date,
+    totalRevenue: s.totalRevenue || 0,
+    grossProfit: s.grossProfit || 0,
+    operatingIncome: s.operatingIncome || s.operatingExpense || 0,
+    netIncome: s.netIncome || 0,
+    eps: s.dilutedEPS || s.basicEPS || null,
+    interestExpense: s.interestExpense || null,
+    incomeTaxExpense: s.taxProvision || null,
+    ebt: s.pretaxIncome || null,
+    ebit: s.EBIT || s.operatingIncome || null,
     grossMargin: s.grossProfit && s.totalRevenue ? s.grossProfit / s.totalRevenue : null,
     netMargin: s.netIncome && s.totalRevenue ? s.netIncome / s.totalRevenue : null,
   }));
@@ -163,10 +183,36 @@ async function getFinancials(ticker) {
 
     // Forward estimates
     estimates: {
-      nextQuarter: nextQuarterEstimate?.earningsEstimate?.avg ?? null,
-      currentYear: currentYearEstimate?.earningsEstimate?.avg ?? null,
-      nextYear: nextYearEstimate?.earningsEstimate?.avg ?? null,
+      nextQuarter: nextQuarterEstimate ? {
+        avg: nextQuarterEstimate.earningsEstimate?.avg ?? null,
+        low: nextQuarterEstimate.earningsEstimate?.low ?? null,
+        high: nextQuarterEstimate.earningsEstimate?.high ?? null,
+        numberOfAnalysts: nextQuarterEstimate.earningsEstimate?.numberOfAnalysts ?? null,
+        growth: nextQuarterEstimate.earningsEstimate?.growth ?? null,
+        revisionUp: nextQuarterEstimate.epsRevisions?.upLast30days ?? null,
+        revisionDown: nextQuarterEstimate.epsRevisions?.downLast30days ?? null,
+      } : null,
+      currentYear: currentYearEstimate ? {
+        avg: currentYearEstimate.earningsEstimate?.avg ?? null,
+        low: currentYearEstimate.earningsEstimate?.low ?? null,
+        high: currentYearEstimate.earningsEstimate?.high ?? null,
+        numberOfAnalysts: currentYearEstimate.earningsEstimate?.numberOfAnalysts ?? null,
+        growth: currentYearEstimate.earningsEstimate?.growth ?? null,
+        revisionUp: currentYearEstimate.epsRevisions?.upLast30days ?? null,
+        revisionDown: currentYearEstimate.epsRevisions?.downLast30days ?? null,
+      } : null,
+      nextYear: nextYearEstimate ? {
+        avg: nextYearEstimate.earningsEstimate?.avg ?? null,
+        low: nextYearEstimate.earningsEstimate?.low ?? null,
+        high: nextYearEstimate.earningsEstimate?.high ?? null,
+        numberOfAnalysts: nextYearEstimate.earningsEstimate?.numberOfAnalysts ?? null,
+        growth: nextYearEstimate.earningsEstimate?.growth ?? null,
+        revisionUp: nextYearEstimate.epsRevisions?.upLast30days ?? null,
+        revisionDown: nextYearEstimate.epsRevisions?.downLast30days ?? null,
+      } : null,
     },
+    recommendationTrend: recommendationTrend?.trend || [],
+    upgradesDowngrades: upgradeDowngradeHistory?.history?.slice(0, 10) || [],
   };
 
   cache.setFundamentals(cacheKey, data);
@@ -378,14 +424,24 @@ async function getPortfolioSummaries(tickers) {
 
       const missing = cachedMissing.get(upper) || fetchedMissing.get(upper) || {};
 
+      const currentPrice = quote.postMarketPrice ?? quote.preMarketPrice ?? quote.regularMarketPrice ?? null;
+      const previousClose = quote.regularMarketPreviousClose ?? null;
+      let change = quote.regularMarketChange ?? null;
+      let changePercent = quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null;
+
+      if (currentPrice != null && previousClose != null && previousClose > 0) {
+        change = currentPrice - previousClose;
+        changePercent = change / previousClose;
+      }
+
       return {
         ticker: upper,
         data: {
           ticker: upper,
           name: quote.shortName || quote.longName || null,
-          currentPrice: quote.regularMarketPrice,
-          change: quote.regularMarketChange,
-          changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
+          currentPrice,
+          change,
+          changePercent,
           marketCap: quote.marketCap,
           currency: quote.currency,
           trailingPE: quote.trailingPE,
@@ -448,10 +504,20 @@ async function refreshLivePrices(tickers) {
     const quotes = await yahooFinance.quote(unique);
     const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
     for (const quote of quoteArray) {
+      const currentPrice = quote.postMarketPrice ?? quote.preMarketPrice ?? quote.regularMarketPrice ?? null;
+      const previousClose = quote.regularMarketPreviousClose ?? null;
+      let change = quote.regularMarketChange ?? null;
+      let changePercent = quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null;
+
+      if (currentPrice != null && previousClose != null && previousClose > 0) {
+        change = currentPrice - previousClose;
+        changePercent = change / previousClose;
+      }
+
       const data = {
-        currentPrice: quote.regularMarketPrice,
-        change: quote.regularMarketChange,
-        changePercent: quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null,
+        currentPrice,
+        change,
+        changePercent,
       };
       cache.setLivePrice(quote.symbol, data);
     }

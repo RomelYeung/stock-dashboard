@@ -16,6 +16,7 @@ model User {
   updatedAt    DateTime         @updatedAt
   portfolios   PortfolioItem[]
   wishlist     WishListItem[]
+  chatSessions ChatSession[]
 }
 
 model PortfolioItem {
@@ -50,4 +51,24 @@ model HistoricalIV {
   createdAt DateTime @default(now())
 
   @@unique([ticker, date])
+}
+
+model ChatSession {
+  id        String        @id @default(uuid())
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticker    String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            String      @id @default(uuid())
+  sessionId     String
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role          String      // 'user' or 'model'
+  agentName     String?     // e.g., 'Data Analyst', 'Trading Analyst', 'Execution Agent', 'Risk Evaluation Agent'
+  content       String
+  createdAt     DateTime    @default(now())
 }

@@ -333,6 +333,67 @@ export function useOptionsScanner(ticker) {
   return { data, loading: isLoading, error: error?.message, refetch };
 }
 
+// Fetch earnings data for a single ticker
+export function useEarningsData(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["earnings", ticker],
+    queryFn: () => apiFetch(`/${ticker}/earnings`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+// Fetch earnings sentiment for a single ticker
+export function useEarningsSentiment(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["earningsSentiment", ticker],
+    queryFn: () => apiFetch(`/${ticker}/earnings-sentiment`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+// Fetch SEC guidance for a single ticker
+export function useSecGuidance(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["secGuidance", ticker],
+    queryFn: () => apiFetch(`/${ticker}/sec-guidance`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+// Fetch news for a single ticker
+export function useStockNews(ticker) {
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["stockNews", ticker],
+    queryFn: () => apiFetch(`/${ticker}/news`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch, dataUpdatedAt };
+}
+
+// Fetch news summary for a single ticker
+export function useStockNewsSummary(ticker) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["stockNewsSummary", ticker],
+    queryFn: () => apiFetch(`/${ticker}/news/summary`),
+    enabled: !!ticker,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  return { data, loading: isLoading, error: error?.message, refetch };
+}
+
+
 /**
  * Fetch and mutate the user's portfolio and wishlist items from the backend.
  * Enabled only when a userId is provided (user is logged in).

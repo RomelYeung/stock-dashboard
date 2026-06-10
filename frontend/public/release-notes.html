@@ -327,6 +327,165 @@
         <p class="page-subtitle">A running log of updates, fixes, and improvements to Portfolio Monitor.</p>
       </div>
 
+      <!-- June 2026 -->
+      <section class="month-group">
+        <h2>June 2026</h2>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-09">June 9, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Standardize percentage change calculations against last closing price</h3>
+          <p>Fixed an issue where the displayed percentage change could compare the extended hours price against the current day's open or fail to adjust properly. All percentage and absolute change metrics across the dashboard, detailed charts, and live updates are now strictly calculated against the previous day's closing price for better consistency.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-09">June 9, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix live price updates not syncing to detailed analysis views</h3>
+          <p>The stock price and percentage change displayed in the upper right corner of the detailed chart modal and full analysis page now correctly receive real-time updates from the dashboard's live feed, ensuring consistent pricing information across all views.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-09">June 9, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix chronological sorting in AI Earnings Forensics</h3>
+          <p>The "Annual Revenue & Growth" chart in the Earnings tab was mistakenly displaying data in reverse chronological order. This has been corrected so that the chart plots chronologically from left to right, which also fixes the underlying YoY Growth calculation algorithm.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix "Value is null" crash on Price Chart for recent IPOs</h3>
+          <p>Resolved an issue where the dashboard would crash with a "Value is null" error when viewing recently IPO'd stocks (like Cerebras Systems / CBRS). This was caused by three separate issues in the charting library: 1) encountering `null` volume or missing open/high/low data from the API, 2) mixing string dates with numeric Unix timestamps for live price updates, and 3) duplicate time points in RSI threshold calculations. The charts will now safely fallback to 0 for missing volume, use the closing price for missing intra-day ranges, properly format live price updates, and use robust price lines for thresholds.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Restore missing Gross Margin data in Profit Margins chart</h3>
+          <p>Migrated backend data fetching to a more reliable Yahoo Finance API endpoint (`fundamentalsTimeSeries`) to resolve an issue where gross profit and operating income were intermittently returning zeros, causing the Gross Margin line to vanish from the chart.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Cash Flow chart timeline ordering</h3>
+          <p>Corrected an issue where the Cash Flow bar chart displayed historical data in reverse chronological order (newest to oldest). All fundamental charts (Revenue, Margins, and Cash Flow) now explicitly sort by date to guarantee a consistent left-to-right (oldest-to-newest) timeline visualization.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Redesign Fundamentals tab UI with modern Container Queries</h3>
+          <p>The Fundamentals tab has received a major visual overhaul to make it more modern, minimalistic, and highly data-dense. By migrating from JavaScript-based viewport listeners to pure CSS Container Queries, the UI now perfectly adapts its grid layout to utilize available screen real estate without layout shifts or dead space. Key metric cards and peer comparison rows now feature premium glassmorphism styling and subtle micro-animations on hover for a highly interactive, "wow" experience.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix EPS Surprise Legend Color Mismatch</h3>
+          <p>Corrected a visual bug in the EPS Surprise History chart where the "Actual" legend indicator was displaying as a generic black square. The legend now accurately displays in green, matching the primary success state color used in the histogram bars to represent earnings beats.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Advanced AI Adviser: Real-time Tool Calling, Citations, & History</h3>
+          <p>The AI Financial Adviser chat has been massively upgraded with advanced multi-agent capabilities. The AI now utilizes <strong>real-time Tool Calling</strong> to dive deep into forensic earnings sentiment, recent SEC filings, and latest news on-demand, broadcasting its analysis progress directly in the chat. We've also added an interactive <strong>Session History</strong> drawer to revisit past advisory sessions, <strong>Context-Aware Citations</strong> that let you click metrics in the chat to seamlessly highlight the corresponding dashboard panels, <strong>Quick Replies</strong> for effortless follow-ups, and a robust <strong>Markdown Export</strong> tool to download your advisory reports.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Replace AI Debate Engine with Interactive AI Financial Adviser Chat</h3>
+          <p>The Valuation & AI tab now features an interactive, real-time AI Financial Adviser chat interface, replacing the static AI Debate Committee. Engage in persistent, cross-device multi-agent conversations about stock valuations using an immersive glassmorphic chat UI with distinct agent personas. The chat component utilizes modern CSS features like <code>container-type: scroll-state</code> and <code>scroll-initial-target</code> for native auto-scrolling to the latest message, complete with a dynamic scroll-to-bottom FAB. All chats are securely saved to the database via Prisma schema updates, allowing you to seamlessly pick up advisory sessions where you left off.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix SEC 8-K guidance returning no data and redesign display</h3>
+          <p>The SEC 8-K Guidance card was showing empty filing cards and garbled text (e.g., <code>&amp;#8217;</code> instead of apostrophes). Fixed HTML entity decoding in the backend to handle numeric entities, and added filtering to exclude filings with no useful content. Redesigned the component to show key financial figures (revenue, EPS guidance) prominently at the top, display full-length forward-looking quotes without truncation, and use human-readable item labels instead of raw codes. Empty filings no longer render as blank cards.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-08">June 8, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix detailed analysis tab crashes, missing tabs, and rendering bugs</h3>
+          <p>Resolved a critical rendering crash in the Fundamentals tab where financial estimates (current year and next year) returned as objects instead of numbers, causing <code>toFixed</code> to crash. Added missing Earnings and News tabs to the stock detailed analysis dashboard. Restored five missing data hooks in the client stock data store (<code>useStockNews</code>, <code>useStockNewsSummary</code>, <code>useEarningsData</code>, <code>useEarningsSentiment</code>, and <code>useSecGuidance</code>) to fetch Yahoo Finance metrics and Gemini AI digests. Fixed the skeleton loading state to prevent early blank displays while data queries are in progress.</p>
+        </article>
+
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-07">June 7, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Migrate AI infrastructure to Google Cloud Vertex AI</h3>
+          <p>Migrated all AI services from the free Gemini AI Studio API to Google Cloud Vertex AI using Application Default Credentials (ADC). This eliminates the need for API key management and provides better authentication security. The migration affects earnings sentiment analysis, news AI summaries, AI debate engine, and SEC guidance extraction. Configuration now uses GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables instead of GEMINI_API_KEY.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-07">June 7, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Replace SEC guidance regex extraction with Gemini AI</h3>
+          <p>Replaced the brittle regex-based extraction of forward-looking statements and financial guidance from SEC 8-K filings with Gemini AI analysis. The system now sends the cleaned filing text to Gemini, which reliably identifies verbatim forward-looking quotes and specific guidance figures (e.g., "Q3 Revenue $10B", "EPS $1.50-$1.60"). If Gemini is unavailable or fails, the UI degrades gracefully with empty arrays.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-07">June 7, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix SEC 8-K guidance extraction fetching wrong document</h3>
+          <p>The SEC guidance feature was fetching the 8-K primary document (a shell form) instead of the actual press release containing guidance. It now searches the filing directory for Exhibit 99.1 and prioritizes that file. Forward-looking statement detection also now catches third-person phrasing ("the company expects") and revenue range patterns.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-07">June 7, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Redesign SEC Guidance Card UI</h3>
+          <p>The SEC 8-K Guidance card on the Earnings tab has been redesigned with a premium dark glass-morphism aesthetic. The new layout features improved typography, distinct filing cards, refined item badges, custom quote styling for forward-looking statements, and high-contrast financial figure chips, ensuring a cohesive look alongside the AI Sentiment hero card.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-07">June 7, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add SEC 8-K filing guidance to Earnings tab</h3>
+          <p>The Earnings tab now fetches and displays the most recent SEC 8-K filings, highlighting Items 2.02 (Results of Operations) and 7.01 (Regulation FD Disclosure). Forward-looking guidance statements and key financial figures are extracted automatically, giving you quick visibility into management commentary and updated outlooks directly alongside earnings data.</p>
+        </article>
+      </section>
+
         <!-- May 2026 -->
       <section class="month-group">
         <h2>May 2026</h2>
