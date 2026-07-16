@@ -53,12 +53,13 @@ export default function LoginPage() {
         <div style={styles.card}>
           {/* Logo */}
           <div style={styles.logo}>
-            <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
-              <path d="M2 14l4-4 3 3 4-5 4 2" stroke="var(--accent-green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="2" cy="14" r="1.5" fill="var(--accent-green)" />
-              <circle cx="18" cy="10" r="1.5" fill="var(--accent-green)" />
+            <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+              <polygon points="10,10 90,10 90,40 50,80 10,40" stroke="var(--accent-blue)" strokeWidth="4" fill="rgba(0,240,255,0.1)" />
+              <polygon points="10,40 50,80 90,40" fill="var(--accent-blue)" opacity="0.5" />
+              <line x1="20" y1="20" x2="80" y2="20" stroke="var(--accent-blue)" strokeWidth="4" />
+              <line x1="50" y1="20" x2="50" y2="70" stroke="var(--accent-blue)" strokeWidth="4" />
             </svg>
-            <span style={styles.logoText}>Portfolio Monitor</span>
+            <span style={styles.logoText}>DUMB_MONEY.ST</span>
           </div>
 
           <p style={styles.subtitle}>
@@ -161,17 +162,19 @@ const styles = {
     zIndex: 1,
   },
   card: {
-    background: "rgba(13, 18, 32, 0.85)",
+    background: "rgba(10, 11, 16, 0.95)",
     backdropFilter: "blur(24px)",
     WebkitBackdropFilter: "blur(24px)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "20px",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
     padding: "40px 36px",
     width: "100%",
     maxWidth: "400px",
     display: "flex",
     flexDirection: "column",
     gap: "24px",
+    boxShadow: "0 0 30px rgba(0, 240, 255, 0.1)",
+    position: "relative",
   },
   logo: {
     display: "flex",
@@ -182,16 +185,17 @@ const styles = {
   logoText: {
     color: "var(--text-primary)",
     fontFamily: "var(--font-display)",
-    fontSize: "17px",
+    fontSize: "20px",
     fontWeight: 700,
-    letterSpacing: "-0.01em",
+    letterSpacing: "0.1em",
   },
   subtitle: {
-    color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "13px",
+    color: "var(--accent-blue)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "14px",
     textAlign: "center",
     marginTop: "-8px",
+    textTransform: "uppercase",
   },
   form: {
     display: "flex",
@@ -205,46 +209,50 @@ const styles = {
   },
   label: {
     color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "12px",
+    fontFamily: "var(--font-mono)",
+    fontSize: "14px",
     fontWeight: 500,
+    textTransform: "uppercase",
   },
   input: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "10px",
-    color: "var(--text-primary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "14px",
+    background: "rgba(0, 240, 255, 0.05)",
+    border: "1px solid var(--glass-border)",
+    borderRadius: "0",
+    color: "var(--accent-blue)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "16px",
     padding: "10px 14px",
     outline: "none",
-    transition: "border-color 0.15s",
+    transition: "all 0.15s",
     width: "100%",
   },
   error: {
-    background: "var(--accent-red-dim)",
-    border: "1px solid rgba(255,77,109,0.2)",
-    borderRadius: "8px",
+    background: "rgba(255, 0, 60, 0.1)",
+    border: "1px solid var(--accent-red)",
+    borderRadius: "0",
     color: "var(--accent-red)",
-    fontFamily: "var(--font-body)",
-    fontSize: "12px",
+    fontFamily: "var(--font-mono)",
+    fontSize: "14px",
     padding: "8px 12px",
+    textTransform: "uppercase",
   },
   submitBtn: {
-    background: "var(--accent-blue)",
-    border: "none",
-    borderRadius: "10px",
-    color: "white",
+    background: "var(--glass-bg)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
+    color: "var(--accent-blue)",
     cursor: "pointer",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-display)",
     fontSize: "14px",
-    fontWeight: 500,
+    fontWeight: 700,
     padding: "11px 0",
-    transition: "opacity 0.15s",
+    transition: "all 0.15s",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: "42px",
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
   },
   submitBtnDisabled: {
     opacity: 0.6,
@@ -253,8 +261,8 @@ const styles = {
   spinner: {
     width: "18px",
     height: "18px",
-    border: "2px solid rgba(255,255,255,0.3)",
-    borderTopColor: "white",
+    border: "2px solid rgba(0, 240, 255, 0.3)",
+    borderTopColor: "var(--accent-blue)",
     borderRadius: "50%",
     animation: "spin 0.6s linear infinite",
   },
@@ -266,18 +274,20 @@ const styles = {
   },
   switchText: {
     color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "12px",
+    textTransform: "uppercase",
   },
   switchBtn: {
     background: "none",
     border: "none",
     color: "var(--accent-blue)",
     cursor: "pointer",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "12px",
-    fontWeight: 500,
+    fontWeight: 700,
     padding: 0,
     textDecoration: "underline",
+    textTransform: "uppercase",
   },
 };

@@ -1,7 +1,39 @@
 import * as yfModule from "yahoo-finance2";
 import * as cache from "./cache.js";
+import { getNextEarningsDate as getFinnhubNextEarningsDate } from "./earningsCalendar.js";
 const yahooFinance = new yfModule.default();
 let pendingFetches = {}; // deduplicate in-flight requests per ticker
+
+/**
+ * Resolve the next *upcoming* earnings date from Yahoo's `earningsDate` field.
+ *
+ * Yahoo's `calendarEvents.earnings.earningsDate` is frequently stale for some
+ * tickers — it keeps showing the last *reported* quarter even after that date
+ * has passed (e.g. FICO showing 2026-04-28 well into July). Displaying a past
+ * date as the "next earnings date" is misleading, so when the value is in the
+ * past we project forward one quarter (~91 days) at a time until it lands in
+ * the future. This assumes the typical quarterly reporting cadence.
+ *
+ * Returns an ISO string (or null when no date is available).
+ */
+function resolveNextEarningsDate(rawDate) {
+  if (!rawDate) return null;
+  const date = new Date(rawDate);
+  if (isNaN(date.getTime())) return null;
+
+  const now = Date.now();
+  // Already in the future (or today) — use as-is.
+  if (date.getTime() >= now) return date.toISOString();
+
+  // Stale/past date: step forward by one quarter until upcoming.
+  const QUARTER_MS = 91 * 24 * 60 * 60 * 1000;
+  let projected = date.getTime();
+  // Guard against pathological loops (max ~8 quarters).
+  for (let i = 0; i < 8 && projected < now; i++) {
+    projected += QUARTER_MS;
+  }
+  return new Date(projected).toISOString();
+}
 
 /**
  * Fetch summary + valuation data for a ticker.
@@ -22,13 +54,13 @@ async function getFundamentalsTimeSeries(ticker) {
       period2: new Date().toISOString(),
       type: 'quarterly',
       module: 'financials',
-    }).catch(() => []),
+    }, { validateResult: false }).catch(() => []),
     yahooFinance.fundamentalsTimeSeries(ticker, {
       period1: '2020-01-01',
       period2: new Date().toISOString(),
       type: 'quarterly',
       module: 'cash-flow',
-    }).catch(() => []),
+    }, { validateResult: false }).catch(() => []),
   ]);
 
   const data = { financials, cashflow };
@@ -37,15 +69,67 @@ async function getFundamentalsTimeSeries(ticker) {
 }
 
 async function getSummary(ticker) {
-  const cacheKey = `summary:${ticker}`;
+  const cacheKey = `summary:v2:${ticker}`;
   const cached = cache.getFundamentals(cacheKey);
-  if (cached) return cached;
+  console.error(`[DBG top ${ticker}] cached=${!!cached} ed=${cached ? cached.earningsDate : "n/a"}`);
+
+  // Helper to fetch/extract fresh price details
+  const getFreshPrice = async () => {
+    // 1. Try to get from live price cache first (5s TTL)
+    const cachedLive = cache.getLivePrice(ticker);
+    if (cachedLive) {
+      return cachedLive;
+    }
+    // 2. Fetch fresh quote from Yahoo Finance
+    const quote = await yahooFinance.quote(ticker, {}, { validateResult: false });
+    if (quote) {
+      const currentPrice = quote.postMarketPrice ?? quote.preMarketPrice ?? quote.regularMarketPrice ?? null;
+      const previousClose = quote.regularMarketPreviousClose ?? null;
+      let change = quote.regularMarketChange ?? null;
+      let changePercent = quote.regularMarketChangePercent != null ? quote.regularMarketChangePercent / 100 : null;
+
+      if (currentPrice != null && previousClose != null && previousClose > 0) {
+        change = currentPrice - previousClose;
+        changePercent = change / previousClose;
+      }
+
+      const priceData = { currentPrice, change, changePercent };
+      // Cache it in live price cache (5s TTL)
+      cache.setLivePrice(ticker, priceData);
+      return priceData;
+    }
+    return null;
+  };
+
+  if (cached) {
+    // Merge fresh price into cached fundamentals if available
+    try {
+      const freshPrice = await getFreshPrice();
+      if (freshPrice) {
+        return {
+          ...cached,
+          currentPrice: freshPrice.currentPrice,
+          change: freshPrice.change,
+          changePercent: freshPrice.changePercent,
+        };
+      }
+    } catch (err) {
+      console.error(`[getSummary] Failed to fetch fresh price for cached ticker ${ticker}:`, err.message);
+    }
+    return cached;
+  }
 
   const result = await yahooFinance.quoteSummary(ticker, {
     modules: ["price", "summaryDetail", "defaultKeyStatistics", "calendarEvents", "assetProfile"],
-  });
+  }, { validateResult: false });
 
-  const { price, summaryDetail, defaultKeyStatistics, calendarEvents, assetProfile } = result;
+  const {
+    price = {},
+    summaryDetail = {},
+    defaultKeyStatistics = {},
+    calendarEvents = {},
+    assetProfile = {}
+  } = result || {};
   const currentPrice = price.postMarketPrice ?? price.preMarketPrice ?? price.regularMarketPrice ?? null;
   const previousClose = price.regularMarketPreviousClose ?? null;
   let change = price.regularMarketChange ?? null;
@@ -55,6 +139,15 @@ async function getSummary(ticker) {
     change = currentPrice - previousClose;
     changePercent = change / previousClose;
   }
+
+  // Earnings date — prefer Finnhub's authoritative calendar; fall back to
+  // Yahoo (with quarter projection for stale past dates) when Finnhub has no
+  // entry for this ticker.
+  const finnhubDate = await getFinnhubNextEarningsDate(ticker).catch(() => null);
+  const earningsDate =
+    finnhubDate && new Date(finnhubDate).getTime() >= Date.now()
+      ? finnhubDate
+      : resolveNextEarningsDate(calendarEvents?.earnings?.earningsDate?.[0]);
 
   const data = {
     ticker: ticker.toUpperCase(),
@@ -84,8 +177,8 @@ async function getSummary(ticker) {
     volume: price.regularMarketVolume,
     avgVolume: summaryDetail.averageVolume,
 
-    // Earnings date
-    earningsDate: calendarEvents?.earnings?.earningsDate?.[0] || null,
+    // Earnings date (resolved above: Finnhub primary, Yahoo+projection fallback)
+    earningsDate,
 
     // Sector / Industry
     sector: assetProfile?.sector || null,
@@ -93,6 +186,8 @@ async function getSummary(ticker) {
   };
 
   cache.setFundamentals(cacheKey, data);
+  // Also store the price data we just fetched in the livePriceCache so it's consistent
+  cache.setLivePrice(ticker, { currentPrice, change, changePercent });
   return data;
 }
 
@@ -113,9 +208,15 @@ async function getFinancials(ticker) {
       "recommendationTrend",
       "upgradeDowngradeHistory"
     ],
-  });
+  }, { validateResult: false });
 
-  const { financialData, earningsHistory, earningsTrend, recommendationTrend, upgradeDowngradeHistory } = result;
+  const {
+    financialData = {},
+    earningsHistory = {},
+    earningsTrend = {},
+    recommendationTrend = {},
+    upgradeDowngradeHistory = {}
+  } = result || {};
 
   // Annual income statements — last 4 years using fundamentalsTimeSeries
   const periodStart = new Date();
@@ -125,7 +226,7 @@ async function getFinancials(ticker) {
     period1: periodStart.toISOString().split("T")[0],
     type: "annual",
     module: "financials",
-  }).catch(() => []);
+  }, { validateResult: false }).catch(() => []);
 
   const annualIncome = (incomeSeries || []).map((s) => ({
     date: s.date,
@@ -230,9 +331,12 @@ async function getBalanceSheet(ticker) {
 
   const result = await yahooFinance.quoteSummary(ticker, {
     modules: ["financialData", "balanceSheetHistory"],
-  });
+  }, { validateResult: false });
 
-  const { financialData, balanceSheetHistory } = result;
+  const {
+    financialData = {},
+    balanceSheetHistory = {}
+  } = result || {};
 
   // Annual balance sheets — last 4 years
   const annualBalanceSheet = (balanceSheetHistory?.balanceSheetStatements || []).map((s) => ({
@@ -260,7 +364,7 @@ async function getBalanceSheet(ticker) {
     period1: periodStart.toISOString().split("T")[0],
     type: "annual",
     module: "cash-flow",
-  });
+  }, { validateResult: false });
 
   const annualCashFlow = (cashflowSeries || [])
     .filter((s) => s.operatingCashFlow != null || s.freeCashFlow != null || s.cashFlowFromContinuingOperatingActivities != null)
@@ -306,7 +410,7 @@ async function getPriceHistory(ticker, period = "1y") {
   const chartData = await yahooFinance.chart(ticker, {
     period1: getPeriodStart(period),
     interval: period === "1mo" || period === "3mo" || period === "6mo" || period === "1y" ? "1d" : "1wk",
-  });
+  }, { validateResult: false });
 
   const result = (chartData.quotes || []).map((d) => ({
     date: d.date.toISOString().split("T")[0],
@@ -329,7 +433,7 @@ async function getOhlcv(ticker, period = "6mo") {
   const chartData = await yahooFinance.chart(ticker, {
     period1: getPeriodStart(period),
     interval: "1d",
-  });
+  }, { validateResult: false });
 
   const result = (chartData.quotes || [])
     .filter((d) =>
@@ -360,7 +464,7 @@ async function getOhlcv(ticker, period = "6mo") {
 async function getPortfolioSummaries(tickers) {
   try {
     // Phase 1: Fast batch quote for price/market data
-    const quotes = await yahooFinance.quote(tickers);
+    const quotes = await yahooFinance.quote(tickers, {}, { validateResult: false });
     const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
 
     // Phase 2: Resolve missing fields from cache or quoteSummary
@@ -375,7 +479,7 @@ async function getPortfolioSummaries(tickers) {
 
     for (const ticker of tickers) {
       const upper = ticker.toUpperCase();
-      const cacheKey = `summary:${upper}`;
+      const cacheKey = `summary:v2:${upper}`;
       const cached = cache.getFundamentals(cacheKey);
       if (cached) {
         cachedMissing.set(upper, {
@@ -396,7 +500,7 @@ async function getPortfolioSummaries(tickers) {
         uncachedTickers.map(async (ticker) => {
           const result = await yahooFinance.quoteSummary(ticker, {
             modules: ["defaultKeyStatistics", "assetProfile"],
-          });
+          }, { validateResult: false });
           return {
             ticker: ticker.toUpperCase(),
             enterpriseToEbitda: result.defaultKeyStatistics?.enterpriseToEbitda ?? null,
@@ -415,7 +519,7 @@ async function getPortfolioSummaries(tickers) {
     }
 
     // Build final results
-    return tickers.map((ticker) => {
+    return Promise.all(tickers.map(async (ticker) => {
       const upper = ticker.toUpperCase();
       const quote = quoteMap.get(upper);
       if (!quote) {
@@ -433,6 +537,12 @@ async function getPortfolioSummaries(tickers) {
         change = currentPrice - previousClose;
         changePercent = change / previousClose;
       }
+
+      const finnhubDate = await getFinnhubNextEarningsDate(upper).catch(() => null);
+      const earningsDate =
+        finnhubDate && new Date(finnhubDate).getTime() >= Date.now()
+          ? finnhubDate
+          : resolveNextEarningsDate(quote.earningsTimestamp);
 
       return {
         ticker: upper,
@@ -457,13 +567,13 @@ async function getPortfolioSummaries(tickers) {
           twoHundredDayAverage: quote.twoHundredDayAverage,
           volume: quote.regularMarketVolume,
           avgVolume: quote.averageDailyVolume3Month || quote.averageDailyVolume10Day || null,
-          earningsDate: quote.earningsTimestamp ?? null,
+          earningsDate,
           sector: missing.sector ?? null,
           industry: missing.industry ?? null,
         },
         error: null,
       };
-    });
+    }));
   } catch (err) {
     return tickers.map((ticker) => ({
       ticker: ticker.toUpperCase(),
@@ -501,7 +611,7 @@ async function refreshLivePrices(tickers) {
   unique.forEach((t) => (pendingFetches[t] = true));
 
   try {
-    const quotes = await yahooFinance.quote(unique);
+    const quotes = await yahooFinance.quote(unique, {}, { validateResult: false });
     const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
     for (const quote of quoteArray) {
       const currentPrice = quote.postMarketPrice ?? quote.preMarketPrice ?? quote.regularMarketPrice ?? null;
@@ -555,7 +665,7 @@ async function getHoldings(ticker) {
 
   const result = await yahooFinance.quoteSummary(ticker, {
     modules: ["topHoldings"],
-  });
+  }, { validateResult: false });
 
   const holdings = (result.holdings?.holdings || []).slice(0, 3).map(h => ({
     symbol: h.symbol,
@@ -575,7 +685,7 @@ async function getHoldings(ticker) {
  */
 export async function searchTickers(query, options = {}) {
   const { quotesCount = 8 } = options;
-  const results = await yahooFinance.search(query, { quotesCount });
+  const results = await yahooFinance.search(query, { quotesCount }, { validateResult: false });
   return results.quotes || [];
 }
 
@@ -596,7 +706,7 @@ async function getHistoricalDailyData(ticker) {
   const chartData = await yahooFinance.chart(ticker, {
     period1,
     interval: "1d",
-  });
+  }, { validateResult: false });
 
   const result = (chartData.quotes || [])
     .filter((d) => Number.isFinite(d.close))

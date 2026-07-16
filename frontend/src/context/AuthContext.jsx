@@ -29,26 +29,50 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const login = async (email, password) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
+    let res;
+    try {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (err) {
+      throw new Error("Connection failed. Please check if the server is running.");
+    }
+
+    let json;
+    try {
+      json = await res.json();
+    } catch (err) {
+      throw new Error("Unable to parse server response. The server may be experiencing issues.");
+    }
+
     if (!json.success) throw new Error(json.error || "Login failed");
     setUser(json.user);
     return json;
   };
 
   const register = async (email, password) => {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
+    let res;
+    try {
+      res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (err) {
+      throw new Error("Connection failed. Please check if the server is running.");
+    }
+
+    let json;
+    try {
+      json = await res.json();
+    } catch (err) {
+      throw new Error("Unable to parse server response. The server may be experiencing issues.");
+    }
+
     if (!json.success) throw new Error(json.error || "Registration failed");
     setUser(json.user);
     return json;

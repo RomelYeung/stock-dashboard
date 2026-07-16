@@ -2,12 +2,14 @@ import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStockDetail, useDCF } from "../hooks/useStockData";
 import TradingViewChart from "./TradingViewChart";
-import { formatPrice, isPositive } from "../utils/formatters";
+import { formatPrice, isPositive, formatPercent } from "../utils/formatters";
+import { useGuruReverseLookup } from "../hooks/useGuruData";
 
 
 function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, livePriceData }) {
   const { data, loading, error } = useStockDetail(ticker);
   const { data: dcfData, loading: dcfLoading } = useDCF(ticker);
+  const { data: owners } = useGuruReverseLookup(ticker);
 
   const summary = data?.summary;
   const displayPrice = livePriceData?.currentPrice ?? summary?.currentPrice;
@@ -108,7 +110,7 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
                     background: isUp ? "var(--accent-green-dim)" : "var(--accent-red-dim)",
                     alignSelf: "flex-end",
                   }}>
-                    {isUp ? "▲" : "▼"} {displayChangePercent != null ? `${(displayChangePercent * 100).toFixed(2)}%` : "—"}
+                    {isUp ? "▲" : "▼"} {displayChangePercent != null ? formatPercent(Math.abs(displayChangePercent), 2) : "—"}
                   </span>
                 </div>
               )}
@@ -136,6 +138,28 @@ function StockDetailModal({ ticker, onClose, period, setPeriod, onOpenAnalysis, 
             {data && (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", minWidth: 0 }}>
                 <TradingViewChart ticker={ticker} period={period} setPeriod={setPeriod} livePrice={livePriceData?.currentPrice} />
+                
+                {/* Guru Ownership Section */}
+                <div style={styles.guruSection}>
+                  <div style={styles.guruTitle}>GURU OWNERSHIP</div>
+                  {owners && owners.length > 0 ? (
+                    <div style={styles.guruList}>
+                      {owners.map((owner) => (
+                        <div key={owner.guruId} style={styles.guruCard}>
+                          <span style={styles.guruName}>{owner.guruName}</span>
+                          <span style={styles.guruFund}>{owner.fundName}</span>
+                          <span style={styles.guruWeight}>
+                            Weight: {owner.weight != null ? formatPercent(owner.weight, 2) : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.noGurus}>
+                      Not currently held by any tracked gurus.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -159,9 +183,9 @@ const styles = {
     padding: "24px",
   },
   modal: {
-    background: "rgba(9, 13, 23, 0.97)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "24px",
+    background: "rgba(10, 11, 16, 0.98)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
     display: "flex",
     flexDirection: "column",
     height: "calc(100vh - 48px)",
@@ -169,7 +193,7 @@ const styles = {
     maxWidth: "1200px",
     overflow: "hidden",
     width: "100%",
-    boxShadow: "0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+    boxShadow: "0 0 30px rgba(0,240,255,0.2), inset 0 0 20px rgba(0,240,255,0.05)",
   },
   header: {
     alignItems: "flex-start",
@@ -194,7 +218,8 @@ const styles = {
     lineHeight: 1,
   },
   changeBadge: {
-    borderRadius: "8px",
+    borderRadius: "0",
+    border: "1px solid currentColor",
     fontFamily: "var(--font-mono)",
     fontSize: "12px",
     padding: "4px 9px",
@@ -228,31 +253,34 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    background: "rgba(255, 255, 255, 0.03)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "12px",
+    background: "rgba(0, 240, 255, 0.05)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
     padding: "4px 12px 4px 6px",
     cursor: "pointer",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "12px",
     fontWeight: 500,
     transition: "all 0.2s ease-in-out",
     whiteSpace: "nowrap",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    boxShadow: "0 0 10px rgba(0,240,255,0.2)",
+    textTransform: "uppercase",
   },
   teaserUndervalued: {
-    borderColor: "rgba(0, 229, 160, 0.15)",
-    background: "rgba(0, 229, 160, 0.03)",
+    borderColor: "var(--accent-green)",
+    background: "rgba(57, 255, 20, 0.05)",
+    boxShadow: "0 0 10px rgba(57,255,20,0.2)",
   },
   teaserOvervalued: {
-    borderColor: "rgba(255, 73, 118, 0.15)",
-    background: "rgba(255, 73, 118, 0.03)",
+    borderColor: "var(--accent-red)",
+    background: "rgba(255, 0, 60, 0.05)",
+    boxShadow: "0 0 10px rgba(255,0,60,0.2)",
   },
   teaserDefault: {
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "var(--glass-border)",
   },
   teaserLoading: {
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "var(--glass-border)",
     opacity: 0.8,
   },
   statusBadge: {
@@ -261,16 +289,18 @@ const styles = {
     fontWeight: 800,
     letterSpacing: "0.06em",
     padding: "4px 8px",
-    borderRadius: "8px",
+    borderRadius: "0",
     textTransform: "uppercase",
+    border: "1px solid currentColor",
   },
   teaserDivider: {
     width: "1px",
     height: "12px",
-    background: "rgba(255, 255, 255, 0.12)",
+    background: "currentColor",
+    opacity: 0.3,
   },
   teaserAction: {
-    color: "var(--text-secondary)",
+    color: "var(--text-primary)",
     fontWeight: 600,
     display: "flex",
     alignItems: "center",
@@ -282,17 +312,17 @@ const styles = {
   spinnerMini: {
     width: "12px",
     height: "12px",
-    border: "1.5px solid rgba(255,255,255,0.1)",
-    borderTop: "1.5px solid var(--text-secondary)",
+    border: "1.5px solid rgba(0,240,255,0.1)",
+    borderTop: "1.5px solid var(--accent-blue)",
     borderRadius: "50%",
     animation: "spin 0.8s linear infinite",
   },
   closeBtn: {
     alignItems: "center",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "6px",
-    color: "var(--text-secondary)",
+    background: "rgba(255, 0, 60, 0.1)",
+    border: "1px solid var(--accent-red)",
+    borderRadius: "0",
+    color: "var(--accent-red)",
     cursor: "pointer",
     display: "flex",
     padding: "6px",
@@ -328,6 +358,55 @@ const styles = {
     fontSize: "13px",
     padding: "40px",
     textAlign: "center",
+  },
+  guruSection: {
+    marginTop: "24px",
+    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+    paddingTop: "24px",
+  },
+  guruTitle: {
+    fontSize: "11px",
+    fontWeight: 600,
+    color: "var(--text-secondary)",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    marginBottom: "12px",
+    fontFamily: "var(--font-display)",
+  },
+  guruList: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+    gap: "12px",
+  },
+  guruCard: {
+    background: "rgba(0, 240, 255, 0.02)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    clipPath: "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
+  },
+  guruName: {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  },
+  guruFund: {
+    fontSize: "10px",
+    color: "var(--text-secondary)",
+  },
+  guruWeight: {
+    fontSize: "11px",
+    color: "var(--accent-green)",
+    fontFamily: "var(--font-mono)",
+    marginTop: "4px",
+  },
+  noGurus: {
+    fontSize: "12px",
+    color: "var(--text-muted)",
+    fontStyle: "italic",
   },
 };
 

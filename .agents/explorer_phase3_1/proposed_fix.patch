@@ -1,0 +1,136 @@
+diff --git a/backend/routes/gurus.js b/backend/routes/gurus.js
+index 923a3cb..4a4a58f 100644
+--- a/backend/routes/gurus.js
++++ b/backend/routes/gurus.js
+@@ -132,29 +132,23 @@ router.get("/activity/ai-summary", authenticate, async (req, res) => {
+ 
+     const prompt = `Analyze the following combined recent activity feed of major investors (top 30 activities):
+ ${activitiesStr || "No activities recorded."}
+ 
+ Please generate a cohesive, concise executive AI summary (2-3 sentences) identifying major trends, clusters of buys/sells, or significant sentiment shifts across these investors.`;
+ 
+     let summaryText = "";
+-    if (process.env.NODE_ENV === "test") {
+-      summaryText = "Combined Activity AI Summary: Gurus have recently maintained stable long-term allocations with selective tech sector optimization.";
+-    } else {
+-      try {
+-        const { GoogleGenAI } = await import("@google/genai");
+-        const aiClient = new GoogleGenAI({
+-          vertexai: true,
+-          project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
+-          location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
+-        });
+-        const result = await aiClient.models.generateContent({
+-          model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+-          contents: [{ role: "user", parts: [{ text: prompt }] }],
+-        });
+-        summaryText = result.text;
+-      } catch (err) {
+-        console.error("Gemini call for activity summary failed:", err.message);
+-        throw new Error("AI service temporarily unavailable");
+-      }
+-    }
+-
+-    if (!summaryText || !summaryText.trim()) {
+-      summaryText = "Combined Activity AI Summary: Gurus have recently maintained stable long-term allocations with selective tech sector optimization.";
+-    }
++    try {
++      const { GoogleGenAI } = await import("@google/genai");
++      const aiClient = new GoogleGenAI({
++        vertexai: true,
++        project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
++        location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
++      });
++      const result = await aiClient.models.generateContent({
++        model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
++        contents: [{ role: "user", parts: [{ text: prompt }] }],
++      });
++      summaryText = result.text;
++    } catch (err) {
++      console.error("Gemini call for activity summary failed:", err.message);
++      throw new Error("AI service temporarily unavailable");
++    }
++
++    if (!summaryText || !summaryText.trim()) {
++      throw new Error("AI service temporarily unavailable");
++    }
+ 
+     activityFeedAiSummaryCache = summaryText;
+diff --git a/backend/routes/__tests__/gurus.e2e.test.js b/backend/routes/__tests__/gurus.e2e.test.js
+index b88a82d..d99a2c3 100644
+--- a/backend/routes/__tests__/gurus.e2e.test.js
++++ b/backend/routes/__tests__/gurus.e2e.test.js
+@@ -1,13 +1,21 @@
+ import { jest } from "@jest/globals";
+ import xml2js from "xml2js";
+ import { default as express } from "express";
+-const mockGenerateContent = jest.fn().mockResolvedValue({
+-  text: "Mocked AI Strategy summary text for quality leaders."
+-});
++const mockGenerateContent = jest.fn().mockImplementation((args) => {
++  const promptText = args?.contents?.[0]?.parts?.[0]?.text || "";
++  if (promptText.includes("combined recent activity feed")) {
++    return {
++      text: "Mocked Combined Activity AI Summary: Gurus have recently maintained stable long-term allocations with selective tech sector optimization."
++    };
++  }
++  return {
++    text: "Mocked AI Strategy summary text for quality leaders."
++  };
++});
+ jest.unstable_mockModule("@google/genai", () => ({
+   GoogleGenAI: jest.fn().mockImplementation(() => ({
+     models: {
+       generateContent: mockGenerateContent
+     }
+   }))
+ }));
+@@ -591,12 +599,14 @@ describe("E2E Integration & Ingestion (Backend)", () => {
+   test("Test 3.13: GET /api/gurus/activity/ai-summary caches responses and invalidates on sync", async () => {
++    mockGenerateContent.mockClear();
+     const res1 = await caller("GET", "/api/gurus/activity/ai-summary", {}, { authorization: "user-token" });
+     expect(res1.status).toBe(200);
+     expect(res1.body.cached).toBe(false);
+-    expect(res1.body.data).toContain("selective tech sector optimization");
++    expect(res1.body.data).toContain("selective tech sector optimization");
++    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+ 
+     const res2 = await caller("GET", "/api/gurus/activity/ai-summary", {}, { authorization: "user-token" });
+     expect(res2.status).toBe(200);
+     expect(res2.body.cached).toBe(true);
+ 
+     const syncRes = await caller("POST", "/api/gurus/sync", { CIK: "0001067983" }, { authorization: "admin-token" });
+     expect(syncRes.status).toBe(202);
+ 
+     await new Promise(resolve => setTimeout(resolve, 50));
+ 
+     const res3 = await caller("GET", "/api/gurus/activity/ai-summary", {}, { authorization: "user-token" });
+     expect(res3.status).toBe(200);
+     expect(res3.body.cached).toBe(false);
++    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+   });
+ });
+diff --git a/backend/services/__tests__/challenger.test.js b/backend/services/__tests__/challenger.test.js
+index e33b7ba..c22d3b4 100644
+--- a/backend/services/__tests__/challenger.test.js
++++ b/backend/services/__tests__/challenger.test.js
+@@ -55,10 +55,14 @@ describe("Challenger Phase 3 verification tests", () => {
+       // Call generateAiStrategySummary concurrently
++      mockGenerateContent.mockClear();
+       const [res1, res2] = await Promise.all([
+         generateAiStrategySummary("inv-123"),
+         generateAiStrategySummary("inv-123"),
+       ]);
+ 
+       // Both should have hit the database since no promise caching or request locking is implemented
+       expect(mockFindUnique).toHaveBeenCalledTimes(2);
+ 
+       // Verify that both results claim they generated the content (cached: false)
+       expect(res1.cached).toBe(false);
+       expect(res2.cached).toBe(false);
++      
++      expect(res1.strategyText).toBe("Mocked AI Strategy summary text for quality leaders.");
++      expect(res2.strategyText).toBe("Mocked AI Strategy summary text for quality leaders.");
++      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+     });
+   });

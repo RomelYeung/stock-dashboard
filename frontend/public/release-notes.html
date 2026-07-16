@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Release Notes — Portfolio Monitor</title>
+  <title>Release Notes — DumbMoney.ST</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -305,12 +305,42 @@
     <header>
       <div class="header-inner">
         <div class="logo">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M2 14l4-4 3 3 4-5 4 2" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <circle cx="2" cy="14" r="1.5" fill="var(--accent-green)" />
-            <circle cx="18" cy="10" r="1.5" fill="var(--accent-green)" />
+          <svg width="20" height="20" viewBox="0 0 100 100" fill="none">
+            <!-- Grid backdrop -->
+            <path d="M 15 80 H 85" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" opacity="0.3" />
+            <path d="M 20 15 V 85" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" opacity="0.3" />
+            
+            <path d="M 35 20 V 80 M 50 20 V 80 M 65 20 V 80 M 80 20 V 80" stroke="var(--text-muted)" stroke-width="0.75" stroke-linecap="round" opacity="0.15" />
+            <path d="M 20 65 H 80 M 20 50 H 80 M 20 35 H 80 M 20 20 H 80" stroke="var(--text-muted)" stroke-width="0.75" stroke-linecap="round" opacity="0.15" />
+            
+            <!-- Letter D -->
+            <path d="M 20 32 H 36 C 45 32 46 42 46 56 C 46 70 45 80 36 80 H 20" stroke="var(--text-primary)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+            
+            <!-- Letter M -->
+            <path d="M 52 80 V 48 L 68 64 L 84 48 V 80" stroke="var(--text-primary)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+            
+            <!-- Bars -->
+            <rect x="27" y="60" width="6" height="20" rx="1" fill="var(--accent-blue-dim)" stroke="var(--accent-blue)" stroke-width="1" opacity="0.4" />
+            <rect x="47" y="48" width="6" height="32" rx="1" fill="var(--accent-blue-dim)" stroke="var(--accent-blue)" stroke-width="1" opacity="0.4" />
+            <rect x="67" y="36" width="6" height="44" rx="1" fill="var(--accent-blue-dim)" stroke="var(--accent-blue)" stroke-width="1" opacity="0.4" />
+            
+            <!-- Trendline -->
+            <path d="M 30 60 L 50 48 L 70 36 L 85 20" stroke="var(--accent-green)" stroke-width="2.5" stroke-linecap="round" />
+            
+            <!-- Trendline points -->
+            <circle cx="30" cy="60" r="2.5" fill="var(--accent-green)" />
+            <circle cx="50" cy="48" r="2.5" fill="var(--accent-green)" />
+            <circle cx="70" cy="36" r="2.5" fill="var(--accent-green)" />
+            <circle cx="85" cy="20" r="2.5" fill="var(--accent-green)" />
+            
+            <!-- Arrow head -->
+            <path d="M 77 20 H 85 V 28" stroke="var(--accent-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            
+            <!-- Moon Dot -->
+            <circle cx="93" cy="80" r="3.5" fill="var(--text-secondary)" opacity="0.3" />
+            <circle cx="93" cy="80" r="3.5" stroke="var(--text-secondary)" stroke-width="1" fill="none" />
           </svg>
-          <span class="logo-text">Portfolio Monitor</span>
+          <span class="logo-text">DumbMoney.ST</span>
         </div>
         <a href="/" class="back-link">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -324,12 +354,401 @@
     <main>
       <div>
         <h1 class="page-title">Release Notes</h1>
-        <p class="page-subtitle">A running log of updates, fixes, and improvements to Portfolio Monitor.</p>
+        <p class="page-subtitle">A running log of updates, fixes, and improvements to DumbMoney.ST.</p>
       </div>
 
-      <!-- June 2026 -->
+      <section class="month-group">
+        <h2>July 2026</h2>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-16">July 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix missing guru holdings on portfolio pages</h3>
+          <p>Event-driven 13D/13G filings (activist or passive single-stock disclosures) were being treated as full quarterly portfolio snapshots, which hid the rest of the guru's 13F-HR holdings. Portfolio pages now correctly separate event-driven filings from quarterly snapshots, so all of a guru's reported positions are displayed regardless of recent 13D/13G activity.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-12">July 12, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix 13F filing parser to correctly extract share counts from all SEC XML formats</h3>
+          <p>The SEC 13F XML parser now correctly extracts share quantities from both the standard <code>sshPrnamt</code> element and the legacy <code>sshLevel</code> variant. This ensures accurate share volume extraction from all SEC filing formats, preventing holdings from being parsed as zero shares.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-12">July 12, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix missing company names in Guru Portfolio Holdings table</h3>
+          <p>The Guru Portfolio Holdings table now displays the correct company name for each position instead of showing a dash. Company names are now stored directly on each holding record, populated from the SEC filing issuer name during sync, and backfilled from the CUSIP mapping table for all existing holdings. The Company Name column sort also correctly respects this data.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-11">July 11, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Guru Portfolio share volume parsing, option type aggregation, and re-sync historical data</h3>
+          <p>Corrected SEC 13F-HR filing parsing so that share volume is extracted accurately (previously parsed as 0, breaking quarter-over-quarter calculations). Added composite key aggregation to correctly display individual Option Types (Calls/Puts) with their independent QoQ changes instead of them overwriting each other. Created a re-sync script and re-synced all gurus to backfill the database with the corrected data, restoring accurate historical holdings.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-11">July 11, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix QoQ change display and option type case sensitivity in Guru Tracker</h3>
+          <p>The Guru Tracker holdings table now shows actual quarter-over-quarter percentage changes (e.g. "+12.3%", "−5.0%", "0%") instead of generic categorical labels like "Increased" or "Decreased". New positions still show "New", closed positions show "Closed", and unchanged positions display "0%". Additionally, the Option Type column now correctly renders put/call badges regardless of the casing sent by the backend, displaying them consistently as uppercase labels.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Improve historical IV ingestion reliability and ticker coverage</h3>
+          <p>Shifted the daily options implied volatility (IV) cron schedule to 5:00 PM Eastern Time (adjusting automatically for DST) and added a startup catch-up check. The backend now verifies if the current weekday's IV data has been recorded when booting, ensuring data completeness on local development environments where the server may be powered off at night. Additionally, the ingestion now dynamically tracks all tickers in your portfolio and wishlist alongside the default watch list.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix ES module hoisting issue for Finnhub API key in earnings calendar</h3>
+          <p>Updated the earnings calendar service to retrieve the Finnhub API key dynamically at runtime. This avoids ES module hoisting issues where static imports are evaluated before the environment variables are loaded via dotenv on server startup.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix earnings dates and cache lookup on portfolio stock cards</h3>
+          <p>Portfolio stock cards now correctly resolve and display upcoming earnings dates using the authoritative Finnhub calendar and Yahoo projection fallback. This aligns portfolio summaries with individual stock detail views and fixes a cache key mismatch that was causing duplicate backend queries.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add Finnhub earnings calendar as the authoritative next-earnings-date source</h3>
+          <p>The dashboard now pulls upcoming earnings dates from Finnhub's earnings calendar (configured via <code>FINNHUB_API_KEY</code>), which is scanned in weekly windows and cached daily. This provides accurate, future-dated earnings dates for covered tickers. Yahoo Finance remains the fallback, with the previous quarter-projection safety net for any ticker Finnhub does not list.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix stale past earnings dates shown as the next earnings date</h3>
+          <p>Some tickers (e.g. FICO) received a past earnings date from Yahoo Finance that was never updated to the upcoming quarter, causing the dashboard to display an already-passed date as the "next earnings date." The earnings date resolver now projects forward one quarter when Yahoo's value is in the past, so the next upcoming report is shown instead. Future and missing dates are unaffected.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-10">July 10, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Make login and registration robust against network and server failures</h3>
+          <p>Improved error handling during login and registration to handle server downtime, network connectivity issues, and unexpected non-JSON (HTML or text) error responses gracefully. Instead of encountering generic JSON parsing errors, users are now presented with helpful and actionable instructions when the backend server is unreachable or encountering problems.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-07">July 7, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Complete UI/UX Overhaul: "Maximalist Cyberpunk" Redesign</h3>
+          <p>The entire Stock Dashboard has been redesigned with a striking, maximalist "Cyber Brutalism" and "Sci-Fi HUD" aesthetic. Key updates include a stark black background (replacing the ambient orbs), sharp neon accents (green, cyan, red, amber) with CRT scanline overlays, technical typography (Syncopate, VT323, Chakra Petch), and the complete elimination of rounded corners. All components, including the navigation, stock cards, and AI chat, have been updated to reflect this bold new visual identity.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-06">July 6, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Optimize Gemini AI integration and enhance error handling</h3>
+          <p>Updated the default fallback model to Gemini 2.5 Flash to avoid quota limits, cleaned up legacy Vertex AI references, added strict API key validation, and introduced defensive checks for deep research status tracking.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-06">July 6, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Adjust historical filing retention limit to 8 quarters</h3>
+          <p>Adjusted the institutional investor filing history pruning logic to retain the 8 most recent quarters of filings, ensuring optimal performance and consistency across the Guru Tracker.</p>
+        </article>
+      </section>
+
       <section class="month-group">
         <h2>June 2026</h2>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-28">June 28, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Redesign Schwab authorization alert as a floating pill and refine expiry threshold</h3>
+          <p>Redesigned the Schwab authorization alert from a full-width top banner to a sleek, minimalistic floating pill at the bottom-left of the screen, matching the dark glass-morphism aesthetic. Also refined the expiry warning threshold to trigger only when the refresh token is within 12 hours of expiring (instead of 1 day), ensuring the alert only shows when truly necessary.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-28">June 28, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Refine drawer navigation footer styles and remove unused header styles</h3>
+          <p>Polished the slide-out drawer navigation by adding missing styles for the user profile section and logout button, ensuring they align perfectly with the dark glass-morphism aesthetic. Also removed obsolete header styles to keep the codebase clean and maintainable.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-28">June 28, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Redesign portfolio dashboard with drawer navigation and collapsible sticky banners</h3>
+          <p>Overhauled the main portfolio dashboard interface to feature a cleaner, more minimalistic aesthetic. The inline page navigation buttons have been moved into a sleek, slide-out drawer accessible via a hamburger menu. Additionally, the Watch List and Wish List management inputs (search and ticker pills) are now seamlessly integrated into their respective sticky headers, which can be expanded or collapsed to save screen real estate while maintaining their sticky behavior during scroll.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-27">June 27, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix watchlist and wishlist card consistency and past earnings display</h3>
+          <p>Updated the Wish List cards to use the same primary styling as Watch List cards, ensuring consistent sizes, padding, and visibility of the 52-week range bar across both lists. Additionally, fixed a bug where past earnings dates were incorrectly formatted as negative future days (e.g. "Earnings in -53 days"). Past earnings now display cleanly as their historical date (e.g. "Earnings Jan 12").</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-23">June 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix AAII Sentiment chart period filtering</h3>
+          <p>Resolved an issue where the AAII Sentiment (Bull-Bear Spread) chart showed all historical data points since 1987 (over 2,000 weekly readings), compressing the chart line and obscuring the latest data points. Added period-based filtering (e.g., 5y, 1y) to match other macroeconomic indicators and ensure recent sentiment readings are clearly visible.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-23">June 23, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Remove non-functional header Refresh button</h3>
+          <p>Removed the "Refresh" button from the main header. The button only triggered a refetch of portfolio data and did not refresh the rest of the application (e.g. Guru Tracker, Market Indicators), leading to user confusion.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-23">June 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Guru Tracker filing pagination and data cutoffs</h3>
+          <p>Resolved an issue where institutional investor filing data cut off around February 2024. Enabled handling of the SEC EDGAR API's paginated filing history files so that older 13F-HR filings are not missed. Also increased the local processing and historical retention limits from 8 quarters to 20 quarters (~5 years), ensuring a much richer and more complete historical view of guru holdings.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-22">June 22, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix duplicate guru cards on stock Guru Ownership tab</h3>
+          <p>The Guru Ownership tab on individual stock pages was showing a separate card for every historical quarterly filing instead of one card per guru. Now only the most recent quarter's holding is displayed for each institutional investor, eliminating visual clutter.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-21">June 21, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Guru Tracker naming inconsistency and CIK mappings</h3>
+          <p>Corrected mismatched SEC CIK mappings for curated institutional investors (Ray Dalio, Howard Marks, Stanley Druckenmiller, Li Lu, Terry Smith, and Chase Coleman) to ensure accurate holdings data ingestion. Standardized card rendering to consistently display human guru names as titles and their respective investment firms as subtitles.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix AI strategy cache invalidation</h3>
+          <p>Implemented automatic cache invalidation for guru AI strategies. When an investor's data is synchronized, the corresponding AI strategy cache is cleared in the backend and refetched in the frontend, ensuring the latest holdings are analyzed.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix AI Activity Summary and API error handling</h3>
+          <p>Removed hardcoded test summary fallback and ensured that combined activity feed AI summaries unconditionally fetch live generation results from Google Vertex AI. Standardized 503 status code responses on AI generation failure to ensure robustness.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add AI strategy summaries, tabbed layout, and Combined Activity AI summaries for Guru Tracker</h3>
+          <p>Delivered the full Phase 1-3 of the Guru Tracker system. Added a genuine Gemini Vertex AI strategy analysis pipeline for institutional portfolios with token-limited holdings truncation and query caching, a combined activity feed AI summary endpoint with sync-based invalidation, and custom React Query hooks. Refactored the investor detail layout into dynamic horizontal tabs (Holdings, History &amp; Timeline, Overlap Analysis, AI Strategy) with lazy query activation and guest upgrade walls, and rendered a premium AI summary card on the Combined Activity Feed tab.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Guru Tracker watchlist integration and selected guru state</h3>
+          <p>Resolved runtime errors on the Guru Tracker tab by wiring the correct selected investor state handler and mapping the watchlist removal callback to the detailed investor profile view. Threaded the user's active portfolio items through to show accurate ownership and watchlist status badges on guru stock holdings.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add frontend components, analytics, and hooks for Guru Tracker</h3>
+          <p>Introduced the Guru Tracker dashboard tab with a combined transaction activity feed, curated investor grid, and a smart search incorporating reverse stock holdings lookup. Includes a detailed investor view with Herfindahl-Hirschman Index (HHI) concentration scores, dynamic sector allocation pie charts, interactive holdings tables with option-type identifiers, a portfolio overlap heatmap matrix, a position timeline graph spanning 8 quarters, and tiered premium access controls for guest users.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Implement base views and routing for Guru Tracker</h3>
+          <p>Wired up the frontend routing and page state for the Guru Tracker. Added navigation toggles to the main header, created the activity feed with transaction type filter chips, designed the interactive investor grid and profile views with sector allocation pie charts, interactive holdings table with sortable columns, user-specific indicator badges (Owned, Watched, Wishlisted), wishlist limit controls with toast alerts, and integrated guru ownership metrics directly into the stock detail modal and analysis page tabs.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-20">June 20, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add legendary investor tracking (Guru Tracker)</h3>
+          <p>Implemented the backend ingestion pipeline and APIs for tracking legendary institutional investor holdings (SEC 13F and 13D/13G filings). The system fetches recent filings, parses XML and text filings, maps CUSIP identifiers to tickers using multi-tier resolution, and computes portfolio weights, conviction scores, and quarter-over-quarter holdings changes.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-19">June 19, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Redesign dashboard logo and update brand identity to DumbMoney.ST</h3>
+          <p>Replaced the generic line-chart icon and branding with a new custom, chart-integrated 'DM' logo. The new design merges the letters D and M with dynamic coordinate grids, upward-trending data points, and a subtle celestial dot accent, aligning the dashboard with the DumbMoney.ST branding.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-19">June 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix "Value is null" chart crash and align timescale zooming</h3>
+          <p>Resolved a rendering crash (displaying "Something went wrong. Value is null") and synced timescale panning/zooming for thin-history stocks (like CBRS and SPCX) in the detailed analysis page. The crash occurred when attempting to sync with an empty RSI chart panel (due to the stock having fewer than 15 trading days of price history). Transitioned all range synchronization to use logical ranges rather than time ranges to ensure perfect alignment of candles and volume bars, added synchronization guards to prevent feedback loops, and corrected the crosshair tracking API calls.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-16">June 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix search and data load failures for new stocks and ETFs</h3>
+          <p>Resolved issues where searching, adding, or viewing certain stocks and ETFs (such as SPCE and SPCX) would fail with schema validation errors. We disabled strict schema validation across all Yahoo Finance data queries (search, quotes, financials, and charts) to prevent crashes when encountering unexpected formats, missing fields, or auxiliary non-Yahoo metadata, ensuring all symbols load successfully.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-16">June 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix "Value is null" crash on Monte Carlo chart for wish list stocks</h3>
+          <p>Resolved a crash when opening the full analysis page for stocks like CBRS. The Monte Carlo histogram shifting code referenced a non-existent <code>bucket</code> property instead of the correct <code>bin</code> key returned by the backend, causing NaN values that triggered a rendering error.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-16">June 16, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix crash when opening stock detailed analysis page</h3>
+          <p>Resolved a critical rendering crash on the Valuation &amp; AI tab of the stock analysis page (occurring for stocks like TSLA). The crash was caused by the backend stationarity and SVI volatility calculations encountering null close prices in Yahoo Finance's price history (e.g. for incomplete current-day records), which resulted in invalid calculations and NaN parameters. The backend now safely filters out null and non-numeric values from the price history. Additionally, the frontend was updated to format the SVI parameters and stationarity scores with robust fallback values to prevent any unexpected formatting crashes.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-15">June 15, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix stock price inconsistency across cards and modals</h3>
+          <p>Resolved an issue where stock prices displayed in the detailed stock analysis page and stock details modal were inconsistent with the prices shown on the watch list and wish list cards. The backend yahoofinance service was modified to dynamically fetch fresh price quotes instead of serving them from the 7-day fundamentals cache. The React Query stale time in the frontend was adjusted to 30 seconds for overview and detail price data, ensuring real-time consistency. Furthermore, Schwab's live percent change formatting was corrected to show accurate percentages rather than values multiplied by 100.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-14">June 14, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Vertex AI Deep Research API Key conflict, Report Truncation, & Add active background indicator</h3>
+          <p>Resolved an authentication failure where the presence of global environment API keys (GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY) was causing the Vertex AI client to reject requests to the Interactions API with a 401 error. The SDK now correctly falls back to Application Default Credentials (ADC) by temporarily excluding API keys during client initialization. Also resolved a report truncation issue where the generated research reports were being cut off and returned incomplete by reconstructing the full markdown report from all model output steps in the interaction history. Lastly, added an iPhone Siri-style animated spinning progress glow to the chat toggle FAB to visually indicate that a Deep Research task is actively running in the background when the chat window is closed.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Deep Research polling, field path mismatches, and unmount leaks</h3>
+          <p>Fixed critical bugs in the Deep Research feature where the frontend was checking the wrong field paths for responses (`data.interactionId` instead of `data.data.interactionId`, and `statusData.status` instead of `statusData.data.status`), causing the feature to never detect completion. The polling interval is now properly cleaned up on component unmount to prevent memory leaks and state-update-on-unmounted-component errors. Added guards against concurrent Deep Research requests, disabled the menu item and chat input while research is in progress, and added response status checks in the streaming chat to handle non-2xx HTTP responses gracefully.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Deep Research to AI Financial Adviser Chat</h3>
+          <p>Added a minimalistic "+" button to the AI Financial Adviser chat input, allowing you to trigger a comprehensive Deep Research investigation. The system polls the backend for the research status and appends a highly structured, data-driven fundamental analysis report directly into your chat session once completed.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Gemini Deep Research backend API</h3>
+          <p>Added a new backend API for initiating and polling Gemini Deep Research tasks. This enables long-running, comprehensive research reports on any ticker, powered by Google's Deep Research agent. The API supports starting a background research job and polling for results, making it suitable for deep-dive analysis that takes several minutes to complete.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add multi-directional resizing to AI Financial Adviser chat</h3>
+          <p>The floating AI Financial Adviser chat window can now be resized from all edges and corners. The default bottom-right resize handle has been replaced with custom, visually unobtrusive handles that allow you to smoothly adjust the window's width and height in any direction while maintaining its position.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Persist AI Financial Adviser chat window size</h3>
+          <p>The floating AI Financial Adviser chat window now remembers its dimensions when resized. Your preferred width and height are saved locally and will be automatically restored the next time you open the chat, providing a more consistent and personalized experience across sessions.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix AI Financial Adviser chat window text selection and unmounting errors</h3>
+          <p>Resolved an issue where text selection inside the floating AI Financial Adviser chat window would inadvertently drag the window. The chat window now correctly restricts dragging to the header handle. Additionally, fixed memory leaks and state update errors that occurred when closing the chat window while the AI was still streaming its response.</p>
+        </article>
+
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add floating AI Financial Adviser chat window</h3>
+          <p>Extracted the AI Financial Adviser chat from the Valuation & AI tab into a persistent, floating, and draggable window. The chat now remains accessible across all analysis tabs, allowing you to consult with the AI advisory team while exploring different sections of the stock analysis page. The new window features smooth opening/closing animations and a modern floating action button.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-13">June 13, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Invalidate indicators cache on margin debt update</h3>
+          <p>Fixed an issue where manually updating FINRA margin debt from the Admin Dashboard did not immediately refresh the FINRA Margin Debt chart. The application now automatically invalidates the query cache for market indicators, forcing the page to retrieve and render the newly updated data immediately without requiring a manual browser reload.</p>
+        </article>
+
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-06-11">June 11, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix Schwab authorization callback server port configuration</h3>
+          <p>Resolved an issue where completing the Schwab OAuth flow redirected to a port mismatch (e.g. 3003 instead of the hardcoded 3000), resulting in a "This site can't be reached" error. The callback server now dynamically reads and binds to the port and host specified in your configured callback URL environment variable, ensuring seamless token acquisition.</p>
+        </article>
 
         <article class="release-entry">
           <div class="entry-meta">

@@ -94,38 +94,72 @@ function parseExcel(filePath) {
   return history;
 }
 
-export async function getAAIISentiment() {
-  const cacheKey = 'aaii_sentiment';
-  const cached = aaiiCache.get(cacheKey);
-  if (cached) return cached;
+export function filterHistoryByPeriod(history, period = '5y') {
+  const now = new Date();
+  let startDate = new Date();
+  
+  if (period === '1m') {
+    startDate.setMonth(now.getMonth() - 1);
+  } else if (period === '3m') {
+    startDate.setMonth(now.getMonth() - 3);
+  } else if (period === '6m') {
+    startDate.setMonth(now.getMonth() - 6);
+  } else if (period === '1y') {
+    startDate.setFullYear(now.getFullYear() - 1);
+  } else if (period === '2y') {
+    startDate.setFullYear(now.getFullYear() - 2);
+  } else if (period === '5y') {
+    startDate.setFullYear(now.getFullYear() - 5);
+  } else if (period === 'ytd') {
+    startDate = new Date(now.getFullYear(), 0, 1);
+  } else {
+    startDate.setFullYear(now.getFullYear() - 5);
+  }
+  
+  const startStr = startDate.toISOString().split('T')[0];
+  return history.filter(item => item.date >= startStr);
+}
 
-  let history;
-  try {
-    // Attempt to download the latest file
-    await downloadExcel();
-    history = parseExcel(FILE_PATH);
-  } catch (error) {
-    console.error('Error fetching/parsing AAII excel, falling back to cached file if exists:', error);
-    // If blocked by WAF or offline, parse the last successful downloaded file
-    if (fs.existsSync(FILE_PATH)) {
-      try {
-        history = parseExcel(FILE_PATH);
-      } catch (e) {
-        throw new Error(e.message);
+export async function getAAIISentiment(period = '5y') {
+  const cacheKey = 'aaii_sentiment';
+  let data = aaiiCache.get(cacheKey);
+  
+  if (!data) {
+    let history;
+    try {
+      // Attempt to download the latest file
+      await downloadExcel();
+      history = parseExcel(FILE_PATH);
+    } catch (error) {
+      console.error('Error fetching/parsing AAII excel, falling back to cached file if exists:', error);
+      // If blocked by WAF or offline, parse the last successful downloaded file
+      if (fs.existsSync(FILE_PATH)) {
+        try {
+          history = parseExcel(FILE_PATH);
+        } catch (e) {
+          throw new Error(e.message);
+        }
+      } else {
+        throw error;
       }
-    } else {
-      throw error;
     }
+
+    const latest = history[history.length - 1];
+    data = {
+      currentValue: latest.spread,
+      currentBullish: latest.bullish,
+      currentBearish: latest.bearish,
+      history: history
+    };
+    
+    aaiiCache.set(cacheKey, data);
   }
 
-  const latest = history[history.length - 1];
-  const result = {
-    currentValue: latest.spread,
-    currentBullish: latest.bullish,
-    currentBearish: latest.bearish,
-    history: history
+  // Filter history based on requested period
+  const filteredHistory = filterHistoryByPeriod(data.history, period);
+
+  return {
+    ...data,
+    history: filteredHistory
   };
-  
-  aaiiCache.set(cacheKey, result);
-  return result;
 }

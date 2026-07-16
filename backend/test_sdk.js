@@ -3,8 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const ai = new GoogleGenAI({
-  vertexai: true,
-  project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
+  apiKey: process.env.GEMINI_API_KEY,
   location: 'global',
   // Try overriding baseUrl if that exists
   // httpOptions: { baseUrl: "https://aiplatform.googleapis.com" }

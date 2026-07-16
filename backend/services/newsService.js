@@ -1,20 +1,8 @@
 import * as yfModule from "yahoo-finance2";
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from "./aiClient.js";
 import * as cache from "./cache.js";
 
 const yahooFinance = new yfModule.default();
-
-let aiInstance = null;
-function getAiClient() {
-  if (!aiInstance) {
-    aiInstance = new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
-    });
-  }
-  return aiInstance;
-}
 
 /**
  * Fetch recent news articles for a ticker from Yahoo Finance.
@@ -58,7 +46,7 @@ export async function getNewsAISummary(ticker, articles) {
 
   const fallback = {
     sentiment: "Neutral",
-    summary: "AI summary unavailable — Vertex AI authentication failed.",
+    summary: "AI summary unavailable — Gemini API call failed.",
     articles: articles.map((a) => ({
       ...a,
       sentiment: "Neutral",
@@ -90,7 +78,7 @@ The articles array must have exactly ${topArticles.length} entries, one per arti
 
   try {
     const response = await getAiClient().models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: prompt
     });
     let text = response.text;

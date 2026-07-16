@@ -69,7 +69,6 @@ async function exchangeCodeForToken(code, verifier) {
     code,
     code_verifier: verifier,
     redirect_uri: CALLBACK_URL,
-    client_id: CLIENT_ID,
   });
 
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
@@ -90,6 +89,7 @@ async function exchangeCodeForToken(code, verifier) {
 
   const data = await res.json();
   data.obtained_at = Date.now();
+  data.refresh_obtained_at = Date.now();
   return data;
 }
 
@@ -109,7 +109,6 @@ async function refreshAccessToken() {
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: tokens.refresh_token,
-    client_id: CLIENT_ID,
   });
 
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
@@ -134,6 +133,12 @@ async function refreshAccessToken() {
   // Preserve the original refresh_token if the response doesn't include a new one
   if (!data.refresh_token) {
     data.refresh_token = tokens.refresh_token;
+  }
+
+  if (data.refresh_token && data.refresh_token !== tokens.refresh_token) {
+    data.refresh_obtained_at = Date.now();
+  } else {
+    data.refresh_obtained_at = tokens.refresh_obtained_at || tokens.obtained_at || Date.now();
   }
 
   saveTokens(data);
@@ -196,24 +201,58 @@ async function getValidAccessToken() {
 
 // ─── Token Health ────────────────────────────────────────────────────────
 
+/** Timestamp of the last failed refresh attempt, to avoid hammering Schwab's API. */
+let lastRefreshFailureTime = 0;
+const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Get token health status.
- * @returns {{ status: string, accessTokenExpired: boolean, refreshTokenAgeDays: number }}
+ * Get token health status. When the access token is expired, this attempts
+ * a refresh to detect credential errors (e.g. invalid_client) early.
+ * @returns {Promise<{ status: string, accessTokenExpired: boolean, refreshTokenAgeDays: number, error?: string }>}
  */
-function getTokenHealth() {
+async function getTokenHealth() {
   const tokens = loadTokens();
+  if (!tokens.refresh_token) {
+    return { status: "expired", accessTokenExpired: true, refreshTokenAgeDays: Infinity };
+  }
+
   const accessTokenExpired = isAccessTokenExpired(tokens);
   const refreshTokenAgeDays = getRefreshTokenAgeDays(tokens);
   const refreshExpired = refreshTokenAgeDays > REFRESH_TOKEN_DAYS_MAX;
 
+  // Expiring soon if the refresh token is within 12 hours of expiring (i.e. age > 6.5 days)
+  const isExpiringSoon = refreshTokenAgeDays > (REFRESH_TOKEN_DAYS_MAX - 0.5);
+
   let status = "healthy";
-  if (accessTokenExpired && refreshExpired) {
+  let error;
+
+  if (refreshExpired) {
     status = "expired";
-  } else if (accessTokenExpired) {
+  } else if (isExpiringSoon) {
     status = "expiring";
+  } else if (accessTokenExpired) {
+    // Access token is expired but refresh token should still be valid.
+    // If we recently failed a refresh, don't retry yet (cooldown).
+    const inCooldown = (Date.now() - lastRefreshFailureTime) < REFRESH_COOLDOWN_MS;
+    if (!inCooldown) {
+      try {
+        await refreshAccessToken();
+        status = "healthy";
+      } catch (err) {
+        // Refresh failed — credentials may be revoked or invalid.
+        // Mark as expired so the UI shows the auth banner.
+        status = "expired";
+        error = err.message;
+        lastRefreshFailureTime = Date.now();
+      }
+    } else {
+      // In cooldown — report expired without retrying
+      status = "expired";
+      error = "Refresh temporarily disabled due to recent failure (cooldown)";
+    }
   }
 
-  return { status, accessTokenExpired, refreshTokenAgeDays };
+  return { status, accessTokenExpired, refreshTokenAgeDays, error };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -229,8 +268,9 @@ function isRefreshTokenExpired(tokens) {
 }
 
 function getRefreshTokenAgeDays(tokens) {
-  if (!tokens.obtained_at) return Infinity;
-  return (Date.now() - tokens.obtained_at) / (1000 * 60 * 60 * 24);
+  const obtained = tokens.refresh_obtained_at || tokens.obtained_at;
+  if (!obtained) return Infinity;
+  return (Date.now() - obtained) / (1000 * 60 * 60 * 24);
 }
 
 // ─── Exports ─────────────────────────────────────────────────────────────
@@ -245,4 +285,5 @@ export {
   getValidAccessToken,
   getTokenHealth,
   isRefreshTokenExpired,
+  CALLBACK_URL,
 };

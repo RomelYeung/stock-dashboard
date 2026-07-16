@@ -283,40 +283,70 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
       });
     }
 
-    rsiChart.timeScale().fitContent();
+    if (rsiSeries) {
+      rsiChart.timeScale().fitContent();
+    }
 
-    // ─── Sync visible ranges ───
-    priceChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-      if (!range) return;
-      volumeChart.timeScale().setVisibleRange(range);
-      rsiChart.timeScale().setVisibleRange(range);
-    });
-    volumeChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-      if (!range) return;
-      priceChart.timeScale().setVisibleRange(range);
-      rsiChart.timeScale().setVisibleRange(range);
-    });
-    rsiChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-      if (!range) return;
-      priceChart.timeScale().setVisibleRange(range);
-      volumeChart.timeScale().setVisibleRange(range);
+    // ─── Sync visible ranges using logical ranges to prevent feedback loops and ensure pixel-perfect alignment ───
+    let isSyncing = false;
+
+    priceChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (isSyncing || !range) return;
+      isSyncing = true;
+      volumeChart.timeScale().setVisibleLogicalRange(range);
+      if (rsiSeries) {
+        rsiChart.timeScale().setVisibleLogicalRange(range);
+      }
+      isSyncing = false;
     });
 
-    const visibleRange = priceChart.timeScale().getVisibleRange();
+    volumeChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (isSyncing || !range) return;
+      isSyncing = true;
+      priceChart.timeScale().setVisibleLogicalRange(range);
+      if (rsiSeries) {
+        rsiChart.timeScale().setVisibleLogicalRange(range);
+      }
+      isSyncing = false;
+    });
+
+    if (rsiSeries) {
+      rsiChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (isSyncing || !range) return;
+        isSyncing = true;
+        priceChart.timeScale().setVisibleLogicalRange(range);
+        volumeChart.timeScale().setVisibleLogicalRange(range);
+        isSyncing = false;
+      });
+    }
+
+    const visibleRange = priceChart.timeScale().getVisibleLogicalRange();
     if (visibleRange) {
-      volumeChart.timeScale().setVisibleRange(visibleRange);
-      rsiChart.timeScale().setVisibleRange(visibleRange);
+      isSyncing = true;
+      volumeChart.timeScale().setVisibleLogicalRange(visibleRange);
+      if (rsiSeries) {
+        rsiChart.timeScale().setVisibleLogicalRange(visibleRange);
+      }
+      isSyncing = false;
     }
 
     // ─── Sync crosshairs & Update HUD ───
     priceChart.subscribeCrosshairMove((param) => {
       const point = param.point;
-      if (!point) {
+      if (!point || !param.time) {
         volumeChart.clearCrosshairPosition();
-        rsiChart.clearCrosshairPosition();
+        if (rsiSeries) {
+          rsiChart.clearCrosshairPosition();
+        }
       } else {
-        volumeChart.setCrosshairPosition(point.x, point.y, true);
-        rsiChart.setCrosshairPosition(point.x, point.y, true);
+        const bar = formattedData.find((d) => d.time === param.time);
+        const volVal = bar ? bar.volume : 0;
+        volumeChart.setCrosshairPosition(volVal, param.time, volumeSeries);
+        if (rsiSeries) {
+          const rsiBar = rsiData.find((d) => d.time === param.time);
+          const rsiVal = rsiBar ? rsiBar.value : 50;
+          rsiChart.setCrosshairPosition(rsiVal, param.time, rsiSeries);
+        }
       }
 
       if (!param.time || !point) {

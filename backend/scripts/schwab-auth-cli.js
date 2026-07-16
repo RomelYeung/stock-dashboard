@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { startAuthFlow } from "../services/schwab-callback-server.js";
+import { CALLBACK_URL } from "../services/schwab-auth.js";
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ async function main() {
   console.log("The callback server will automatically capture the authorization code.");
   console.log("If the browser shows a privacy warning for the self-signed cert, proceed anyway.\n");
 
-  console.log("[3/4] Starting callback server on https://127.0.0.1:3000 ...\n");
+  console.log(`[3/4] Starting callback server on ${CALLBACK_URL} ...\n`);
 
   // Step 4: Wait for callback — exchange and save are handled internally
   const tokens = await promise;

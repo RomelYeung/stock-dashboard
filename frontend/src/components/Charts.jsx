@@ -261,8 +261,9 @@ export function PriceChart({ data, ticker }) {
       autoScale: true,
     });
 
+    let rsiLine = null;
     if (rsiData.length) {
-      const rsiLine = rsiChart.addSeries(LineSeries, {
+      rsiLine = rsiChart.addSeries(LineSeries, {
         color: "#4f8dff",
         lineWidth: 1.5,
       });
@@ -296,26 +297,47 @@ export function PriceChart({ data, ticker }) {
         scaleMargins: { top: 0.05, bottom: 0.05 },
       });
     }
-    rsiChart.timeScale().fitContent();
+    if (rsiLine) {
+      rsiChart.timeScale().fitContent();
+    }
 
-    // --- Sync time scales ---
     const charts = [priceChart, volumeChart, rsiChart];
-    priceChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+
+    // --- Sync time scales using logical ranges ---
+    priceChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (!range) return;
-      volumeChart.timeScale().setVisibleRange(range);
-      rsiChart.timeScale().setVisibleRange(range);
+      volumeChart.timeScale().setVisibleLogicalRange(range);
+      if (rsiLine) {
+        rsiChart.timeScale().setVisibleLogicalRange(range);
+      }
     });
+
+    const visibleRange = priceChart.timeScale().getVisibleLogicalRange();
+    if (visibleRange) {
+      volumeChart.timeScale().setVisibleLogicalRange(visibleRange);
+      if (rsiLine) {
+        rsiChart.timeScale().setVisibleLogicalRange(visibleRange);
+      }
+    }
 
     // --- Sync crosshair ---
     priceChart.subscribeCrosshairMove((param) => {
       const point = param.point;
-      if (!point) {
+      if (!point || !param.time) {
         volumeChart.clearCrosshairPosition();
-        rsiChart.clearCrosshairPosition();
+        if (rsiLine) {
+          rsiChart.clearCrosshairPosition();
+        }
         return;
       }
-      volumeChart.setCrosshairPosition(point.x, point.y, true);
-      rsiChart.setCrosshairPosition(point.x, point.y, true);
+      const bar = formattedData.find((d) => d.time === param.time);
+      const volVal = bar ? bar.volume : 0;
+      volumeChart.setCrosshairPosition(volVal, param.time, volumeSeries);
+      if (rsiLine) {
+        const rsiBar = rsiData.find((d) => d.time === param.time);
+        const rsiVal = rsiBar ? rsiBar.value : 50;
+        rsiChart.setCrosshairPosition(rsiVal, param.time, rsiLine);
+      }
     });
 
     // --- Resize ---

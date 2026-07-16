@@ -1,17 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from "./aiClient.js";
 import prisma from "./db.js";
-
-let aiInstance = null;
-function getAiClient() {
-  if (!aiInstance) {
-    aiInstance = new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
-    });
-  }
-  return aiInstance;
-}
 
 import * as newsService from "./newsService.js";
 import * as secGuidance from "./secGuidance.js";
@@ -114,7 +102,7 @@ Begin your next turn using the [Agent Name]: format.
 
   while(true) {
     const responseStream = await aiClient.models.generateContentStream({
-      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: contents,
       config: { 
         systemInstruction: SYSTEM_PROMPT, 

@@ -566,7 +566,7 @@ router.post("/portfolio/live", validate(tickersBodySchema), async (req, res) => 
         const { quote } = entry;
         const currentPrice = quote.extended?.lastPrice ?? quote.lastPrice ?? null;
         let change = quote.netChange ?? null;
-        let changePercent = quote.netPercentChangeInDouble ?? null;
+        let changePercent = quote.netPercentChangeInDouble != null ? quote.netPercentChangeInDouble / 100 : null;
 
         if (currentPrice != null && quote.closePrice != null && quote.closePrice > 0) {
           change = currentPrice - quote.closePrice;
@@ -627,7 +627,7 @@ router.get("/market/indicators", async (req, res) => {
     const inflationPromise = fred.getInflation(period);
 
     // 6. AAII Sentiment
-    const aaiiSentimentPromise = aaii.getAAIISentiment().catch(err => {
+    const aaiiSentimentPromise = aaii.getAAIISentiment(period).catch(err => {
       console.error("[market-indicators] AAII fetch failed:", err);
       return { error: err.message };
     });

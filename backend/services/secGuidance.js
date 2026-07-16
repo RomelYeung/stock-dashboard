@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from "./aiClient.js";
 import * as cache from "./cache.js";
 
 const SEC_HEADERS = {
@@ -170,11 +170,7 @@ async function extractGuidanceWithAi(html) {
   const truncated = text.slice(0, 30000);
 
   try {
-    const ai = new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
-    });
+    const ai = getAiClient();
 
     const prompt = `You are a financial analyst analyzing an SEC 8-K filing. Extract forward-looking statements and financial guidance from this document.
 
@@ -197,7 +193,7 @@ SEC 8-K FILING TEXT:
 ${truncated}`;
 
     const result = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: prompt
     });
     const responseText = result.text;

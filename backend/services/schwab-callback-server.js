@@ -7,12 +7,28 @@ import {
   buildAuthURL,
   exchangeCodeForToken,
   saveTokens,
+  CALLBACK_URL,
 } from "./schwab-auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CERT_DIR = path.resolve(__dirname, "..", "certs");
-const PORT = 3000;
-const HOST = "127.0.0.1";
+
+let PORT = 3000;
+let HOST = "127.0.0.1";
+try {
+  const parsedUrl = new URL(CALLBACK_URL);
+  if (parsedUrl.port) {
+    PORT = parseInt(parsedUrl.port, 10);
+  } else {
+    PORT = parsedUrl.protocol === "https:" ? 443 : 80;
+  }
+  if (parsedUrl.hostname) {
+    HOST = parsedUrl.hostname;
+  }
+} catch (e) {
+  console.warn("[schwab-callback-server] Failed to parse CALLBACK_URL, using defaults:", e.message);
+}
+
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -71,8 +87,10 @@ export function startAuthFlow() {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
+      // Clear activeFlow immediately so retries can start a fresh flow
+      activeFlow = null;
       server.close(() => {
-        activeFlow = null;
+        // Server fully closed; nothing else needed here.
       });
     }
 
@@ -86,15 +104,15 @@ export function startAuthFlow() {
       const errorParam = url.searchParams.get("error");
 
       if (errorParam) {
+        const errorDesc = url.searchParams.get("error_description") || "N/A";
+        console.error(`[schwab-callback] Auth error from Schwab: ${errorParam} — ${errorDesc}`);
         res.writeHead(400, { "Content-Type": "text/html" });
         res.end(
-          `<h1>Authorization Failed</h1><p>Error: ${escapeHtml(errorParam)}</p><p>Description: ${escapeHtml(url.searchParams.get("error_description") || "N/A")}</p>`
+          `<h1>Authorization Failed</h1><p>Error: ${escapeHtml(errorParam)}</p><p>Description: ${escapeHtml(errorDesc)}</p>`
         );
         settle();
         reject(
-          new Error(
-            `Authorization error: ${escapeHtml(errorParam)} - ${escapeHtml(url.searchParams.get("error_description") || "")}`
-          )
+          new Error(`Authorization error: ${errorParam} — ${errorDesc}`)
         );
         return;
       }
@@ -117,17 +135,21 @@ export function startAuthFlow() {
         settle();
         resolve(tokens);
       } catch (err) {
+        console.error(`[schwab-callback] Token exchange failed:`, err.message);
         settle();
         reject(err);
       }
     });
 
     server.on("error", (err) => {
+      console.error(`[schwab-callback] Server error:`, err.message);
       settle();
       reject(new Error(`Server error: ${err.message}`));
     });
 
-    server.listen(PORT, HOST);
+    server.listen(PORT, HOST, () => {
+      console.log(`[schwab-callback] Listening on ${HOST}:${PORT} for OAuth callback`);
+    });
   });
 
   activeFlow = { authUrl, promise };

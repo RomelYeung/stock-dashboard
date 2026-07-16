@@ -72,3 +72,61 @@ model ChatMessage {
   content       String
   createdAt     DateTime    @default(now())
 }
+
+model Investor {
+  id             String    @id @default(uuid())
+  CIK            String    @unique
+  name           String
+  fundName       String?
+  philosophy     String?
+  bio            String?
+  photoUrl       String?
+  tags           Json
+  currentAum     Float?
+  lastFilingDate DateTime?
+  filings        Filing[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Filing {
+  id              String    @id @default(uuid())
+  date            DateTime
+  accessionNumber String    @unique
+  periodOfReport  DateTime
+  type            String
+  investorId      String
+  investor        Investor  @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  holdings        Holding[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([investorId])
+}
+
+model Holding {
+  id              String   @id @default(uuid())
+  ticker          String
+  CUSIP           String
+  companyName     String?
+  shares          Float
+  value           Float
+  optionType      String   @default("none") // e.g. PUT, CALL, none
+  portfolioWeight Float
+  convictionScore Float?
+  filingId        String
+  filing          Filing   @relation(fields: [filingId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([filingId])
+}
+
+model CusipMapping {
+  CUSIP       String   @id
+  ticker      String
+  companyName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

@@ -21,10 +21,14 @@ import stockRoutes from "./routes/stocks.js";
 import authRoutes from "./routes/auth.js";
 import portfolioRoutes from "./routes/portfolio.js";
 import optionsRoutes from "./routes/options.js";
+import aiRoutes from "./routes/ai.js";
+import gurusRoutes from "./routes/gurus.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { autoUpdateCheck } from "./services/marginDebt.js";
 import { seedAdmin } from "./scripts/seed.js";
 import { startCronJob as startHistoricalIVCron } from "./scripts/historical-iv-worker.js";
+import { startDailySyncCron } from "./services/sec.js";
+import { preloadEarningsCalendar } from "./services/earningsCalendar.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -97,6 +101,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolio", portfolioRoutes);
 app.use("/api/options", optionsRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/gurus", gurusRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -121,6 +127,7 @@ app.use(errorHandler);
 
 // ─── Start ────────────────────────────────────────────────────────────
 
+// console.log("Attempting to listen on port", PORT);
 app.listen(PORT, () => {
   console.log(`\n🚀 Stock Dashboard API running on http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/health`);
@@ -134,4 +141,10 @@ app.listen(PORT, () => {
 
   // Start daily scheduled IV ingestion cron job
   startHistoricalIVCron();
+
+  // Start daily scheduled SEC filings ingestion cron job
+  startDailySyncCron();
+
+  // Preload the Finnhub earnings calendar into cache (non-blocking)
+  preloadEarningsCalendar();
 });

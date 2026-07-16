@@ -29,7 +29,7 @@ function formatEarningsDate(earningsDate) {
 
   if (diffDays === 0) return "Earnings today";
   if (diffDays === 1) return "Earnings tomorrow";
-  if (diffDays <= 7) return `Earnings in ${diffDays} days`;
+  if (diffDays > 1 && diffDays <= 7) return `Earnings in ${diffDays} days`;
 
   return `Earnings ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
@@ -60,14 +60,14 @@ const metricStyles = {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "6px 0",
-    borderBottom: "1px solid rgba(255,255,255,0.04)",
+    borderBottom: "1px dashed rgba(0, 240, 255, 0.15)",
   },
   rowCompact: {
     padding: "4px 0",
   },
   label: {
     color: "var(--text-secondary)",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "11px",
     fontWeight: 400,
     letterSpacing: "0.04em",
@@ -76,7 +76,7 @@ const metricStyles = {
   value: {
     fontFamily: "var(--font-mono)",
     fontSize: "12px",
-    fontWeight: 400,
+    fontWeight: 700,
   },
 };
 
@@ -122,7 +122,7 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.23, 1, 0.32, 1] }}
-      whileHover={!loading && !error ? { y: -4, borderColor: "rgba(255,255,255,0.14)" } : {}}
+      whileHover={!loading && !error ? { y: -4, borderColor: "var(--accent-blue)", boxShadow: "0 0 15px rgba(0,240,255,0.15)" } : {}}
       onClick={() => !loading && !error && onClick(ticker)}
     >
       {/* Card glow on positive/negative */}
@@ -131,8 +131,8 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           style={{
             ...styles.glow,
             background: positive
-              ? "radial-gradient(ellipse at top right, rgba(0,229,160,0.06) 0%, transparent 60%)"
-              : "radial-gradient(ellipse at top right, rgba(255,77,109,0.05) 0%, transparent 60%)",
+              ? "linear-gradient(135deg, rgba(57,255,20,0.1) 0%, transparent 50%)"
+              : "linear-gradient(135deg, rgba(255,0,60,0.1) 0%, transparent 50%)",
           }}
         />
       )}
@@ -249,17 +249,18 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
 const styles = {
   card: {
     background: "var(--glass-bg)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
+    backdropFilter: "blur(5px)",
+    WebkitBackdropFilter: "blur(5px)",
     border: "1px solid var(--glass-border)",
-    borderRadius: "var(--radius-lg)",
+    borderRadius: "0",
     padding: "24px",
     position: "relative",
     overflow: "hidden",
-    transition: "border-color 0.25s, transform 0.25s",
+    transition: "all 0.2s ease",
     display: "flex",
     flexDirection: "column",
     gap: "16px",
+    clipPath: "polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)",
   },
   glow: {
     position: "absolute",
@@ -306,14 +307,17 @@ const styles = {
     fontWeight: 500,
   },
   change: {
-    borderRadius: "6px",
+    borderRadius: "0",
+    border: "1px solid currentColor",
     fontFamily: "var(--font-mono)",
-    fontSize: "11px",
-    fontWeight: 400,
+    fontSize: "12px",
+    fontWeight: 700,
     padding: "3px 7px",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
   },
   divider: {
-    background: "rgba(255,255,255,0.05)",
+    background: "rgba(0, 240, 255, 0.2)",
     height: "1px",
     position: "relative",
     zIndex: 1,
@@ -340,34 +344,36 @@ const styles = {
   },
   footerCta: {
     color: "var(--accent-blue)",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "11px",
-    fontWeight: 500,
-    opacity: 1,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
   },
   earningsCta: {
-    color: "#FFD700",
-    fontFamily: "var(--font-body)",
+    color: "var(--accent-amber)",
+    fontFamily: "var(--font-mono)",
     fontSize: "11px",
-    fontWeight: 600,
-    textShadow: "0 0 8px rgba(255, 215, 0, 0.5)",
+    fontWeight: 700,
+    textShadow: "0 0 8px rgba(255, 170, 0, 0.5)",
+    textTransform: "uppercase",
   },
   skeleton: {
-    background: "rgba(255,255,255,0.06)",
-    borderRadius: "8px",
+    background: "rgba(0, 240, 255, 0.05)",
+    borderRadius: "0",
     height: "40px",
     width: "80px",
     animation: "pulse 1.5s ease-in-out infinite",
   },
   skeletonLine: {
-    background: "rgba(255,255,255,0.05)",
-    borderRadius: "4px",
+    background: "rgba(0, 240, 255, 0.05)",
+    borderRadius: "0",
     height: "10px",
     animation: "pulse 1.5s ease-in-out infinite",
   },
   cardSecondary: {
     padding: "18px",
-    background: "rgba(255,255,255,0.02)",
+    background: "var(--bg-surface)",
   },
   tickerSecondary: {
     fontSize: "18px",
@@ -389,23 +395,23 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     fontFamily: "var(--font-mono)",
-    fontSize: "9px",
+    fontSize: "10px",
     color: "var(--text-secondary)",
   },
   rangeTrack: {
-    height: "4px",
-    background: "rgba(255,255,255,0.06)",
-    borderRadius: "2px",
+    height: "2px",
+    background: "rgba(0, 240, 255, 0.2)",
+    borderRadius: "0",
     position: "relative",
     width: "100%",
   },
   rangeCurrentDot: {
     position: "absolute",
-    top: "-3px",
-    width: "10px",
+    top: "-4px",
+    width: "4px",
     height: "10px",
-    borderRadius: "50%",
-    border: "2px solid var(--bg-surface)",
+    borderRadius: "0",
+    border: "none",
     transform: "translateX(-50%)",
     transition: "left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
   },

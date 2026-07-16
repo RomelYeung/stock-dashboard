@@ -1,19 +1,7 @@
 import { getFinancials, getSummary } from "./yahoofinance.js";
 import { getComparables } from "./comparables.js";
-import { GoogleGenAI } from "@google/genai";
+import { getAiClient } from "./aiClient.js";
 import * as cache from "./cache.js";
-
-let aiInstance = null;
-function getAiClient() {
-  if (!aiInstance) {
-    aiInstance = new GoogleGenAI({
-      vertexai: true,
-      project: process.env.GOOGLE_CLOUD_PROJECT || 'dumb-money-dashboard-498800',
-      location: process.env.GOOGLE_CLOUD_LOCATION || 'global',
-    });
-  }
-  return aiInstance;
-}
 
 export async function getEarningsSentiment(ticker) {
   const cacheKey = `earnings-sentiment:${ticker}`;
@@ -67,7 +55,7 @@ Format your response exactly as JSON. Do NOT use double quotes inside the summar
 `;
 
     const result = await getAiClient().models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         tools: [{ googleSearch: {} }]

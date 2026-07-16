@@ -49,7 +49,7 @@ export function usePortfolio(tickers) {
 
       return { data: newData, errors: newErrors };
     },
-    staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days for fundamentals
+    staleTime: 1000 * 30, // 30 seconds for overview prices
     placeholderData: (previousData) => previousData,
   });
 
@@ -204,7 +204,7 @@ export function useStockDetail(ticker) {
     queryKey: ["stockDetail", ticker],
     queryFn: () => apiFetch(`/${ticker}/all`),
     enabled: !!ticker,
-    staleTime: 1000 * 60 * 60 * 24 * 7, // 7 days for fundamentals
+    staleTime: 1000 * 30, // 30 seconds for detail prices
   });
 
   return { data, loading: isLoading, error: error?.message };

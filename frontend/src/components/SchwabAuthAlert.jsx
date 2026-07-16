@@ -5,18 +5,32 @@ const WARNING_ICON = (
     <path
       d="M8 2L14 13H2L8 2Z"
       stroke="currentColor"
-      strokeWidth="1.2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <path d="M8 6V8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    <circle cx="8" cy="11" r="0.6" fill="currentColor" />
+    <path d="M8 6V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="8" cy="11.5" r="0.75" fill="currentColor" />
+  </svg>
+);
+
+const SUCCESS_ICON = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M5.5 8l2 2 3.5-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const SPINNER_ICON = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="schwab-spinner">
+    <circle cx="8" cy="8" r="6.5" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1.5" />
+    <path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
 const CLOSE_ICON = (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
@@ -34,7 +48,7 @@ export default function SchwabAuthAlert() {
       if (!res.ok) throw new Error("Schwab health check failed");
       const data = await res.json();
       setStatus(data.status);
-      setError(null);
+      setError(data.error || null);
       return data;
     } catch (err) {
       setError(err.message);
@@ -64,7 +78,7 @@ export default function SchwabAuthAlert() {
 
     setDismissed(false);
     setAuthState("waiting");
-    setAuthMessage("Waiting for authorization...");
+    setAuthMessage("Connecting...");
 
     try {
       const authRes = await fetch("/api/stocks/schwab/auth");
@@ -91,12 +105,12 @@ export default function SchwabAuthAlert() {
           clearInterval(aggressiveRef.current);
           aggressiveRef.current = null;
           setAuthState("error");
-          setAuthMessage("Authorization did not complete. Please try again.");
+          setAuthMessage("Auth failed");
         }
       }, 3000);
     } catch (err) {
       setAuthState("error");
-      setAuthMessage(err.message);
+      setAuthMessage("Auth failed");
     }
   };
 
@@ -119,71 +133,130 @@ export default function SchwabAuthAlert() {
 
   // Determine what to display
   let displayMessage;
-  let messageColor = "var(--text-secondary)";
+  let messageColor = "var(--text-primary)";
   let iconColor;
+  let icon = WARNING_ICON;
 
   if (inAuthFlow) {
     displayMessage = authMessage;
-    if (authState === "success") messageColor = "var(--accent-green)";
-    else if (authState === "error") messageColor = "var(--accent-red)";
-    iconColor = messageColor;
+    if (authState === "success") {
+      messageColor = "var(--accent-green)";
+      iconColor = "var(--accent-green)";
+      icon = SUCCESS_ICON;
+    } else if (authState === "error") {
+      messageColor = "var(--accent-red)";
+      iconColor = "var(--accent-red)";
+      icon = WARNING_ICON;
+    } else {
+      messageColor = "var(--text-primary)";
+      iconColor = "var(--accent-blue)";
+      icon = SPINNER_ICON;
+    }
   } else if (error) {
-    displayMessage = error;
+    displayMessage = "Schwab credentials invalid or expired";
     messageColor = "var(--accent-red)";
-    iconColor = messageColor;
-  } else if (status === "expired") {
-    displayMessage =
-      "Schwab connection expired. Re-authorize to restore real-time market data.";
     iconColor = "var(--accent-red)";
+    icon = WARNING_ICON;
+  } else if (status === "expired") {
+    displayMessage = "Schwab connection expired";
+    iconColor = "var(--accent-red)";
+    icon = WARNING_ICON;
   } else {
-    displayMessage =
-      "Schwab connection expiring soon. Re-authorize to avoid interruption.";
+    displayMessage = "Schwab connection expiring soon";
     iconColor = "var(--accent-amber)";
+    icon = WARNING_ICON;
   }
 
-  const isSuccess = authState === "success";
   const showActions = !inAuthFlow || authState === "error";
 
   return (
     <>
-      <div style={styles.banner}>
-        <div style={styles.bannerInner}>
-          {/* Left: icon + message */}
-          <div style={styles.left}>
-            <span style={{ ...styles.icon, color: iconColor }}>{WARNING_ICON}</span>
-            <span
-              style={{
-                ...styles.message,
-                color: messageColor,
-                ...(isSuccess ? styles.messageSuccess : {}),
-              }}
-            >
-              {displayMessage}
-            </span>
-          </div>
+      <div style={styles.pill} className="schwab-pill-container">
+        <div style={styles.left}>
+          <span style={{ ...styles.icon, color: iconColor }}>{icon}</span>
+          <span style={{ ...styles.message, color: messageColor }}>
+            {displayMessage}
+          </span>
+        </div>
 
-          {/* Right: actions */}
-          <div style={styles.actions}>
-            {showActions && (
-              <button style={styles.authBtn} onClick={handleAuthorize}>
-                Authorize with Schwab
-              </button>
-            )}
-            <button
-              style={styles.dismissBtn}
-              onClick={handleDismiss}
-              aria-label="Dismiss"
-            >
-              {CLOSE_ICON}
+        <div style={styles.actions}>
+          {showActions && (
+            <button className="schwab-auth-btn" onClick={handleAuthorize}>
+              {authState === "error" ? "Retry" : "Authorize"}
             </button>
-          </div>
+          )}
+          <button
+            className="schwab-dismiss-btn"
+            onClick={handleDismiss}
+            aria-label="Dismiss"
+          >
+            {CLOSE_ICON}
+          </button>
         </div>
       </div>
 
       <style>{`
-        @keyframes schwab-banner-in {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes schwab-pill-in {
+          from { opacity: 0; transform: translateY(12px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes schwab-spin {
+          to { transform: rotate(360deg); }
+        }
+        .schwab-spinner {
+          animation: schwab-spin 0.8s linear infinite;
+        }
+        .schwab-auth-btn {
+          align-items: center;
+          background: rgba(79, 141, 255, 0.12);
+          border: 1px solid rgba(79, 141, 255, 0.25);
+          border-radius: 9999px;
+          color: var(--accent-blue);
+          cursor: pointer;
+          display: flex;
+          font-family: var(--font-body);
+          font-size: 12px;
+          font-weight: 600;
+          padding: 5px 12px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          white-space: nowrap;
+          box-shadow: 0 2px 8px rgba(79, 141, 255, 0.15);
+        }
+        .schwab-auth-btn:hover {
+          background: rgba(79, 141, 255, 0.2);
+          border-color: rgba(79, 141, 255, 0.4);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(79, 141, 255, 0.25);
+        }
+        .schwab-auth-btn:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 4px rgba(79, 141, 255, 0.15);
+        }
+        .schwab-dismiss-btn {
+          align-items: center;
+          background: transparent;
+          border: none;
+          border-radius: 9999px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          display: flex;
+          padding: 6px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .schwab-dismiss-btn:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.1);
+          transform: scale(1.05);
+        }
+        .schwab-dismiss-btn:active {
+          transform: scale(0.95);
+        }
+        @media (max-width: 640px) {
+          .schwab-pill-container {
+            left: 16px !important;
+            bottom: 16px !important;
+            max-width: calc(100vw - 32px) !important;
+          }
         }
       `}</style>
     </>
@@ -191,76 +264,49 @@ export default function SchwabAuthAlert() {
 }
 
 const styles = {
-  banner: {
-    animation: "schwab-banner-in 0.25s ease-out",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    background: "rgba(5, 8, 15, 0.85)",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    position: "relative",
-    zIndex: 60,
-    width: "100%",
-  },
-  bannerInner: {
-    alignItems: "center",
+  pill: {
+    position: "fixed",
+    bottom: "24px",
+    left: "24px",
+    zIndex: 9999,
+    animation: "schwab-pill-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    background: "rgba(10, 14, 23, 0.8)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    borderRadius: "9999px",
+    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(255, 255, 255, 0.1) inset",
     display: "flex",
-    justifyContent: "space-between",
-    margin: "0 auto",
-    maxWidth: "1400px",
-    padding: "10px 32px",
-    gap: "16px",
+    alignItems: "center",
+    padding: "8px 10px 8px 16px",
+    gap: "14px",
+    maxWidth: "calc(100vw - 48px)",
   },
   left: {
-    alignItems: "center",
     display: "flex",
+    alignItems: "center",
     gap: "10px",
-    flex: "1 1 auto",
     minWidth: 0,
   },
   icon: {
     display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   message: {
-    color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
     fontSize: "13px",
-    lineHeight: "1.5",
-  },
-  messageSuccess: {
-    fontWeight: 500,
+    fontWeight: "500",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    letterSpacing: "0.01em",
   },
   actions: {
-    alignItems: "center",
     display: "flex",
+    alignItems: "center",
     gap: "8px",
     flexShrink: 0,
-  },
-  authBtn: {
-    alignItems: "center",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(79, 141, 255, 0.3)",
-    borderRadius: "8px",
-    color: "var(--accent-blue)",
-    cursor: "pointer",
-    display: "flex",
-    fontFamily: "var(--font-body)",
-    fontSize: "12px",
-    fontWeight: 500,
-    gap: "6px",
-    padding: "6px 12px",
-    transition: "all 0.15s",
-    whiteSpace: "nowrap",
-  },
-  dismissBtn: {
-    alignItems: "center",
-    background: "transparent",
-    border: "none",
-    borderRadius: "6px",
-    color: "var(--text-secondary)",
-    cursor: "pointer",
-    display: "flex",
-    padding: "4px",
-    transition: "color 0.15s",
   },
 };

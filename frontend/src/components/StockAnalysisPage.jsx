@@ -6,9 +6,56 @@ import FundamentalsTab from "./FundamentalsTab";
 import OptionsScannerTab from "./OptionsScannerTab";
 import EarningsTab from "./EarningsTab";
 import NewsTab from "./NewsTab";
-import { formatPrice, isPositive } from "../utils/formatters";
+import AIFinancialAdviserChat from "./AIFinancialAdviserChat";
+import { formatPrice, isPositive, formatPercent } from "../utils/formatters";
+import { useGuruReverseLookup } from "../hooks/useGuruData";
 
-const TABS = ["Valuation & AI", "Fundamentals", "Earnings", "News", "Options Scanner", "Insider Activity"];
+const TABS = ["Valuation & AI", "Fundamentals", "Earnings", "News", "Options Scanner", "Insider Activity", "Guru Ownership"];
+
+function GuruOwnershipTab({ ticker }) {
+  const { data: owners, isLoading, error } = useGuruReverseLookup(ticker);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "40px 0" }}>
+        <div style={{ height: "20px", background: "rgba(0,240,255,0.05)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite" }} />
+        <div style={{ height: "20px", background: "rgba(0,240,255,0.05)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.1s" }} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div style={{ color: "var(--accent-red)", padding: "40px 0", textAlign: "center", fontSize: "13px" }}>{error.message || error}</div>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <h3 style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "8px", marginBottom: "12px" }}>
+        Institutional Guru Holders
+      </h3>
+      {owners && owners.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+          {owners.map((owner) => (
+            <div key={owner.guruId} style={{ background: "rgba(0,240,255,0.02)", border: "1px solid var(--accent-blue)", borderRadius: "0", padding: "16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{owner.guruName}</div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{owner.fundName}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", borderTop: "1px solid rgba(255,255,255,0.03)", paddingTop: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Quarter: {owner.quarter}</span>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--accent-green)", fontFamily: "var(--font-mono)" }}>
+                  Weight: {owner.weight != null ? formatPercent(owner.weight, 2) : "—"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: "var(--text-secondary)", padding: "40px 0", textAlign: "center", fontSize: "13px" }}>
+          Not currently held by any tracked gurus.
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TabBar({ active, onChange }) {
   return (
@@ -83,7 +130,7 @@ export default function StockAnalysisPage({ ticker, livePriceData, onBack }) {
                   ...page.change,
                   color: isPositive(displayChangePercent) ? "var(--accent-green)" : "var(--accent-red)",
                 }}>
-                  {isPositive(displayChangePercent) ? "▲" : "▼"} {(displayChangePercent * 100).toFixed(2)}%
+                  {isPositive(displayChangePercent) ? "▲" : "▼"} {formatPercent(Math.abs(displayChangePercent), 2)}
                 </span>
               )}
             </>
@@ -147,7 +194,13 @@ export default function StockAnalysisPage({ ticker, livePriceData, onBack }) {
         {activeTab === "Insider Activity" && (
           <InsiderTradingTab ticker={ticker} />
         )}
+
+        {activeTab === "Guru Ownership" && (
+          <GuruOwnershipTab ticker={ticker} />
+        )}
       </div>
+
+      <AIFinancialAdviserChat ticker={ticker} />
     </div>
   );
 }
@@ -157,10 +210,11 @@ const page = {
   header: { display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" },
   backBtn: {
     display: "flex", alignItems: "center", gap: "6px",
-    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "8px", color: "var(--text-secondary)", cursor: "pointer",
-    fontFamily: "var(--font-body)", fontSize: "12px", padding: "6px 12px", width: "fit-content",
+    background: "rgba(0,240,255,0.05)", border: "1px solid var(--accent-blue)",
+    borderRadius: "0", color: "var(--accent-blue)", cursor: "pointer",
+    fontFamily: "var(--font-mono)", fontSize: "12px", padding: "6px 12px", width: "fit-content",
     transition: "all 0.15s ease",
+    textTransform: "uppercase",
   },
   tickerInfo: { display: "flex", alignItems: "baseline", gap: "12px" },
   ticker: {
@@ -169,12 +223,12 @@ const page = {
   },
   name: { color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "14px", fontWeight: 300 },
   price: { color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 500, marginLeft: "auto" },
-  change: { fontFamily: "var(--font-mono)", fontSize: "12px", padding: "3px 8px", borderRadius: "6px" },
+  change: { fontFamily: "var(--font-mono)", fontSize: "12px", padding: "3px 8px", borderRadius: "0", border: "1px solid currentColor" },
   content: { display: "flex", flexDirection: "column" },
   skeleton: { display: "flex", flexDirection: "column", gap: "12px", padding: "40px 0" },
   skelBar: {
-    height: "20px", background: "rgba(255,255,255,0.04)",
-    borderRadius: "6px", animation: "pulse 1.5s ease-in-out infinite",
+    height: "20px", background: "rgba(0,240,255,0.05)",
+    borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite",
   },
   error: {
     color: "var(--accent-red)", fontFamily: "var(--font-body)",

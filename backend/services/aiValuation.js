@@ -53,8 +53,17 @@ export function evaluateAIValuation({ ticker, summary, financials, balanceSheet,
   // --- 3. ADF Stationarity ---
   let stationarityScore = 50;
   let volatility = 0.2;
-  if (priceHistory && priceHistory.length >= 20) {
-    const prices = priceHistory.slice(-20).map(p => p.close || p.currentPrice || p);
+  const validPrices = (priceHistory || [])
+    .map(p => {
+      if (p && typeof p === 'object') {
+        return p.close ?? p.currentPrice ?? null;
+      }
+      return p;
+    })
+    .filter(v => typeof v === 'number' && Number.isFinite(v));
+
+  if (validPrices.length >= 20) {
+    const prices = validPrices.slice(-20);
     const mean = prices.reduce((sum, p) => sum + p, 0) / prices.length;
     let crossings = 0;
     for (let i = 1; i < prices.length; i++) {
@@ -173,7 +182,13 @@ export function evaluateAIValuation({ ticker, summary, financials, balanceSheet,
     },
     quant: {
       stationarityScore: Number.isFinite(stationarityScore) ? stationarityScore : 0,
-      svi,
+      svi: {
+        a: Number.isFinite(svi.a) ? svi.a : 0,
+        b: Number.isFinite(svi.b) ? svi.b : 0.1,
+        rho: Number.isFinite(svi.rho) ? svi.rho : -0.5,
+        m: Number.isFinite(svi.m) ? svi.m : 0,
+        sigma: Number.isFinite(svi.sigma) ? svi.sigma : 0.1
+      },
       volatility: Number.isFinite(volatility) ? volatility : 0
     },
     agents: {

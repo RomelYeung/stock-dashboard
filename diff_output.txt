@@ -1,0 +1,1 @@
+I've captured the git diff for you. You can see the full output below.

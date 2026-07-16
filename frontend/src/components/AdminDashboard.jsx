@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const styles = {
   container: {
@@ -24,12 +25,13 @@ const styles = {
     lineHeight: "1.5",
   },
   panel: {
-    background: "var(--glass-bg)",
+    background: "rgba(0,240,255,0.02)",
     backdropFilter: "blur(12px)",
     WebkitBackdropFilter: "blur(12px)",
-    border: "1px solid var(--glass-border)",
-    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
     padding: "20px 24px",
+    boxShadow: "0 0 15px rgba(0,240,255,0.05)",
   },
   panelTitle: {
     fontFamily: "var(--font-display)",
@@ -80,29 +82,30 @@ const styles = {
   },
   btn: {
     alignItems: "center",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "8px",
-    color: "var(--text-primary)",
+    background: "rgba(0,240,255,0.05)",
+    border: "1px solid var(--accent-blue)",
+    borderRadius: "0",
+    color: "var(--accent-blue)",
     cursor: "pointer",
     display: "flex",
-    fontFamily: "var(--font-body)",
+    fontFamily: "var(--font-mono)",
     fontSize: "12px",
-    fontWeight: 500,
+    fontWeight: 700,
     gap: "6px",
     padding: "8px 16px",
     transition: "all 0.15s",
     whiteSpace: "nowrap",
+    textTransform: "uppercase",
   },
   btnDanger: {
-    background: "var(--accent-red-dim)",
-    border: "1px solid rgba(255,77,109,0.25)",
+    background: "rgba(255,0,60,0.1)",
+    border: "1px solid var(--accent-red)",
     color: "var(--accent-red)",
   },
   btnPrimary: {
-    background: "var(--accent-blue-dim)",
-    border: "1px solid rgba(79,141,255,0.25)",
-    color: "var(--accent-blue)",
+    background: "rgba(57,255,20,0.1)",
+    border: "1px solid var(--accent-green)",
+    color: "var(--accent-green)",
   },
   btnDisabled: {
     opacity: 0.5,
@@ -173,6 +176,7 @@ function formatNumber(n) {
 }
 
 export default function AdminDashboard() {
+  const queryClient = useQueryClient();
   const [cacheStats, setCacheStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -216,6 +220,7 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed to flush cache");
       setFlushState({ loading: false, message: "Cache flushed successfully", type: "success" });
+      queryClient.invalidateQueries();
       // Refresh stats after flush
       setTimeout(() => fetchStats(), 500);
     } catch (err) {
@@ -237,6 +242,7 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed to update margin debt");
       setMarginDebtState({ loading: false, message: "Margin debt update initiated", type: "success" });
+      queryClient.invalidateQueries({ queryKey: ["marketIndicators"] });
     } catch (err) {
       setMarginDebtState({ loading: false, message: err.message, type: "error" });
     }
