@@ -361,6 +361,22 @@
         <h2>July 2026</h2>
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-07-17">July 17, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix duplicate tickers in guru portfolio holdings</h3>
+          <p>Holdings for the same ticker with different option types (calls vs. puts) or multiple SEC filing rows were displayed as separate lines instead of being consolidated. The portfolio holdings view now aggregates by ticker and option type, summing shares and values and recomputing portfolio weights to ensure accurate, deduplicated positions.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-17">July 17, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Deduplicate Schwab API token refresh requests</h3>
+          <p>Prevent concurrent backend requests from executing duplicate Schwab token refreshes, avoiding OAuth2 token revocation due to token rotation race conditions.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-07-16">July 16, 2026</time>
             <span class="tag tag-fix">Fix</span>
           </div>

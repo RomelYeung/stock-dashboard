@@ -313,7 +313,40 @@ router.get("/:id/holdings", async (req, res) => {
       orderBy: { periodOfReport: "desc" }
     });
 
-    const holdings = filings.length > 0 ? filings[0].holdings : [];
+    let holdings = filings.length > 0 ? filings[0].holdings : [];
+
+    // Aggregate by (ticker, optionType) to deduplicate multiple rows per ticker
+    if (holdings.length > 0) {
+      const aggregatedMap = new Map();
+      for (const h of holdings) {
+        const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
+        if (!aggregatedMap.has(key)) {
+          // Preserve original row fields (id, filingId, createdAt) from first row
+          aggregatedMap.set(key, {
+            ...h,
+            _isAggregated: false,
+            _rowCount: 1
+          });
+        } else {
+          const existing = aggregatedMap.get(key);
+          existing.shares += h.shares;
+          existing.value += h.value;
+          existing._rowCount += 1;
+          existing._isAggregated = true;
+        }
+      }
+      const aggregated = [...aggregatedMap.values()];
+
+      // Recompute totalValue and portfolioWeight from aggregated holdings
+      const totalValue = aggregated.reduce((sum, h) => sum + h.value, 0);
+      for (const h of aggregated) {
+        h.portfolioWeight = totalValue > 0 ? h.value / totalValue : 0;
+        h.convictionScore = h.portfolioWeight * 10;
+      }
+
+      holdings = aggregated;
+    }
+
     res.json({ success: true, data: holdings });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

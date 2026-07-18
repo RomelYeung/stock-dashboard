@@ -509,6 +509,23 @@ export async function syncInvestor(cik) {
         }
       }
 
+      // Aggregate holdings by (ticker, optionType) to deduplicate multiple rows
+      const aggregatedMap = new Map();
+      for (const h of resolvedHoldings) {
+        const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
+        if (!aggregatedMap.has(key)) {
+          aggregatedMap.set(key, { ...h });
+        } else {
+          const existing = aggregatedMap.get(key);
+          existing.shares += h.shares;
+          existing.value += h.value;
+        }
+      }
+      const aggregatedHoldings = [...aggregatedMap.values()];
+
+      // Recompute totalValue from aggregated holdings
+      totalValue = aggregatedHoldings.reduce((sum, h) => sum + h.value, 0);
+
       // Create Filing, Holdings and update Investor inside a transaction
       await prisma.$transaction(async (tx) => {
         const newFiling = await tx.filing.create({
@@ -521,7 +538,7 @@ export async function syncInvestor(cik) {
           }
         });
 
-        const holdingsData = resolvedHoldings.map(h => {
+        const holdingsData = aggregatedHoldings.map(h => {
           const weight = totalValue > 0 ? h.value / totalValue : 0;
           return {
             ticker: h.ticker,
