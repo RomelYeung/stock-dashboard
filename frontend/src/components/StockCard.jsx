@@ -199,7 +199,7 @@ export default function StockCard({ ticker, data, error, loading, onClick, index
           />
           <MetricRow label="Fwd P/E" value={formatMultiple(data.forwardPE)} compact={isSecondary} />
           <MetricRow label="EV/EBITDA" value={formatMultiple(data.enterpriseToEbitda)} compact={isSecondary} />
-          <MetricRow label="P/B" value={formatMultiple(data.priceToBook)} compact={isSecondary} />
+          <MetricRow label="PEG" value={formatMultiple(data.pegRatio)} compact={isSecondary} />
         </div>
       )}
 
