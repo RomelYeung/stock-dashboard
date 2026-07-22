@@ -21,6 +21,12 @@ function useWindowWidth() {
 }
 
 // ─── Formatters ────────────────────────────────────────────────────────────
+// Parse an ISO date string into a local-timezone Date at midnight (date-only)
+function parseDateOnly(isoString) {
+  const [y, m, d] = isoString.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 const formatPercent = (val) => {
   if (val == null) return "N/A";
   return `${(val * 100).toFixed(2)}%`;
@@ -239,10 +245,11 @@ function RevenueChart({ annualIncome }) {
 function NextEarningsCard({ dateStr }) {
   if (!dateStr) return <EmptyState message="No upcoming earnings date announced" />;
   
-  const date = new Date(dateStr);
+  const date = parseDateOnly(dateStr);
   const now = new Date();
-  const diffTime = date - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = date - today;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
   const isPast = diffDays < 0;
   const isUrgent = !isPast && diffDays <= 7;
   

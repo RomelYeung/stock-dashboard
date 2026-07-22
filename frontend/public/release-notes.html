@@ -361,6 +361,94 @@
         <h2>July 2026</h2>
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-07-22">July 22, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix earnings date displaying "tomorrow" for same-day earnings</h3>
+          <p>Replaced the timestamp-difference approach with calendar-day comparison for earnings date calculations. Earnings scheduled for later the same day (e.g., after market close) now correctly show "Earnings today" instead of "Earnings tomorrow", and upcoming earnings are accurately labeled with the correct number of days remaining.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-19">July 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Restore missing glass-morphism styling for sidebar navigation buttons</h3>
+          <p>Added the missing CSS classes (<code>.drawer-nav-item</code>, <code>.drawer-nav-item-active</code>, and <code>.drawer-logout-btn</code>) used by the slide-out navigation drawer. The sidebar navigation buttons and logout button now render with the app's standard glass-morphism styling, including active-state highlighting and hover glow effects, instead of appearing unstyled.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-19">July 19, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix frontend rendering crash and restore stock card click behavior</h3>
+          <p>Resolved a runtime crash preventing the stock dashboard from rendering. Defined the missing <code>navigate</code> function within <code>App.jsx</code> and properly configured Sentry's <code>reactRouterV6BrowserTracingIntegration</code> with the required React Router hooks. Restored the stock card click behavior on the portfolio page to open the quick-view chart modal instead of navigating directly to the full details view, preserving the quick-view to deep-link workflow.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-19">July 19, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add client-side routing and code-split pages</h3>
+          <p>Replaced the manual URL-param navigation with react-router (HashRouter) so every view is now a deep-linkable route. Portfolio cards now open the full stock analysis page at <code>/stock/:ticker</code> instead of a modal, while the quick-view modal stays available for in-context previews from non-stock pages. Legacy <code>?page=X</code> links redirect automatically, and Adviser, Guru, and SEC routes are wired for deep-linking but hidden from the menu until Phase 3.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-18">July 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Improve text contrast for secondary metrics and 52-week ranges</h3>
+          <p>Lightened the secondary text color so metric labels and 52-week high/low values are easier to read against the dark dashboard background.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-18">July 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Display PEG ratio instead of P/B on stock cards</h3>
+          <p>Stock cards now show the PEG (Price/Earnings to Growth) ratio in place of the P/B ratio, giving a growth-adjusted valuation metric at a glance.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-18">July 18, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix double-caching bug and reload backend server</h3>
+          <p>Resolved a double-caching bug in the backend routes where successful insider trading requests were being cached for 2 hours instead of 24 hours due to cache overwrites. Fully restarted the backend server to apply the pagination, Form 4/A, and transaction filtering fixes.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-18">July 18, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Add Refresh button to Insider Trading tab</h3>
+          <p>Added a manual "Refresh" button to the Insider Trading tab so users can force a fresh data fetch without waiting for the cache to expire. Reduced the frontend cache TTL from 24 hours to 2 hours to match the backend's empty-result cache window.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-18">July 18, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix insider trading showing no transactions for IBM and NFLX</h3>
+          <p>IBM insider transactions (Exercise, TaxWithhold, Gift, Award) were returned by the backend but hidden in the frontend due to a filter that only displayed Buy/Sell types. NFLX showed no insiders because the backend capped Form 4 candidate filings at 10, and when all 10 were derivative-only (common for tech companies), all parsing returned null. Now displays all transaction types and fetches up to 40 candidate filings to ensure enough non-derivative transactions are found.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-17">July 17, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix insider trading data: Form 4/A handling, SEC archive URLs, pagination, and caching</h3>
+          <p>Form 4/A amendments (corrections to original Form 4 filings) are no longer silently dropped, which previously caused stale or incorrect insider transaction data. SEC archive XML fetches now strip the <code>/A</code> suffix from accession numbers to prevent 404 errors when fetching corrected filing documents. Added rate limiting with throttling between SEC API paginated requests to avoid hitting the EDGAR 10-requests-per-second limit. Fixed a caching bug where empty insider results (2h TTL) were overwritten by the route wrapper with a default 24-hour TTL, causing no-data responses to persist for an entire day.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-17">July 17, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix bugs and stability issues in dashboard query caching, layout, and data APIs</h3>
+          <p>Fixed an issue where cached data was prematurely garbage collected before it became stale. Added page-level error boundaries to isolate component-level crashes and prevent full-screen freezes. Optimized live price polling performance by memoizing ticker mappings and data tables to prevent unnecessary rendering. Added robust schema validation to gurus and options endpoints, and resolved cache stampede thundering herd issues under high traffic loads.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-07-17">July 17, 2026</time>
             <span class="tag tag-fix">Fix</span>
           </div>

@@ -9,23 +9,31 @@ import {
   isPositive,
 } from "../utils/formatters";
 
-// Check if earnings date is within the next N days
+// Parse an ISO date string into a local-timezone Date at midnight (date-only)
+function parseDateOnly(isoString) {
+  const [y, m, d] = isoString.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Check if earnings date is within the next N calendar days
 function isEarningsSoon(earningsDate, days = 7) {
   if (!earningsDate) return false;
   const now = new Date();
-  const earnings = new Date(earningsDate);
-  const diffTime = earnings - now;
-  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const earnings = parseDateOnly(earningsDate);
+  const diffMs = earnings - today;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
   return diffDays >= 0 && diffDays <= days;
 }
 
 // Format earnings date for display
 function formatEarningsDate(earningsDate) {
   if (!earningsDate) return null;
-  const date = new Date(earningsDate);
+  const date = parseDateOnly(earningsDate);
   const now = new Date();
-  const diffTime = date - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = date - today;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return "Earnings today";
   if (diffDays === 1) return "Earnings tomorrow";
