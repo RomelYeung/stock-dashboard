@@ -1,0 +1,630 @@
+{
+  "format": "valuation-backtest-fixture/v1",
+  "version": 1,
+  "generatedAt": "2026-08-24T03:42:38.623Z",
+  "methodology": {
+    "capturedAt": "Historical knowledge cutoff; the actual as-of trading day at the normal 4:00 PM America/New_York market close.",
+    "requestedAsOfDate": "2022-11-01",
+    "actualAsOfDate": "2022-11-01",
+    "actualAsOfCutoff": "2022-11-01T20:00:00.000Z",
+    "priceBasis": "split-adjusted",
+    "riskFreeRate": "Historical DGS10 level divided by 100 once, using the as-of vintage.",
+    "fredRetrieval": "FRED DGS10 observation 2022-10-31 = 4.1% replayed from the prior authenticated fixture for this archive-only regeneration; no API key was used."
+  },
+  "sources": [
+    {
+      "provider": "SEC FSDS",
+      "sourceUrl": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2022q4.zip",
+      "localArchiveSha256": "83bdc7a9545479eb64d118688c888ba8e7554ebc774f3ab8a8b0cc1decb87f28"
+    },
+    {
+      "provider": "FRED",
+      "series": "DGS10",
+      "url": "https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&observation_start=2022-10-18&observation_end=2022-11-01&realtime_start=2022-11-01&realtime_end=2022-11-01"
+    },
+    {
+      "provider": "Yahoo Finance",
+      "packageVersion": "3.14.0"
+    }
+  ],
+  "rows": [
+    {
+      "ticker": "AAPL",
+      "requestedAsOfDate": "2022-11-01",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "capturedAt": "2022-11-01T20:00:00.000Z",
+      "priceBasis": "split-adjusted",
+      "asOfPrice": 150.64999389648438,
+      "outcomePrice": 173.97000122070312,
+      "summary": {
+        "sector": "Technology",
+        "industry": "Consumer Electronics",
+        "currentPrice": 150.64999389648438,
+        "asOfPrice": 150.64999389648438,
+        "sharesOutstanding": 15943425000,
+        "marketCap": 2401876878939.0566,
+        "beta": 1.2339075359270761
+      },
+      "financials": {
+        "availableDate": "2022-10-27T22:01:00.000Z",
+        "revenueGrowth": 0.0779378760418461,
+        "provenance": {
+          "tagsSelected": {
+            "revenue:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "operatingIncome:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "netIncome:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "tax:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "ebt:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "operatingCashFlow:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "capex:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "revenue:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "operatingIncome:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "netIncome:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "tax:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "ebt:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "operatingCashFlow:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "capex:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "revenue:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "operatingIncome:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "netIncome:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "tax:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "ebt:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "operatingCashFlow:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "capex:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "cash": {
+              "namespace": "us-gaap",
+              "tag": "CashAndCashEquivalentsAtCarryingValue",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "investments": {
+              "namespace": "us-gaap",
+              "tag": "MarketableSecuritiesCurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "noncurrentDebt": {
+              "namespace": "us-gaap",
+              "tag": "LongTermDebtNoncurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "shares": {
+              "namespace": "us-gaap",
+              "tag": "CommonStockSharesOutstanding",
+              "unit": "shares",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "currentDebt:shortTermBorrowings": {
+              "namespace": "us-gaap",
+              "tag": "CommercialPaper",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "currentDebt:currentMaturities": {
+              "namespace": "us-gaap",
+              "tag": "LongTermDebtCurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            }
+          }
+        }
+      },
+      "balanceSheet": {
+        "availableDate": "2022-10-27T22:01:00.000Z",
+        "totalCash": 48304000000,
+        "cashAndEquivalents": 23646000000,
+        "currentInvestments": 24658000000,
+        "totalDebt": 120069000000,
+        "currentDebt": 21110000000,
+        "noncurrentDebt": 98959000000,
+        "operatingCashflow": 122151000000,
+        "capitalExpenditures": 10708000000,
+        "freeCashflow": 111443000000,
+        "provenance": {
+          "tagsSelected": {
+            "revenue:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "operatingIncome:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "netIncome:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "tax:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "ebt:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "operatingCashFlow:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "capex:2020-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20200930"
+            },
+            "revenue:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "operatingIncome:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "netIncome:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "tax:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "ebt:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "operatingCashFlow:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "capex:2021-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20210930"
+            },
+            "revenue:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "operatingIncome:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "OperatingIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "netIncome:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetIncomeLoss",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "tax:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeTaxExpenseBenefit",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "ebt:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "operatingCashFlow:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "NetCashProvidedByUsedInOperatingActivities",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "capex:2022-09-30": {
+              "namespace": "us-gaap",
+              "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 4,
+              "rawDdate": "20220930"
+            },
+            "cash": {
+              "namespace": "us-gaap",
+              "tag": "CashAndCashEquivalentsAtCarryingValue",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "investments": {
+              "namespace": "us-gaap",
+              "tag": "MarketableSecuritiesCurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "noncurrentDebt": {
+              "namespace": "us-gaap",
+              "tag": "LongTermDebtNoncurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "shares": {
+              "namespace": "us-gaap",
+              "tag": "CommonStockSharesOutstanding",
+              "unit": "shares",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "currentDebt:shortTermBorrowings": {
+              "namespace": "us-gaap",
+              "tag": "CommercialPaper",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            },
+            "currentDebt:currentMaturities": {
+              "namespace": "us-gaap",
+              "tag": "LongTermDebtCurrent",
+              "unit": "USD",
+              "accession": "0000320193-22-000108",
+              "qtrs": 0,
+              "rawDdate": "20220930"
+            }
+          }
+        }
+      },
+      "annualIncome": [
+        {
+          "date": "2020-09-30",
+          "periodEnd": "2020-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "totalRevenue": 274515000000,
+          "operatingIncome": 66288000000,
+          "netIncome": 57411000000,
+          "incomeTaxExpense": 9680000000,
+          "ebt": 67091000000,
+          "interestExpense": null
+        },
+        {
+          "date": "2021-09-30",
+          "periodEnd": "2021-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "totalRevenue": 365817000000,
+          "operatingIncome": 108949000000,
+          "netIncome": 94680000000,
+          "incomeTaxExpense": 14527000000,
+          "ebt": 109207000000,
+          "interestExpense": null
+        },
+        {
+          "date": "2022-09-30",
+          "periodEnd": "2022-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "totalRevenue": 394328000000,
+          "operatingIncome": 119437000000,
+          "netIncome": 99803000000,
+          "incomeTaxExpense": 19300000000,
+          "ebt": 119103000000,
+          "interestExpense": null
+        }
+      ],
+      "annualCashFlow": [
+        {
+          "date": "2020-09-30",
+          "periodEnd": "2020-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "operatingCashFlow": 80674000000,
+          "capitalExpenditures": 7309000000,
+          "freeCashFlow": 73365000000
+        },
+        {
+          "date": "2021-09-30",
+          "periodEnd": "2021-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "operatingCashFlow": 104038000000,
+          "capitalExpenditures": 11085000000,
+          "freeCashFlow": 92953000000
+        },
+        {
+          "date": "2022-09-30",
+          "periodEnd": "2022-09-30",
+          "availableDate": "2022-10-27T22:01:00.000Z",
+          "operatingCashFlow": 122151000000,
+          "capitalExpenditures": 10708000000,
+          "freeCashFlow": 111443000000
+        }
+      ],
+      "riskFreeRate": 0.041,
+      "provenance": {
+        "retrievedAt": "2026-08-24T03:42:38.623Z",
+        "classification": {
+          "source": "CLI/manual",
+          "effectiveDate": null
+        },
+        "price": {
+          "provider": "Yahoo Finance",
+          "packageVersion": "3.14.0",
+          "requestedAsOfDate": "2022-11-01",
+          "actualAsOfDate": "2022-11-01",
+          "actualAsOfCutoff": "2022-11-01T20:00:00.000Z",
+          "outcomeDate": "2023-11-01",
+          "outcomeCutoff": "2023-11-01T20:00:00.000Z",
+          "splitEvents": [],
+          "retrievalDate": "2026-08-23",
+          "rebaseEvents": [],
+          "rebaseFactor": 1,
+          "rawCloseBasis": "Yahoo raw close is already split-normalized; adjclose is intentionally unused.",
+          "adjustment": "Both raw as-of and outcome closes are multiplied by the same cumulative split factor after actual as-of through retrieval."
+        },
+        "beta": {
+          "formula": "covariance(ticker monthly returns, SPY monthly returns) / variance(SPY monthly returns)",
+          "window": "Five years before actual as-of through actual as-of; month-end observations",
+          "alignedReturns": 59,
+          "splitAdjustment": "None; Yahoo raw close returns are already split-normalized."
+        },
+        "sec": {
+          "entityName": "APPLE INC",
+          "cik": "0000320193",
+          "sic": "3571",
+          "sicDescription": null,
+          "filing": {
+            "form": "10-K",
+            "accession": "0000320193-22-000108",
+            "filingDate": "2022-10-28",
+            "acceptanceDateTime": "2022-10-27T22:01:00.000Z",
+            "primaryDocument": null,
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/aapl-20220924_htm.xml",
+            "acceptedRaw": "2022-10-27 18:01:00.0",
+            "acceptedUtc": "2022-10-27T22:01:00.000Z",
+            "period": "20220930",
+            "fy": "2022",
+            "fp": "FY"
+          },
+          "archive": {
+            "quarter": "2022q4",
+            "sourceUrl": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2022q4.zip",
+            "localArchiveSha256": "83bdc7a9545479eb64d118688c888ba8e7554ebc774f3ab8a8b0cc1decb87f28"
+          }
+        },
+        "fred": {
+          "series": "DGS10",
+          "observationDate": "2022-10-31",
+          "requestedVintage": {
+            "realtimeStart": "2022-11-01",
+            "realtimeEnd": "2022-11-01"
+          },
+          "url": "https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&observation_start=2022-10-18&observation_end=2022-11-01&realtime_start=2022-11-01&realtime_end=2022-11-01"
+        }
+      }
+    }
+  ]
+}

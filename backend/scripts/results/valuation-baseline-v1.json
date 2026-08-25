@@ -1,0 +1,402 @@
+{
+  "format": "valuation-backtest-results/v1",
+  "version": 1,
+  "baselineId": "valuation-baseline-v1",
+  "generatedAt": "2026-08-24T04:50:30.008Z",
+  "records": [
+    {
+      "ticker": "JPM",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "BAC",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "WFC",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "C",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "USB",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "GS",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "AIG",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "ALL",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "bank-insurer",
+      "status": "unvalued",
+      "reasonCodes": [
+        "residual-income-not-implemented"
+      ]
+    },
+    {
+      "ticker": "KO",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 52.64192485599259,
+      "predictedReturn": -0.11733860840499077,
+      "realizedReturn": -0.053655278264386874,
+      "absolutePercentageError": 0.06729400891443393,
+      "directionalHit": true
+    },
+    {
+      "ticker": "PEP",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 149.29624657404145,
+      "predictedReturn": -0.17406366944542373,
+      "realizedReturn": -0.08790661580290937,
+      "absolutePercentageError": 0.09446078124813695,
+      "directionalHit": true
+    },
+    {
+      "ticker": "PG",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 227.77033457830532,
+      "predictedReturn": 0.6886886590506764,
+      "realizedReturn": 0.10920814942390389,
+      "absolutePercentageError": 0.522427201718398,
+      "directionalHit": true
+    },
+    {
+      "ticker": "WMT",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 194.52185590917878,
+      "predictedReturn": 0.3728693471277289,
+      "realizedReturn": 0.16359664167715504,
+      "absolutePercentageError": 0.17984987061232638,
+      "directionalHit": true
+    },
+    {
+      "ticker": "JNJ",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 268.47199247531535,
+      "predictedReturn": 0.5510543541247099,
+      "realizedReturn": -0.14096709464857182,
+      "absolutePercentageError": 0.805582003276321,
+      "directionalHit": false
+    },
+    {
+      "ticker": "MCD",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 216.86167440978144,
+      "predictedReturn": -0.2054894130384104,
+      "realizedReturn": -0.04022718628054078,
+      "absolutePercentageError": 0.172188901785434,
+      "directionalHit": true
+    },
+    {
+      "ticker": "CSCO",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 70.2529327900388,
+      "predictedReturn": 0.545379107014422,
+      "realizedReturn": 0.1480422278436655,
+      "absolutePercentageError": 0.34609953321757403,
+      "directionalHit": true
+    },
+    {
+      "ticker": "VZ",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 160.00683006365483,
+      "predictedReturn": 3.2816921230129896,
+      "realizedReturn": -0.05271601451197849,
+      "absolutePercentageError": 3.5199667561223986,
+      "directionalHit": false
+    },
+    {
+      "ticker": "XOM",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 62.6862981429133,
+      "predictedReturn": -0.4398508078671638,
+      "realizedReturn": -0.056027201030142026,
+      "absolutePercentageError": 0.4066045200199436,
+      "directionalHit": true
+    },
+    {
+      "ticker": "CVX",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "mature-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 135.42793804766487,
+      "predictedReturn": -0.2567888423859912,
+      "realizedReturn": -0.20985624649869328,
+      "absolutePercentageError": 0.05939754086434135,
+      "directionalHit": true
+    },
+    {
+      "ticker": "AAPL",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 284.30315663491905,
+      "predictedReturn": 0.8871766887044903,
+      "realizedReturn": 0.1547959393894336,
+      "absolutePercentageError": 0.6342079360811421,
+      "directionalHit": true
+    },
+    {
+      "ticker": "MSFT",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 438.21659746166245,
+      "predictedReturn": 0.9205706314516908,
+      "realizedReturn": 0.516720033752974,
+      "absolutePercentageError": 0.2662657502449073,
+      "directionalHit": true
+    },
+    {
+      "ticker": "NVDA",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 142.0578221300343,
+      "predictedReturn": 0.04893908151244908,
+      "realizedReturn": 2.1252307517887115,
+      "absolutePercentageError": 0.6643642774498831,
+      "directionalHit": true
+    },
+    {
+      "ticker": "TSLA",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 52.238702991166605,
+      "predictedReturn": -0.7707018641395097,
+      "realizedReturn": -0.097269787330718,
+      "absolutePercentageError": 0.7459948358408446,
+      "directionalHit": true
+    },
+    {
+      "ticker": "GOOGL",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 286.6957964746135,
+      "predictedReturn": 2.1689597944761174,
+      "realizedReturn": 0.39770084273310924,
+      "absolutePercentageError": 1.2672661399269325,
+      "directionalHit": true
+    },
+    {
+      "ticker": "META",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 752.9909772283806,
+      "predictedReturn": 6.909569342084776,
+      "realizedReturn": 2.2757354632380977,
+      "absolutePercentageError": 1.4145934343141633,
+      "directionalHit": true
+    },
+    {
+      "ticker": "AMD",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 61.06664053760486,
+      "predictedReturn": 0.023577618065544925,
+      "realizedReturn": 0.810928615351209,
+      "absolutePercentageError": 0.43477748963228247,
+      "directionalHit": true
+    },
+    {
+      "ticker": "CRM",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 311.6995936151855,
+      "predictedReturn": 0.9503164768529657,
+      "realizedReturn": 0.2758728214074442,
+      "absolutePercentageError": 0.5286135452760312,
+      "directionalHit": true
+    },
+    {
+      "ticker": "RIVN",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "unsupported",
+      "status": "unvalued",
+      "reasonCodes": [
+        "fcf-non-positive"
+      ]
+    },
+    {
+      "ticker": "LYFT",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "unsupported",
+      "status": "unvalued",
+      "reasonCodes": [
+        "fcf-non-positive"
+      ]
+    },
+    {
+      "ticker": "BYND",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "unsupported",
+      "status": "unvalued",
+      "reasonCodes": [
+        "fcf-non-positive"
+      ]
+    },
+    {
+      "ticker": "LCID",
+      "asOfDate": "2022-11-01T20:00:00.000Z",
+      "outcomeDate": "2023-11-01T20:00:00.000Z",
+      "cohort": "unsupported",
+      "status": "unvalued",
+      "reasonCodes": [
+        "fcf-non-positive"
+      ]
+    }
+  ],
+  "summary": {
+    "bank-insurer": {
+      "total": 8,
+      "coverage": 0,
+      "valued": 0,
+      "unvalued": 8,
+      "invalid": 0,
+      "medianAbsolutePercentageError": null,
+      "directionalAccuracy": null
+    },
+    "mature-fcff": {
+      "total": 10,
+      "coverage": 1,
+      "valued": 10,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": 0.2629747019149502,
+      "directionalAccuracy": 0.8
+    },
+    "growth-fcff": {
+      "total": 8,
+      "coverage": 1,
+      "valued": 8,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": 0.6492861067655127,
+      "directionalAccuracy": 1
+    },
+    "unsupported": {
+      "total": 4,
+      "coverage": 0,
+      "valued": 0,
+      "unvalued": 4,
+      "invalid": 0,
+      "medianAbsolutePercentageError": null,
+      "directionalAccuracy": null
+    }
+  },
+  "fixtureFile": "valuation-baseline-v1.json",
+  "fixtureSha256": "81d02ad6427bceeac482873cae4a6febc28f313b6c3e7997327a9c3951882f70"
+}

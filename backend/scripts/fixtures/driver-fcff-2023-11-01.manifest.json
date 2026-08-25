@@ -1,0 +1,21 @@
+{
+  "format": "driver-fcff-vintage-manifest/v1",
+  "version": 1,
+  "baselineId": "driver-fcff-2023-11-01",
+  "asOfDate": "2023-11-01",
+  "classificationSource": "project growth driver roster v1",
+  "classificationEffectiveDate": "2023-11-01",
+  "archiveSha256": {
+    "sec-fsds-2023q1.zip": "479638c1be4088fa2ae42d2947468913eaff5ad0f093c412ba4340af8a8f791e",
+    "sec-fsds-2023q3.zip": "f075d721dde4393dabd49c1746578294ada4665ec29c85c2b3184f44f6f09187"
+  },
+  "rows": [
+    { "ticker": "MSFT", "cik": "789019", "accession": "0000950170-23-035122", "archive": "sec-fsds-2023q3.zip", "sector": "Technology", "industry": "Software - Infrastructure", "cohort": "growth-fcff" },
+    { "ticker": "NVDA", "cik": "1045810", "accession": "0001045810-23-000017", "archive": "sec-fsds-2023q1.zip", "sector": "Technology", "industry": "Semiconductors", "cohort": "growth-fcff" },
+    { "ticker": "TSLA", "cik": "1318605", "accession": "0000950170-23-001409", "archive": "sec-fsds-2023q1.zip", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "cohort": "growth-fcff" },
+    { "ticker": "GOOGL", "cik": "1652044", "accession": "0001652044-23-000016", "archive": "sec-fsds-2023q1.zip", "sector": "Communication Services", "industry": "Internet Content & Information", "cohort": "growth-fcff" },
+    { "ticker": "META", "cik": "1326801", "accession": "0001326801-23-000013", "archive": "sec-fsds-2023q1.zip", "sector": "Communication Services", "industry": "Internet Content & Information", "cohort": "growth-fcff" },
+    { "ticker": "AMD", "cik": "2488", "accession": "0000002488-23-000047", "archive": "sec-fsds-2023q1.zip", "sector": "Technology", "industry": "Semiconductors", "cohort": "growth-fcff" },
+    { "ticker": "CRM", "cik": "1108524", "accession": "0001108524-23-000011", "archive": "sec-fsds-2023q1.zip", "sector": "Technology", "industry": "Software - Application", "cohort": "growth-fcff" }
+  ]
+}
