@@ -12,6 +12,10 @@ model User {
   email        String           @unique
   passwordHash String
   role         String           @default("USER")
+  investorRiskTolerance String? // CONSERVATIVE | BALANCED | AGGRESSIVE
+  investorHorizon       String? // SHORT | MEDIUM | LONG
+  investorStyle         String? // VALUE | GROWTH | BLEND | INDEX
+  investorNotes         String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   portfolios   PortfolioItem[]
@@ -61,6 +65,7 @@ model ChatSession {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   messages  ChatMessage[]
+  debates   AdviserDebate[]
 }
 
 model ChatMessage {
@@ -129,4 +134,16 @@ model CusipMapping {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+model AdviserDebate {
+  id        String      @id @default(uuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  ticker    String
+  question  String
+  memos     Json
+  rebuttals Json
+  synthesis String
+  createdAt DateTime    @default(now())
 
+  @@index([sessionId])
+}
