@@ -1,18 +1,52 @@
 import { Router } from "express";
+import { z } from "zod";
 import prisma from "../services/db.js";
+import * as cache from "../services/cache.js";
 import { syncInvestor, calculateQoQ } from "../services/sec.js";
 import { generateAiStrategySummary, clearAiStrategyCache } from "../services/guruAi.js";
 import { getAiClient } from "../services/aiClient.js";
+import { validate } from "../middleware/validate.js";
+
+const tickerParamSchema = z.object({
+  ticker: z.string().regex(/^[A-Z0-9\-\.]{1,10}$/, "Invalid ticker format")
+});
+
+const uuidParamSchema = z.object({
+  id: z.string().min(1, "Invalid ID format")
+});
+
+const holdingsQuerySchema = z.object({
+  quarter: z.string().regex(/^\d{4}-Q[1-4]$/, "Invalid quarter format")
+    .refine((val) => {
+      const year = parseInt(val.split("-Q")[0], 10);
+      const currentYear = new Date().getFullYear();
+      return year >= 1978 && year <= currentYear + 1;
+    }, "Quarter year must be between 1978 and current year + 1")
+    .optional()
+});
+
+const syncBodySchema = z.object({
+  CIK: z.string().length(10, "Invalid CIK code").regex(/^\d+$/, "Invalid CIK code")
+});
+
+const syncStatusQuerySchema = z.object({
+  cik: z.string().regex(/^\d{1,10}$/, "Invalid CIK").optional(),
+});
 
 const router = Router();
 const syncRequestTimes = new Map();
 let activityFeedAiSummaryCache = null;
+const guruSyncCompletions = new Map(); // CIK -> completion timestamp
 
 // Only include full-portfolio 13F filings; exclude event-driven 13D/13G
 const SUPPORTED_13F_TYPES = ["13F-HR", "13F-HR/A"];
 
 export function resetSyncRequestTimes() {
   syncRequestTimes.clear();
+}
+
+export function resetGuruSyncCompletions() {
+  guruSyncCompletions.clear();
 }
 
 export function clearActivityFeedAiSummaryCache() {
@@ -169,51 +203,57 @@ Please generate a cohesive, concise executive AI summary (2-3 sentences) identif
 // 2. GET /api/gurus/activity - Combined activity feed across all investors
 router.get("/activity", async (req, res) => {
   try {
-    const investors = await prisma.investor.findMany({
-      include: {
-        filings: {
-          where: { type: { in: SUPPORTED_13F_TYPES } },
-          orderBy: { periodOfReport: "desc" },
-          include: { holdings: true }
-        }
-      }
-    });
+    const data = await cache.getOrFetchGuru(
+      "guru-activity-feed",
+      async () => {
+        const investors = await prisma.investor.findMany({
+          include: {
+            filings: {
+              where: { type: { in: SUPPORTED_13F_TYPES } },
+              orderBy: { periodOfReport: "desc" },
+              include: { holdings: true }
+            }
+          }
+        });
 
-    const activities = [];
-    for (const inv of investors) {
-      const filings = inv.filings;
-      for (let i = 0; i < filings.length; i++) {
-        const currFiling = filings[i];
-        const prevFiling = filings[i + 1];
-        const prevHoldings = prevFiling ? prevFiling.holdings : [];
-        const diffs = calculateQoQ(prevHoldings, currFiling.holdings);
-        for (const diff of diffs) {
-          const currHolding = currFiling.holdings.find(h => h.ticker === diff.ticker && (h.optionType || "none").toLowerCase() === (diff.optionType || "none").toLowerCase());
-          const weight = currHolding ? currHolding.portfolioWeight : 0;
-          activities.push({
-            date: currFiling.date.toISOString().split("T")[0],
-            name: inv.name,
-            fundName: inv.fundName,
-            ticker: diff.ticker,
-            change: diff.change,
-            sharesDiff: diff.sharesDiff,
-            valueDiff: diff.valueDiff,
-            weight
-          });
+        const activities = [];
+        for (const inv of investors) {
+          const filings = inv.filings;
+          for (let i = 0; i < filings.length; i++) {
+            const currFiling = filings[i];
+            const prevFiling = filings[i + 1];
+            const prevHoldings = prevFiling ? prevFiling.holdings : [];
+            const diffs = calculateQoQ(prevHoldings, currFiling.holdings);
+            for (const diff of diffs) {
+              const currHolding = currFiling.holdings.find(h => h.ticker === diff.ticker && (h.optionType || "none").toLowerCase() === (diff.optionType || "none").toLowerCase());
+              const weight = currHolding ? currHolding.portfolioWeight : 0;
+              activities.push({
+                date: currFiling.date.toISOString().split("T")[0],
+                name: inv.name,
+                fundName: inv.fundName,
+                ticker: diff.ticker,
+                change: diff.change,
+                sharesDiff: diff.sharesDiff,
+                valueDiff: diff.valueDiff,
+                weight
+              });
+            }
+          }
         }
-      }
-    }
 
-    // Sort by date descending
-    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
-    res.json({ success: true, data: activities });
+        // Sort by date descending
+        activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+        return activities;
+      }
+    );
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // 3. GET /api/gurus/ticker/:ticker - Reverse lookup holdings for a ticker
-router.get("/ticker/:ticker", async (req, res) => {
+router.get("/ticker/:ticker", validate(tickerParamSchema, "params"), async (req, res) => {
   const { ticker } = req.params;
   try {
     const holdings = await prisma.holding.findMany({
@@ -262,133 +302,145 @@ router.get("/ticker/:ticker", async (req, res) => {
 });
 
 // 4. GET /api/gurus/:id/holdings - Get holdings for investor and quarter
-router.get("/:id/holdings", async (req, res) => {
+router.get("/:id/holdings", validate(uuidParamSchema, "params"), validate(holdingsQuerySchema, "query"), async (req, res) => {
   const { id } = req.params;
   const { quarter } = req.query;
 
+  const cacheKey = `guru-holdings:${id}:${quarter || "latest"}`;
+
   try {
-    const investor = await prisma.investor.findUnique({
-      where: { id }
-    });
-    if (!investor) {
-      return res.status(404).json({ success: false, error: "Investor not found" });
-    }
+    const data = await cache.getOrFetchGuru(
+      cacheKey,
+      async () => {
+        const [investorRes, filingsRes] = await Promise.allSettled([
+          prisma.investor.findUnique({ where: { id } }),
+          prisma.filing.findMany({
+            where: {
+              investorId: id,
+              type: { in: SUPPORTED_13F_TYPES },
+              ...(quarter ? (() => {
+                const [yearStr, qStr] = quarter.split("-Q");
+                const year = parseInt(yearStr, 10);
+                let startDate, endDate;
+                if (qStr === "1") {
+                  startDate = new Date(Date.UTC(year, 0, 1));
+                  endDate = new Date(Date.UTC(year, 2, 31, 23, 59, 59, 999));
+                } else if (qStr === "2") {
+                  startDate = new Date(Date.UTC(year, 3, 1));
+                  endDate = new Date(Date.UTC(year, 5, 30, 23, 59, 59, 999));
+                } else if (qStr === "3") {
+                  startDate = new Date(Date.UTC(year, 6, 1));
+                  endDate = new Date(Date.UTC(year, 8, 30, 23, 59, 59, 999));
+                } else if (qStr === "4") {
+                  startDate = new Date(Date.UTC(year, 9, 1));
+                  endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+                }
+                return { periodOfReport: { gte: startDate, lte: endDate } };
+              })() : {})
+            },
+            include: { holdings: true },
+            orderBy: { periodOfReport: "desc" }
+          })
+        ]);
 
-    let startDate, endDate;
-    if (quarter) {
-      const quarterRegex = /^\d{4}-Q[1-4]$/;
-      if (!quarterRegex.test(quarter)) {
-        return res.status(400).json({ success: false, error: "Invalid quarter format" });
-      }
+        if (investorRes.status === "rejected") { const e = new Error("Failed to load investor"); e.status = 500; throw e; }
+        const investor = investorRes.value;
+        if (!investor) { const e = new Error("Investor not found"); e.status = 404; throw e; }
+        if (filingsRes.status === "rejected") throw filingsRes.reason;
+        const filings = filingsRes.value;
 
-      const [yearStr, qStr] = quarter.split("-Q");
-      const year = parseInt(yearStr, 10);
-      if (qStr === "1") {
-        startDate = new Date(Date.UTC(year, 0, 1));
-        endDate = new Date(Date.UTC(year, 2, 31, 23, 59, 59, 999));
-      } else if (qStr === "2") {
-        startDate = new Date(Date.UTC(year, 3, 1));
-        endDate = new Date(Date.UTC(year, 5, 30, 23, 59, 59, 999));
-      } else if (qStr === "3") {
-        startDate = new Date(Date.UTC(year, 6, 1));
-        endDate = new Date(Date.UTC(year, 8, 30, 23, 59, 59, 999));
-      } else if (qStr === "4") {
-        startDate = new Date(Date.UTC(year, 9, 1));
-        endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
-      }
-    }
+        let holdings = filings.length > 0 ? filings[0].holdings : [];
 
-    const filings = await prisma.filing.findMany({
-      where: {
-        investorId: id,
-        type: { in: SUPPORTED_13F_TYPES },
-        ...(quarter ? {
-          periodOfReport: {
-            gte: startDate,
-            lte: endDate
+        // Aggregate by (ticker, optionType) to deduplicate multiple rows per ticker
+        if (holdings.length > 0) {
+          const aggregatedMap = new Map();
+          for (const h of holdings) {
+            const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
+            if (!aggregatedMap.has(key)) {
+              // Preserve original row fields (id, filingId, createdAt) from first row
+              aggregatedMap.set(key, {
+                ...h,
+                _isAggregated: false,
+                _rowCount: 1
+              });
+            } else {
+              const existing = aggregatedMap.get(key);
+              existing.shares += h.shares;
+              existing.value += h.value;
+              existing._rowCount += 1;
+              existing._isAggregated = true;
+            }
           }
-        } : {})
-      },
-      include: { holdings: true },
-      orderBy: { periodOfReport: "desc" }
-    });
+          const aggregated = [...aggregatedMap.values()];
 
-    let holdings = filings.length > 0 ? filings[0].holdings : [];
+          // Recompute totalValue and portfolioWeight from aggregated holdings
+          const totalValue = aggregated.reduce((sum, h) => sum + h.value, 0);
+          for (const h of aggregated) {
+            h.portfolioWeight = totalValue > 0 ? h.value / totalValue : 0;
+            h.convictionScore = h.portfolioWeight * 10;
+          }
 
-    // Aggregate by (ticker, optionType) to deduplicate multiple rows per ticker
-    if (holdings.length > 0) {
-      const aggregatedMap = new Map();
-      for (const h of holdings) {
-        const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
-        if (!aggregatedMap.has(key)) {
-          // Preserve original row fields (id, filingId, createdAt) from first row
-          aggregatedMap.set(key, {
-            ...h,
-            _isAggregated: false,
-            _rowCount: 1
-          });
-        } else {
-          const existing = aggregatedMap.get(key);
-          existing.shares += h.shares;
-          existing.value += h.value;
-          existing._rowCount += 1;
-          existing._isAggregated = true;
+          holdings = aggregated;
         }
+
+        return holdings;
       }
-      const aggregated = [...aggregatedMap.values()];
-
-      // Recompute totalValue and portfolioWeight from aggregated holdings
-      const totalValue = aggregated.reduce((sum, h) => sum + h.value, 0);
-      for (const h of aggregated) {
-        h.portfolioWeight = totalValue > 0 ? h.value / totalValue : 0;
-        h.convictionScore = h.portfolioWeight * 10;
-      }
-
-      holdings = aggregated;
-    }
-
-    res.json({ success: true, data: holdings });
+    );
+    res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.status || 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 // 5. GET /api/gurus/:id/history - 8-quarter history and QoQ differences
-router.get("/:id/history", authenticate, async (req, res) => {
+router.get("/:id/history", authenticate, validate(uuidParamSchema, "params"), async (req, res) => {
   const { id } = req.params;
+
+  const cacheKey = `guru-history:${id}`;
+
   try {
-    const investor = await prisma.investor.findUnique({
-      where: { id }
-    });
-    if (!investor) {
-      return res.status(404).json({ success: false, error: "Investor not found" });
-    }
+    const data = await cache.getOrFetchGuru(
+      cacheKey,
+      async () => {
+        const investor = await prisma.investor.findUnique({
+          where: { id }
+        });
+        if (!investor) {
+          const err = new Error("Investor not found");
+          err.status = 404;
+          throw err;
+        }
 
-    const filings = await prisma.filing.findMany({
-      where: { investorId: id, type: { in: SUPPORTED_13F_TYPES } },
-      orderBy: { periodOfReport: "desc" },
-      take: 20,
-      include: { holdings: true }
-    });
+        const filings = await prisma.filing.findMany({
+          where: { investorId: id, type: { in: SUPPORTED_13F_TYPES } },
+          orderBy: { periodOfReport: "desc" },
+          take: 20,
+          include: { holdings: true }
+        });
 
-    const history = filings.map((filing, index) => {
-      const prevFiling = filings[index + 1];
-      const prevHoldings = prevFiling ? prevFiling.holdings : [];
-      const diffs = calculateQoQ(prevHoldings, filing.holdings);
-      return {
-        ...filing,
-        qoqDifferences: diffs
-      };
-    });
+        const history = filings.map((filing, index) => {
+          const prevFiling = filings[index + 1];
+          const prevHoldings = prevFiling ? prevFiling.holdings : [];
+          const diffs = calculateQoQ(prevHoldings, filing.holdings);
+          return {
+            ...filing,
+            qoqDifferences: diffs
+          };
+        });
 
-    res.json({ success: true, data: { history } });
+        return { history };
+      }
+    );
+    res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.status || 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 // 6. GET /api/gurus/:id/ai-strategy - AI-generated strategy
-router.get("/:id/ai-strategy", authenticate, async (req, res) => {
+router.get("/:id/ai-strategy", authenticate, validate(uuidParamSchema, "params"), async (req, res) => {
   const { id } = req.params;
 
   if (req.headers["x-simulate-ai-failure"] === "true") {
@@ -411,11 +463,8 @@ router.get("/:id/ai-strategy", authenticate, async (req, res) => {
 });
 
 // 7. POST /api/gurus/sync - Manual sync trigger
-router.post("/sync", authenticate, async (req, res) => {
+router.post("/sync", authenticate, validate(syncBodySchema, "body"), async (req, res) => {
   const { CIK } = req.body;
-  if (!CIK || CIK.length !== 10 || !/^\d+$/.test(CIK)) {
-    return res.status(400).json({ success: false, error: "Invalid CIK code" });
-  }
 
   const now = Date.now();
   const lastSyncTime = syncRequestTimes.get(CIK) || 0;
@@ -433,12 +482,24 @@ router.post("/sync", authenticate, async (req, res) => {
       if (investor) {
         clearAiStrategyCache(investor.id);
       }
+      cache.clearGuruData();
+      guruSyncCompletions.set(CIK, Date.now());
     })
     .catch(err => {
       console.error(`[sync] Failed to sync investor CIK: ${CIK}:`, err.message);
     });
 
   res.status(202).json({ success: true, message: "Sync process initiated" });
+});
+
+// 8. GET /api/gurus/sync-status - Public endpoint for sync completion polling
+router.get("/sync-status", validate(syncStatusQuerySchema, "query"), async (req, res) => {
+  if (req.query.cik) {
+    return res.json({ success: true, data: { lastCompletedAt: guruSyncCompletions.get(req.query.cik) ?? null } });
+  }
+  // Back-compat: global max across all CIKs
+  const values = [...guruSyncCompletions.values()];
+  res.json({ success: true, data: { lastCompletedAt: Math.max(0, ...values) || null } });
 });
 
 export default router;

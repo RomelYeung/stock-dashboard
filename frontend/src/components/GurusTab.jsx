@@ -59,7 +59,7 @@ export default function GurusTab({
 
     syncMutation.mutate(syncCik, {
       onSuccess: () => {
-        setSyncSuccess("Sync process initiated successfully!");
+        setSyncSuccess("Sync completed — portfolios refreshed.");
         setSyncCik("");
       },
       onError: (err) => {

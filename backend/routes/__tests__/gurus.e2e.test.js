@@ -12,9 +12,16 @@ jest.unstable_mockModule("../../services/aiClient.js", () => ({
   }))
 }));
 
+const mockSyncInvestor = jest.fn().mockResolvedValue(undefined);
+jest.unstable_mockModule("../../services/sec.js", async () => {
+  const actual = await jest.requireActual("../../services/sec.js");
+  return { ...actual, syncInvestor: mockSyncInvestor };
+});
+
 await import("../../services/guruAi.js");
-const { default: gurusRouter, resetSyncRequestTimes, clearActivityFeedAiSummaryCache } = await import("../gurus.js");
+const { default: gurusRouter, resetSyncRequestTimes, clearActivityFeedAiSummaryCache, resetGuruSyncCompletions } = await import("../gurus.js");
 const { default: prisma } = await import("../../services/db.js");
+const cache = await import("../../services/cache.js");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Real-world Business Logic Stubs for E2E testing contracts
@@ -53,10 +60,13 @@ describe("E2E Integration & Ingestion (Backend)", () => {
   beforeEach(() => {
     syncRequestTimes.clear();
     resetSyncRequestTimes();
+    resetGuruSyncCompletions();
     aiCache.clear();
     if (clearActivityFeedAiSummaryCache) {
       clearActivityFeedAiSummaryCache();
     }
+    mockSyncInvestor.mockClear();
+    cache.clearGuruData();
   });
 
   beforeAll(() => {
@@ -277,6 +287,15 @@ describe("E2E Integration & Ingestion (Backend)", () => {
     prisma.$transaction = jest.fn().mockImplementation(async (callback) => callback(prisma));
 
     app.use("/api/gurus", gurusRouter);
+
+    app.use((err, req, res, next) => {
+      if (err.name === "ZodError") {
+        const issues = err.issues || err.errors || [];
+        const messages = issues.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+        return res.status(400).json({ success: false, error: messages || "Invalid request data." });
+      }
+      res.status(500).json({ success: false, error: err.message });
+    });
 
     // Express handler call helper resembling supertest
     caller = async (method, path, body = {}, headers = {}) => {
@@ -571,10 +590,32 @@ describe("E2E Integration & Ingestion (Backend)", () => {
     expect(activeCron).toBe(true);
   });
 
-  test("Test 3.11: Combined sync and API cache invalidation (Tier 3 Cross)", async () => {
-    const targetCIK = "0001067983";
+  test("Test 3.11: Sync completion invalidates cached holdings data", async () => {
+    const targetCIK = "0001649339"; // Michael Burry (id "2")
+    cache.clearGuruData();
+
+    // Warm the cache for guru 2
+    await caller("GET", "/api/gurus/2/holdings?quarter=2026-Q1");
+    const callsBefore = prisma.filing.findMany.mock.calls.length;
+
+    // Baseline for THIS CIK is null (never completed)
+    const pre = await caller("GET", `/api/gurus/sync-status?cik=${targetCIK}`);
+    expect(pre.status).toBe(200);
+    expect(pre.body.data.lastCompletedAt).toBeNull();
+
     const res = await caller("POST", "/api/gurus/sync", { CIK: targetCIK }, { authorization: "admin-token" });
     expect(res.status).toBe(202);
+
+    await new Promise((r) => setTimeout(r, 100)); // let .then chain settle
+
+    const post = await caller("GET", `/api/gurus/sync-status?cik=${targetCIK}`);
+    expect(post.status).toBe(200);
+    expect(typeof post.body.data.lastCompletedAt).toBe("number");
+
+    // Completion path flushed the cache -> refetch hits prisma again
+    const res2 = await caller("GET", "/api/gurus/2/holdings?quarter=2026-Q1");
+    expect(res2.status).toBe(200);
+    expect(prisma.filing.findMany.mock.calls.length - callsBefore).toBeGreaterThanOrEqual(1);
   });
 
   test("Test 3.12: GET /api/gurus/activity/ai-summary gates access correctly", async () => {
@@ -607,5 +648,39 @@ describe("E2E Integration & Ingestion (Backend)", () => {
     const res3 = await caller("GET", "/api/gurus/activity/ai-summary", {}, { authorization: "user-token" });
     expect(res3.status).toBe(200);
     expect(res3.body.cached).toBe(false);
+  });
+
+  // ─── REGRESSION TESTS: ROUND-2 FIXES ───────────────────────────────────────
+
+  test("Regression: Cache-hit serves from cache on second GET /:id/holdings", async () => {
+    cache.clearGuruData();
+    const callsBefore = prisma.filing.findMany.mock.calls.length;
+
+    const res1 = await caller("GET", "/api/gurus/1/holdings?quarter=2026-Q1");
+    const res2 = await caller("GET", "/api/gurus/1/holdings?quarter=2026-Q1");
+
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+    expect(prisma.filing.findMany.mock.calls.length - callsBefore).toBe(1);
+  });
+
+  test("Regression: Quarter bounds reject years before 1978 and allow current year", async () => {
+    const res1 = await caller("GET", "/api/gurus/1/holdings?quarter=1800-Q1");
+    expect(res1.status).toBe(400);
+
+    const currentYear = new Date().getFullYear();
+    const res2 = await caller("GET", `/api/gurus/1/holdings?quarter=${currentYear}-Q1`);
+    expect(res2.status).toBe(200);
+  });
+
+  test("Regression: GET /api/gurus/sync-status returns 200 with lastCompletedAt", async () => {
+    const res = await caller("GET", "/api/gurus/sync-status");
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty("lastCompletedAt");
+
+    const resCik = await caller("GET", "/api/gurus/sync-status?cik=0001067983");
+    expect(resCik.status).toBe(200);
+    expect(resCik.body.data).toHaveProperty("lastCompletedAt");
   });
 });

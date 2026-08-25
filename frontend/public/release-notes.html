@@ -358,7 +358,115 @@
       </div>
 
       <section class="month-group">
+        <h2>August 2026</h2>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-24">August 24, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Cache guru SEC data to speed up Guru Tracker pages</h3>
+          <p>Guru holdings, history, and activity feed now serve cached SEC 13F data instead of recomputing on every request. Holdings and history queries automatically refresh after syncing an investor.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-24">August 24, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Reconcile BAC common equity explicitly</h3>
+          <p>Bank of America residual-income estimates now reconcile reviewed common-equity components while remaining gated by complete, verified source data.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-24">August 24, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Correct BAC residual-income distribution inputs</h3>
+          <p>Bank of America&rsquo;s residual-income distribution inputs now use reviewed, context-aligned issuance data, while valuation availability remains gated by complete supporting evidence.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-24">August 24, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add residual-income valuation for financial companies</h3>
+          <p>Show evidence-gated fair values, scenarios, capital checks, and forecast schedules for reviewed financial companies, with clear reasons when required regulatory or accounting data cannot be verified.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-23">August 23, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Explain growth valuations with operating drivers</h3>
+          <p>Show the revenue growth, operating margin, and reinvestment assumptions behind growth-company DCF estimates so users can see how the forecast converts business performance into free cash flow.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-23">August 23, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Measure valuation cohorts with historical backtests</h3>
+          <p>Classify companies into supported valuation cohorts and replay historical snapshots so model coverage and forecast accuracy can be measured before adding more valuation formulas.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-23">August 23, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix valuation model consistency</h3>
+          <p>Use the backend valuation engine for interactive DCF scenarios and sensitivity results, remove synthetic price-derived models, and keep Monte Carlo ranges tied to their baseline assumptions so displayed values stay consistent and reproducible.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-22">August 22, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Auto-trigger backfill during daily IV ingestion runs</h3>
+          <p>Scheduled IV ingestion now automatically verifies and backfills any missed previous trading sessions before processing the current day, ensuring resilience against missed cron ticks without requiring server restarts.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-16">August 16, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Enhance IV backfill to automatically detect and repair partial daily runs</h3>
+          <p>The IV worker backfill now detects partially-ingested trading days (e.g. caused by mid-batch server restarts) and fills missing tickers automatically across recent trading sessions within a 7-day lookback window.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-13">August 13, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Improve Charles Schwab authentication reliability and add manual callback exchange</h3>
+          <p>Fix token file path resolution and environment variable loading across execution contexts. Add fallback support for manual callback URL and code pasting in both the web UI and CLI, preventing authorization blocks caused by self-signed localhost SSL warnings.</p>
+        </article>
+      </section>
+
+      <section class="month-group">
         <h2>July 2026</h2>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-31">July 31, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Fix IV ingestion reliability gaps and weekend data bugs</h3>
+          <p>Resolved issues where daily implied volatility ingestion missed trading days when the server wasn't running at the scheduled time, and eliminated spurious weekend records caused by a UTC/ET timezone mismatch. Added automatic backfill for missed trading days on server restart, retry logic for failed ingestion runs, a safety-net cron job, and NYSE holiday awareness to skip non-trading days.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-28">July 28, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Optimize Guru Tracker page performance and rendering efficiency</h3>
+          <p>Eliminated interaction lag across the Guru Tracker grid, activity feed, and detail views by memoizing filtering logic, heavy matrix calculations, and Recharts pie chart data, preventing unnecessary re-renders during state updates and drawer navigation.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-07-25">July 25, 2026</time>
+            <span class="tag tag-feature">Feature</span>
+          </div>
+          <h3>Add Annual / Quarterly period toggle for financial charts</h3>
+          <p>Introduced a Cyber Brutalism segmented-control toggle component on the Fundamentals and Earnings tabs, allowing users to switch dynamically between annual and quarterly financial data across Cash Flow, Revenue & Growth, and Profit Margin charts.</p>
+        </article>
         <article class="release-entry">
           <div class="entry-meta">
             <time datetime="2026-07-22">July 22, 2026</time>

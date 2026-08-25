@@ -11,6 +11,7 @@ export function useGurus() {
       const json = await res.json();
       return json.data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -30,6 +31,7 @@ export function useGuruHoldings(id, quarter) {
       return json.data || [];
     },
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -44,6 +46,7 @@ export function useGuruActivity() {
       const json = await res.json();
       return json.data || [];
     },
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -60,6 +63,7 @@ export function useGuruHistory(id) {
       return json.data;
     },
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -83,24 +87,49 @@ export function useSyncGuru() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (CIK) => {
+      const statusUrl = `/api/gurus/sync-status?cik=${encodeURIComponent(CIK)}`;
+
+      // 1. Baseline for THIS CIK — must succeed or we abort before starting
+      const baseRes = await fetch(statusUrl);
+      if (!baseRes.ok) throw new Error("Unable to determine sync status");
+      const baseline = (await baseRes.json())?.data?.lastCompletedAt ?? null;
+
+      // 2. Kick off sync (202 expected)
       const res = await fetch("/api/gurus/sync", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ CIK }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || "Failed to sync investor");
       }
-      return res.json();
+
+      // 3. Poll THIS CIK's completion marker every 2s up to 90s.
+      //    Success is returned ONLY when this CIK's marker advances.
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const r2 = await fetch(statusUrl);
+          if (!r2.ok) continue; // transient — keep polling
+          const at = (await r2.json())?.data?.lastCompletedAt ?? null;
+          if (at !== null && at !== baseline) {
+            return res.json();
+          }
+        } catch {
+          /* transient network error — keep polling */
+        }
+      }
+      throw new Error("Sync timed out after 90 seconds. Check server logs or try again.");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gurus"] });
       queryClient.invalidateQueries({ queryKey: ["guruActivity"] });
       queryClient.invalidateQueries({ queryKey: ["guruActivityAiSummary"] });
       queryClient.invalidateQueries({ queryKey: ["guruAiStrategy"] });
+      queryClient.invalidateQueries({ queryKey: ["guruHoldings"] });
+      queryClient.invalidateQueries({ queryKey: ["guruHistory"] });
     },
   });
 }

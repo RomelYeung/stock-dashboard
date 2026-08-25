@@ -2,6 +2,18 @@ import prisma from "./db.js";
 import { searchTickers } from "./yahoofinance.js";
 import xml2js from "xml2js";
 import cron from "node-cron";
+import { secLimiter } from "../utils/rateLimiter.js";
+import { clearGuruData } from "./cache.js";
+
+class SecError extends Error {
+  constructor(message, { code, cusip, accession } = {}) {
+    super(message);
+    this.name = "SecError";
+    this.code = code;
+    this.cusip = cusip;
+    this.accession = accession;
+  }
+}
 
 const SEC_HEADERS = {
   "User-Agent": "StockDashboard/1.0 (contact@example.com)",
@@ -43,28 +55,6 @@ const LOCAL_CUSIP_MAP = {
   "478160104": "JNJ",
   "742718109": "PG",
 };
-
-// 1. SEC EDGAR API Client Rate Limiter (Max 10 requests/sec)
-class RateLimiter {
-  constructor(limitPerSec) {
-    this.delay = 1000 / limitPerSec;
-    this.lastCall = 0;
-  }
-
-  async throttle() {
-    const now = Date.now();
-    const elapsed = now - this.lastCall;
-    if (elapsed < this.delay) {
-      const waitTime = this.delay - elapsed;
-      this.lastCall = now + waitTime;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    } else {
-      this.lastCall = now;
-    }
-  }
-}
-
-const secLimiter = new RateLimiter(10);
 
 // Helper to look up values inside parsed XML with casing options
 function getVal(obj, ...keys) {
@@ -173,7 +163,7 @@ export async function resolveCusipToTicker(cusip) {
     });
     if (mapped) return mapped.ticker;
   } catch (err) {
-    console.error(`DB mapping lookup failed for CUSIP ${cusip}:`, err.message);
+    throw new SecError(`DB mapping lookup failed for CUSIP ${cusip}: ${err.message}`, { cusip });
   }
 
   // 2. Check local hardcoded fallback map
@@ -196,19 +186,32 @@ export async function resolveCusipToTicker(cusip) {
             create: { CUSIP: cusip, ticker: symbol, companyName }
           });
         } catch (dbErr) {
-          console.error(`Failed to upsert CUSIP mapping for ${cusip}:`, dbErr.message);
+          throw new SecError(`Failed to upsert CUSIP mapping for ${cusip}: ${dbErr.message}`, { cusip });
         }
         return symbol;
       }
     }
   } catch (err) {
-    console.error(`Yahoo Finance lookup failed for CUSIP ${cusip}:`, err.message);
+    if (err instanceof SecError) throw err;
+    throw new SecError(`Yahoo Finance lookup failed for CUSIP ${cusip}: ${err.message}`, { cusip });
   }
 
   return null;
 }
 
-// F1.5: Calculate QoQ position differences
+/**
+ * F1.5: Calculate QoQ position differences
+ * 
+ * NOTE/LIMITATION: This function performs raw share count comparison. It does
+ * not currently account for corporate actions (e.g., stock splits, reverse splits).
+ * A 10-for-1 stock split between quarters will register as a +900% share increase.
+ * To fix this in the future, fetch stock split history for the period and adjust
+ * the previous quarter's share count by the split ratio before diffing.
+ *
+ * @param {Array} prevHoldings - Previous quarter holdings
+ * @param {Array} currentHoldings - Current quarter holdings
+ * @returns {Array} List of QoQ differences
+ */
 export function calculateQoQ(prevHoldings, currentHoldings) {
   const diffs = [];
   
@@ -259,24 +262,20 @@ export function pruneHistory(filings) {
 
 // Clean history in the database (keeping exactly 20 most recent filings)
 export async function pruneInvestorHistoryInDB(investorId) {
-  try {
-    const filings = await prisma.filing.findMany({
-      where: { investorId },
-      orderBy: { date: "desc" }
+  const filings = await prisma.filing.findMany({
+    where: { investorId },
+    orderBy: { date: "desc" }
+  });
+  if (filings.length > 20) {
+    const toKeep = filings.slice(0, 20);
+    const toKeepIds = toKeep.map(f => f.id);
+    await prisma.filing.deleteMany({
+      where: {
+        investorId,
+        id: { notIn: toKeepIds }
+      }
     });
-    if (filings.length > 20) {
-      const toKeep = filings.slice(0, 20);
-      const toKeepIds = toKeep.map(f => f.id);
-      await prisma.filing.deleteMany({
-        where: {
-          investorId,
-          id: { notIn: toKeepIds }
-        }
-      });
-      console.log(`[pruner] Pruned filings for investor ${investorId}. Retained ${toKeepIds.length} filings.`);
-    }
-  } catch (err) {
-    console.error(`[pruner] Failed to prune history for investor ${investorId}:`, err.message);
+    console.log(`[pruner] Pruned filings for investor ${investorId}. Retained ${toKeepIds.length} filings.`);
   }
 }
 
@@ -408,8 +407,7 @@ export async function syncInvestor(cik) {
     try {
       const pageRes = await fetch(pageUrl, { headers: SEC_HEADERS });
       if (!pageRes.ok) {
-        console.error(`Failed to fetch paginated submissions page: ${fileEntry.name}`);
-        continue;
+        throw new SecError(`Failed to fetch paginated submissions page: ${fileEntry.name} (Status: ${pageRes.status})`);
       }
       const page = await pageRes.json();
       if (page.form) forms.push(...page.form);
@@ -418,7 +416,8 @@ export async function syncInvestor(cik) {
       if (page.reportDate) reportDates.push(...page.reportDate);
       if (page.primaryDocument) primaryDocs.push(...page.primaryDocument);
     } catch (e) {
-      console.error(`Error fetching paginated submissions page: ${fileEntry.name}`, e.message);
+      if (e instanceof SecError) throw e;
+      throw new SecError(`Error fetching paginated submissions page: ${fileEntry.name} - ${e.message}`);
     }
   }
 
@@ -443,175 +442,183 @@ export async function syncInvestor(cik) {
   const limitedFilings = targetFilings.slice(0, 20);
 
   for (const f of limitedFilings) {
-    // Check if filing already exists
-    const existing = await prisma.filing.findUnique({
-      where: { accessionNumber: f.accessionNumber }
-    });
-    if (existing) continue;
+    try {
+      // Check if filing already exists
+      const existing = await prisma.filing.findUnique({
+        where: { accessionNumber: f.accessionNumber }
+      });
+      if (existing) continue;
 
-    const acc = f.accessionNumber.replace(/-/g, "");
-    const cikNum = parseInt(paddedCik, 10);
+      const acc = f.accessionNumber.replace(/-/g, "");
+      const cikNum = parseInt(paddedCik, 10);
 
-    if (f.type === "13F-HR" || f.type === "13F-HR/A") {
-      // Fetch folder directory index
-      await secLimiter.throttle();
-      const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/index.json`;
-      const indexRes = await fetch(indexUrl, { headers: SEC_HEADERS });
-      if (!indexRes.ok) {
-        console.error(`Failed to fetch index.json for accession ${f.accessionNumber}`);
-        continue;
-      }
-      const indexData = await indexRes.json();
-      const files = indexData.directory?.item || [];
+      if (f.type === "13F-HR" || f.type === "13F-HR/A") {
+        // Fetch folder directory index
+        await secLimiter.throttle();
+        const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/index.json`;
+        const indexRes = await fetch(indexUrl, { headers: SEC_HEADERS });
+        if (!indexRes.ok) {
+          throw new SecError(`Failed to fetch index.json for accession ${f.accessionNumber} (Status: ${indexRes.status})`, { accession: f.accessionNumber });
+        }
+        const indexData = await indexRes.json();
+        const files = indexData.directory?.item || [];
 
-      const xmlFiles = files.filter(file => file.name.endsWith(".xml"));
-      let xmlFileName = null;
-      if (xmlFiles.length > 0) {
-        const sorted = [...xmlFiles].sort((a, b) => {
-          const aName = a.name.toLowerCase();
-          const bName = b.name.toLowerCase();
-          const aScore = (aName.includes("table") || aName.includes("holding") || aName.includes("infotable")) ? 1 : 0;
-          const bScore = (bName.includes("table") || bName.includes("holding") || bName.includes("infotable")) ? 1 : 0;
-          return bScore - aScore;
-        });
-        xmlFileName = sorted[0].name;
-      }
-
-      if (!xmlFileName) {
-        console.error(`No XML holdings table found in accession ${f.accessionNumber}`);
-        continue;
-      }
-
-      await secLimiter.throttle();
-      const xmlUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${xmlFileName}`;
-      const xmlRes = await fetch(xmlUrl, { headers: SEC_HEADERS });
-      if (!xmlRes.ok) {
-        console.error(`Failed to fetch XML from ${xmlUrl}`);
-        continue;
-      }
-      const xmlString = await xmlRes.text();
-      const parsedHoldings = await parse13Fxml(xmlString);
-
-      const resolvedHoldings = [];
-      let totalValue = 0;
-      for (const raw of parsedHoldings) {
-        const ticker = await resolveCusipToTicker(raw.cusip || raw.CUSIP);
-        if (ticker) {
-          resolvedHoldings.push({
-            ticker,
-            CUSIP: raw.cusip || raw.CUSIP,
-            companyName: raw.companyName || null,
-            shares: raw.shares,
-            value: raw.value,
-            optionType: raw.optionType || "none"
+        const xmlFiles = files.filter(file => file.name.endsWith(".xml"));
+        let xmlFileName = null;
+        if (xmlFiles.length > 0) {
+          const sorted = [...xmlFiles].sort((a, b) => {
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+            const aScore = (aName.includes("table") || aName.includes("holding") || aName.includes("infotable")) ? 1 : 0;
+            const bScore = (bName.includes("table") || bName.includes("holding") || bName.includes("infotable")) ? 1 : 0;
+            return bScore - aScore;
           });
-          totalValue += raw.value;
+          xmlFileName = sorted[0].name;
         }
-      }
 
-      // Aggregate holdings by (ticker, optionType) to deduplicate multiple rows
-      const aggregatedMap = new Map();
-      for (const h of resolvedHoldings) {
-        const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
-        if (!aggregatedMap.has(key)) {
-          aggregatedMap.set(key, { ...h });
-        } else {
-          const existing = aggregatedMap.get(key);
-          existing.shares += h.shares;
-          existing.value += h.value;
+        if (!xmlFileName) {
+          throw new SecError(`No XML holdings table found in accession ${f.accessionNumber}`, { accession: f.accessionNumber });
         }
-      }
-      const aggregatedHoldings = [...aggregatedMap.values()];
 
-      // Recompute totalValue from aggregated holdings
-      totalValue = aggregatedHoldings.reduce((sum, h) => sum + h.value, 0);
+        await secLimiter.throttle();
+        const xmlUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${xmlFileName}`;
+        const xmlRes = await fetch(xmlUrl, { headers: SEC_HEADERS });
+        if (!xmlRes.ok) {
+          throw new SecError(`Failed to fetch XML from ${xmlUrl} (Status: ${xmlRes.status})`, { accession: f.accessionNumber });
+        }
+        const xmlString = await xmlRes.text();
+        const parsedHoldings = await parse13Fxml(xmlString);
 
-      // Create Filing, Holdings and update Investor inside a transaction
-      await prisma.$transaction(async (tx) => {
-        const newFiling = await tx.filing.create({
-          data: {
-            date: f.date,
-            accessionNumber: f.accessionNumber,
-            periodOfReport: f.periodOfReport,
-            type: f.type,
-            investorId: investor.id
+        const resolvedHoldings = [];
+        let totalValue = 0;
+        for (const raw of parsedHoldings) {
+          try {
+            const ticker = await resolveCusipToTicker(raw.cusip || raw.CUSIP);
+            if (ticker) {
+              resolvedHoldings.push({
+                ticker,
+                CUSIP: raw.cusip || raw.CUSIP,
+                companyName: raw.companyName || null,
+                shares: raw.shares,
+                value: raw.value,
+                optionType: raw.optionType || "none"
+              });
+              totalValue += raw.value;
+            }
+          } catch (err) {
+            console.error(`[CUSIP Resolution Error] Failed to resolve CUSIP ${raw.cusip || raw.CUSIP}: ${err.message}`);
           }
-        });
+        }
 
-        const holdingsData = aggregatedHoldings.map(h => {
-          const weight = totalValue > 0 ? h.value / totalValue : 0;
-          return {
-            ticker: h.ticker,
-            CUSIP: h.CUSIP,
-            companyName: h.companyName || null,
-            shares: h.shares,
-            value: h.value,
-            optionType: h.optionType,
-            portfolioWeight: weight,
-            convictionScore: weight * 10,
-            filingId: newFiling.id
-          };
-        });
+        // Aggregate holdings by (ticker, optionType) to deduplicate multiple rows
+        const aggregatedMap = new Map();
+        for (const h of resolvedHoldings) {
+          const key = `${h.ticker}-${(h.optionType || "none").toLowerCase()}`;
+          if (!aggregatedMap.has(key)) {
+            aggregatedMap.set(key, { ...h });
+          } else {
+            const existing = aggregatedMap.get(key);
+            existing.shares += h.shares;
+            existing.value += h.value;
+          }
+        }
+        const aggregatedHoldings = [...aggregatedMap.values()];
 
-        if (holdingsData.length > 0) {
-          await tx.holding.createMany({
-            data: holdingsData
+        // Recompute totalValue from aggregated holdings
+        totalValue = aggregatedHoldings.reduce((sum, h) => sum + h.value, 0);
+
+        // Create Filing, Holdings and update Investor inside a transaction
+        await prisma.$transaction(async (tx) => {
+          const newFiling = await tx.filing.create({
+            data: {
+              date: f.date,
+              accessionNumber: f.accessionNumber,
+              periodOfReport: f.periodOfReport,
+              type: f.type,
+              investorId: investor.id
+            }
           });
+
+          const holdingsData = aggregatedHoldings.map(h => {
+            const weight = totalValue > 0 ? h.value / totalValue : 0;
+            return {
+              ticker: h.ticker,
+              CUSIP: h.CUSIP,
+              companyName: h.companyName || null,
+              shares: h.shares,
+              value: h.value,
+              optionType: h.optionType,
+              portfolioWeight: weight,
+              convictionScore: weight * 10,
+              filingId: newFiling.id
+            };
+          });
+
+          if (holdingsData.length > 0) {
+            await tx.holding.createMany({
+              data: holdingsData
+            });
+          }
+        });
+      } else {
+        // 13D or 13G
+        const primaryDoc = f.primaryDocument;
+        if (!primaryDoc) continue;
+
+        await secLimiter.throttle();
+        const docUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${primaryDoc}`;
+        const docRes = await fetch(docUrl, { headers: SEC_HEADERS });
+        if (!docRes.ok) {
+          throw new SecError(`Failed to fetch 13D/G document from ${docUrl} (Status: ${docRes.status})`, { accession: f.accessionNumber });
         }
-      });
-    } else {
-      // 13D or 13G
-      const primaryDoc = f.primaryDocument;
-      if (!primaryDoc) continue;
-
-      await secLimiter.throttle();
-      const docUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${primaryDoc}`;
-      const docRes = await fetch(docUrl, { headers: SEC_HEADERS });
-      if (!docRes.ok) {
-        console.error(`Failed to fetch 13D/G document from ${docUrl}`);
-        continue;
-      }
-      const docText = await docRes.text();
-      const parsed13D_GData = extract13D_GData(docText);
-      const parsedScore = parse13D_G({
-        type: f.type,
-        percentOfClass: parsed13D_GData.percentOfClass,
-        date: f.date
-      });
-
-      let ticker = null;
-      if (parsed13D_GData.cusip) {
-        ticker = await resolveCusipToTicker(parsed13D_GData.cusip);
-      }
-      if (!ticker) {
-        ticker = "UNKNOWN";
-      }
-
-      // Create Filing, Holding and update Investor inside a transaction
-      await prisma.$transaction(async (tx) => {
-        const newFiling = await tx.filing.create({
-          data: {
-            date: f.date,
-            accessionNumber: f.accessionNumber,
-            periodOfReport: f.periodOfReport,
-            type: f.type,
-            investorId: investor.id
-          }
+        const docText = await docRes.text();
+        const parsed13D_GData = extract13D_GData(docText);
+        const parsedScore = parse13D_G({
+          type: f.type,
+          percentOfClass: parsed13D_GData.percentOfClass,
+          date: f.date
         });
 
-        await tx.holding.create({
-          data: {
-            ticker,
-            CUSIP: parsed13D_GData.cusip || "UNKNOWN",
-            shares: parsed13D_GData.shares || 0,
-            value: 0,
-            optionType: "none",
-            portfolioWeight: (parsed13D_GData.percentOfClass || 0) / 100,
-            convictionScore: parsedScore.convictionScore,
-            filingId: newFiling.id
+        let ticker = null;
+        if (parsed13D_GData.cusip) {
+          try {
+            ticker = await resolveCusipToTicker(parsed13D_GData.cusip);
+          } catch (err) {
+            console.error(`[CUSIP Resolution Error for 13D/G] Failed to resolve CUSIP ${parsed13D_GData.cusip}: ${err.message}`);
           }
+        }
+        if (!ticker) {
+          ticker = "UNKNOWN";
+        }
+
+        // Create Filing, Holding and update Investor inside a transaction
+        await prisma.$transaction(async (tx) => {
+          const newFiling = await tx.filing.create({
+            data: {
+              date: f.date,
+              accessionNumber: f.accessionNumber,
+              periodOfReport: f.periodOfReport,
+              type: f.type,
+              investorId: investor.id
+            }
+          });
+
+          await tx.holding.create({
+            data: {
+              ticker,
+              CUSIP: parsed13D_GData.cusip || "UNKNOWN",
+              shares: parsed13D_GData.shares || 0,
+              value: 0,
+              optionType: "none",
+              portfolioWeight: (parsed13D_GData.percentOfClass || 0) / 100,
+              convictionScore: parsedScore.convictionScore,
+              filingId: newFiling.id
+            }
+          });
         });
-      });
+      }
+    } catch (err) {
+      console.error(`[Filing Sync Error] Failed to process filing ${f.accessionNumber}: ${err.message}`);
     }
   }
 
@@ -645,6 +652,9 @@ export async function syncInvestor(cik) {
       data: updateData
     });
   }
+
+  // Invalidate guru caches after all DB writes complete
+  clearGuruData();
 }
 
 // Start daily scheduled cron job
