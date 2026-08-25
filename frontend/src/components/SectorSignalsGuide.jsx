@@ -16,7 +16,7 @@ function SignalRow({ obvRange, cmfRange, label, description, status }) {
       gap: "10px",
       alignItems: "center",
       padding: "8px 10px",
-      borderRadius: "8px",
+      borderRadius: "0",
       background: c.bg,
       border: `1px solid ${c.border}`,
     }}>
@@ -24,7 +24,7 @@ function SignalRow({ obvRange, cmfRange, label, description, status }) {
       <div style={{ textAlign: "center", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{cmfRange}</div>
       <div>
         <div style={{ fontSize: "12px", fontWeight: 500, color: c.text, marginBottom: "2px" }}>
-          <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: c.dot, marginRight: "6px", verticalAlign: "middle" }} />
+          <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "0", background: c.dot, marginRight: "6px", verticalAlign: "middle" }} />
           {label}
         </div>
         <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.3 }}>{description}</div>
@@ -156,7 +156,7 @@ const styles = {
   legendDot: {
     width: "8px",
     height: "8px",
-    borderRadius: "50%",
+    borderRadius: "0",
     background: "var(--accent-green)",
     display: "inline-block",
   },
@@ -172,7 +172,7 @@ const styles = {
     gridTemplateColumns: "70px 60px 1fr",
     gap: "10px",
     padding: "0 10px 4px",
-    fontSize: "10px",
+    fontSize: "11px",
     color: "var(--text-secondary)",
     letterSpacing: "0.06em",
     textTransform: "uppercase",

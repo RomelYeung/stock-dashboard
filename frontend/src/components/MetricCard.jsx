@@ -18,7 +18,7 @@ const styles = {
     background: "var(--glass-bg)",
     backdropFilter: "blur(12px)",
     border: "1px solid var(--glass-border)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "20px",
     display: "flex",
     flexDirection: "column",
@@ -60,7 +60,7 @@ const styles = {
     margin: 0,
     padding: "8px 12px",
     background: "rgba(255,255,255,0.05)",
-    borderRadius: "6px",
+    borderRadius: "0",
   },
   chartContainer: {
     height: "250px",
@@ -76,7 +76,7 @@ const CustomTooltip = ({ active, payload, label, formatter }) => {
       style={{
         background: "rgba(9,13,23,0.95)",
         border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: "8px",
+        borderRadius: "0",
         padding: "8px 12px",
         fontFamily: "var(--font-mono)",
         fontSize: "12px",
@@ -110,7 +110,7 @@ export default function MetricCard({
     };
 
     const axisStyle = {
-      tick: { fill: "#5a6a80", fontSize: 10 },
+      tick: { fill: "var(--text-tick)", fontSize: 11 },
       axisLine: { stroke: "rgba(255,255,255,0.06)" },
       tickLine: { stroke: "rgba(255,255,255,0.06)" },
     };
@@ -119,7 +119,7 @@ export default function MetricCard({
       return (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
             <XAxis
               dataKey="date"
               tickFormatter={(d) => d.slice(5)}
@@ -143,7 +143,7 @@ export default function MetricCard({
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart {...commonProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
             <XAxis
               dataKey="date"
               tickFormatter={(d) => d.slice(5)}
@@ -151,7 +151,7 @@ export default function MetricCard({
             />
               <YAxis {...axisStyle} tickFormatter={yAxisTickFormatter} width={45} />
             <Tooltip content={<CustomTooltip formatter={valueFormatter} />} />
-            <Bar dataKey="value" fill="#4f8dff" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="value" fill="#4f8dff" radius={[0, 0, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     );

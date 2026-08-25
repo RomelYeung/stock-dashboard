@@ -18,11 +18,11 @@ function VolumeSignalCell({ obvChange, cmf }) {
           color: signal.color,
           background: signal.bg,
           padding: "3px 10px",
-          borderRadius: "6px",
+          borderRadius: "0",
           border: `1px solid ${signal.border}`,
         }}
       >
-        <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: signal.color }} />
+        <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "0", background: signal.color }} />
         {signal.label}
       </span>
     </div>
@@ -130,7 +130,7 @@ const styles = {
   container: {
     marginTop: "24px",
     background: "var(--card-bg, #1e293b)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "16px",
   },
   controls: {
@@ -146,7 +146,7 @@ const styles = {
   },
   toggle: {
     padding: "6px 12px",
-    borderRadius: "6px",
+    borderRadius: "0",
     border: "1px solid var(--border, #334155)",
     background: "transparent",
     color: "var(--text-secondary, #94a3b8)",
@@ -155,7 +155,7 @@ const styles = {
   },
   toggleActive: {
     padding: "6px 12px",
-    borderRadius: "6px",
+    borderRadius: "0",
     border: "1px solid var(--accent, #3b82f6)",
     background: "var(--accent, #3b82f6)",
     color: "#fff",
@@ -164,7 +164,7 @@ const styles = {
   },
   select: {
     padding: "6px 12px",
-    borderRadius: "6px",
+    borderRadius: "0",
     border: "1px solid var(--border, #334155)",
     background: "var(--card-bg, #1e293b)",
     color: "var(--text-primary, #f8fafc)",
@@ -188,7 +188,7 @@ const styles = {
     gridTemplateColumns: "60px 1fr 120px 80px 100px 100px 120px",
     padding: "12px",
     alignItems: "center",
-    borderRadius: "8px",
+    borderRadius: "0",
     background: "var(--card-bg-alt, #0f172a)",
     fontSize: "14px",
   },

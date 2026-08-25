@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo, memo } from "react";
 import { useQueries } from "@tanstack/react-query";
 
-export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
+function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
   // Fetch holdings for all gurus in parallel
   const holdingsQueries = useQueries({
     queries: (gurus || []).map((g) => ({
@@ -23,6 +23,63 @@ export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
   const isLoading = holdingsQueries.some((q) => q.isLoading);
   const isError = holdingsQueries.some((q) => q.isError);
 
+  // Map each guru's ID to their holdings array
+  const holdingsMap = useMemo(() => {
+    const map = {};
+    holdingsQueries.forEach((q) => {
+      if (q.data) {
+        map[q.data.id] = q.data.holdings;
+      }
+    });
+    return map;
+  }, [holdingsQueries]);
+
+  // Pre-calculate overlap matrix
+  const overlapMatrix = useMemo(() => {
+    if (!gurus || gurus.length === 0) return {};
+    const matrix = {};
+
+    for (let i = 0; i < gurus.length; i++) {
+      const gRow = gurus[i];
+      matrix[gRow.id] = {};
+      const listA = holdingsMap[gRow.id] || [];
+
+      const mapA = new Map();
+      listA.forEach((h) => {
+        const weight = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
+        mapA.set(h.ticker.toUpperCase(), weight);
+      });
+
+      for (let j = 0; j < gurus.length; j++) {
+        const gCol = gurus[j];
+        if (gRow.id === gCol.id) {
+          matrix[gRow.id][gCol.id] = 1.0;
+          continue;
+        }
+
+        const listB = holdingsMap[gCol.id] || [];
+        if (listA.length === 0 || listB.length === 0) {
+          matrix[gRow.id][gCol.id] = 0;
+          continue;
+        }
+
+        let overlapSum = 0;
+        listB.forEach((h) => {
+          const ticker = h.ticker.toUpperCase();
+          if (mapA.has(ticker)) {
+            const weightA = mapA.get(ticker);
+            const weightB = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
+            overlapSum += Math.min(weightA, weightB);
+          }
+        });
+
+        matrix[gRow.id][gCol.id] = overlapSum;
+      }
+    }
+
+    return matrix;
+  }, [gurus, holdingsMap]);
+
   if (!gurus || gurus.length === 0) {
     return <div style={styles.placeholder}>No investors available to compare.</div>;
   }
@@ -39,40 +96,6 @@ export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
   if (isError) {
     return <div style={styles.errorText}>Error loading comparison data.</div>;
   }
-
-  // Map each guru's ID to their holdings array
-  const holdingsMap = {};
-  holdingsQueries.forEach((q) => {
-    if (q.data) {
-      holdingsMap[q.data.id] = q.data.holdings;
-    }
-  });
-
-  // Calculate overlap between two gurus
-  const calculateOverlap = (idA, idB) => {
-    if (idA === idB) return 1.0; // 100% overlap with self
-    const listA = holdingsMap[idA] || [];
-    const listB = holdingsMap[idB] || [];
-    if (listA.length === 0 || listB.length === 0) return 0;
-
-    const mapA = new Map();
-    listA.forEach((h) => {
-      const weight = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
-      mapA.set(h.ticker.toUpperCase(), weight);
-    });
-
-    let overlapSum = 0;
-    listB.forEach((h) => {
-      const ticker = h.ticker.toUpperCase();
-      if (mapA.has(ticker)) {
-        const weightA = mapA.get(ticker);
-        const weightB = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
-        overlapSum += Math.min(weightA, weightB);
-      }
-    });
-
-    return overlapSum;
-  };
 
   return (
     <div style={styles.container}>
@@ -134,7 +157,7 @@ export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
                 {/* Overlap cells */}
                 {gurus.map((gCol) => {
                   const isColCurrent = gCol.id === currentGuruId;
-                  const score = calculateOverlap(gRow.id, gCol.id);
+                  const score = overlapMatrix[gRow.id]?.[gCol.id] ?? 0;
                   const pct = (score * 100).toFixed(1);
 
                   // Color cells based on overlap score
@@ -162,7 +185,7 @@ export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
                         background: bg,
                         border: isSelectedCell ? "1px solid rgba(0, 150, 255, 0.3)" : "1px solid rgba(255,255,255,0.02)",
                         fontFamily: "var(--font-mono)",
-                        fontSize: "10px",
+                        fontSize: "11px",
                         cursor: "pointer",
                         fontWeight: gRow.id === gCol.id ? "bold" : "normal",
                       }}
@@ -190,11 +213,14 @@ export default function GuruHeatmap({ gurus, currentGuruId, onSelectGuru }) {
   );
 }
 
+export default memo(GuruHeatmap);
+
+
 const styles = {
   container: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "20px",
     marginTop: "20px",
   },
@@ -224,8 +250,8 @@ const styles = {
   cell: {
     padding: "8px 4px",
     textAlign: "center",
-    fontSize: "10px",
-    borderRadius: "3px",
+    fontSize: "11px",
+    borderRadius: "0",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -236,12 +262,12 @@ const styles = {
     color: "var(--text-muted)",
     fontWeight: 500,
     textTransform: "uppercase",
-    fontSize: "9px",
+    fontSize: "11px",
     justifyContent: "flex-start",
     paddingLeft: "8px",
   },
   headerCell: {
-    fontSize: "9px",
+    fontSize: "11px",
     fontWeight: 600,
     textTransform: "uppercase",
     overflow: "hidden",
@@ -269,7 +295,7 @@ const styles = {
     padding: "40px",
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     marginTop: "20px",
   },
   spinner: {
@@ -277,7 +303,7 @@ const styles = {
     height: "24px",
     border: "2px solid rgba(255,255,255,0.1)",
     borderTopColor: "var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 1s linear infinite",
     marginBottom: "12px",
   },

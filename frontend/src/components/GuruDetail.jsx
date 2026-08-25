@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import { useGuruHoldings, useGuruHistory, useGuruAiStrategy } from "../hooks/useGuruData";
 import { usePortfolio } from "../hooks/useStockData";
 import { formatPrice, formatMarketCap, formatPercent } from "../utils/formatters";
@@ -20,7 +20,21 @@ const COLORS = [
   "#4CC9F0", // Light Blue
 ];
 
-export default function GuruDetail({
+const formatLargeNumber = (num) => {
+  if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+  return num.toString();
+};
+
+const getInitials = (n) => {
+  if (!n) return "";
+  const parts = n.split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return n[0].toUpperCase();
+};
+
+function GuruDetail({
   guru,
   gurus,
   userRole,
@@ -36,74 +50,66 @@ export default function GuruDetail({
   const [toastMessage, setToastMessage] = useState("");
   const [activeTab, setActiveTab] = useState("holdings");
 
-  if (!guru) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-        <span>Loading investor profile...</span>
-      </div>
-    );
-  }
-
-  const { id, name, fundName, bio, philosophy, currentAum, lastFilingDate, tags } = guru;
+  const guruId = guru?.id;
 
   // 1. Fetch holdings for the latest filing
-  const { data: holdings, isLoading: holdingsLoading, error: holdingsError } = useGuruHoldings(id);
+  const { data: holdings, isLoading: holdingsLoading, error: holdingsError } = useGuruHoldings(guruId);
 
   // 2. Fetch history (gated: only if not GUEST)
   const { data: historyData } = useGuruHistory(
-    userRole !== "GUEST" ? id : null
+    userRole !== "GUEST" ? guruId : null
   );
 
   // 3. Fetch AI strategy summary (gated: only if activeTab is aiStrategy and not GUEST)
   const { data: aiStrategy, isLoading: aiLoading, error: aiError } = useGuruAiStrategy(
-    (userRole !== "GUEST" && activeTab === "aiStrategy") ? id : null,
-    { enabled: activeTab === "aiStrategy" && userRole !== "GUEST" && !!id }
+    (userRole !== "GUEST" && activeTab === "aiStrategy") ? guruId : null,
+    { enabled: activeTab === "aiStrategy" && userRole !== "GUEST" && !!guruId }
   );
 
   // 4. Batch query stock profile data for company name and sector
-  const holdingsTickers = (holdings || []).map((h) => h.ticker);
+  const holdingsTickers = useMemo(
+    () => (holdings || []).map((h) => h.ticker),
+    [holdings]
+  );
   const { data: stockDataMap } = usePortfolio(holdingsTickers);
 
   // Calculate HHI
-  const calculateHhi = (holdingsList) => {
-    if (!holdingsList || holdingsList.length === 0) return 0;
-    const sumSq = holdingsList.reduce((acc, h) => {
+  const hhi = useMemo(() => {
+    if (!holdings || holdings.length === 0) return 0;
+    const sumSq = holdings.reduce((acc, h) => {
       const w = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
       return acc + Math.pow(w, 2);
     }, 0);
     return parseFloat(sumSq.toFixed(4));
-  };
+  }, [holdings]);
 
-  const hhi = calculateHhi(holdings);
-
-  const getHhiBadge = (hhiVal) => {
-    if (hhiVal < 0.15) {
+  const hhiBadge = useMemo(() => {
+    if (hhi < 0.15) {
       return { text: "Low Concentration", color: "var(--accent-green)", bg: "var(--accent-green-dim)" };
     }
-    if (hhiVal <= 0.25) {
+    if (hhi <= 0.25) {
       return { text: "Moderate Concentration", color: "var(--accent-amber)", bg: "var(--accent-amber-dim)" };
     }
     return { text: "High Concentration", color: "var(--accent-red)", bg: "var(--accent-red-dim)" };
-  };
-
-  const hhiBadge = getHhiBadge(hhi);
+  }, [hhi]);
 
   // Sector allocation grouping
-  const sectorAllocation = {};
-  (holdings || []).forEach((h) => {
-    const stockInfo = stockDataMap?.[h.ticker.toUpperCase()];
-    const sector = stockInfo?.sector || "Other";
-    const weight = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
-    sectorAllocation[sector] = (sectorAllocation[sector] || 0) + weight;
-  });
+  const pieData = useMemo(() => {
+    const sectorAllocation = {};
+    (holdings || []).forEach((h) => {
+      const stockInfo = stockDataMap?.[h.ticker.toUpperCase()];
+      const sector = stockInfo?.sector || "Other";
+      const weight = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
+      sectorAllocation[sector] = (sectorAllocation[sector] || 0) + weight;
+    });
 
-  const pieData = Object.entries(sectorAllocation)
-    .map(([sectorName, val]) => ({
-      name: sectorName,
-      value: parseFloat((val * 100).toFixed(2)),
-    }))
-    .sort((a, b) => b.value - a.value);
+    return Object.entries(sectorAllocation)
+      .map(([sectorName, val]) => ({
+        name: sectorName,
+        value: parseFloat((val * 100).toFixed(2)),
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [holdings, stockDataMap]);
 
   // QoQ change calculations — returns an object per ticker with { label, percent, numericSort }
   const qoqMap = useMemo(() => {
@@ -158,49 +164,51 @@ export default function GuruDetail({
   }, [historyData]);
 
   // Parse tags JSON
-  let parsedTags = [];
-  try {
-    if (tags) {
-      parsedTags = typeof tags === "string" ? JSON.parse(tags) : tags;
+  const parsedTags = useMemo(() => {
+    const tags = guru?.tags;
+    try {
+      if (tags) {
+        return typeof tags === "string" ? JSON.parse(tags) : tags;
+      }
+    } catch (e) {
+      console.error("Failed to parse tags JSON", e);
     }
-  } catch (e) {
-    console.error("Failed to parse tags JSON", e);
-  }
+    return [];
+  }, [guru?.tags]);
 
-  const formatLargeNumber = (num) => {
-    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-    return num.toString();
-  };
+  const wishlistSet = useMemo(
+    () => new Set((wishlistTickers || []).map((t) => t.toUpperCase())),
+    [wishlistTickers]
+  );
 
-  const getInitials = (n) => {
-    if (!n) return "";
-    const parts = n.split(" ");
-    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return n[0].toUpperCase();
-  };
+  const tickerIndicatorMap = useMemo(() => {
+    const portfolioMap = new Map();
+    (portfolio || []).forEach((p) => {
+      portfolioMap.set(p.ticker.toUpperCase(), p.shares > 0 ? "Owned" : "Watched");
+    });
 
-  const getTickerIndicator = (ticker) => {
-    const tickerUpper = ticker.toUpperCase();
-    const pItem = portfolio?.find(p => p.ticker.toUpperCase() === tickerUpper);
-    if (pItem) {
-      return pItem.shares > 0 ? "Owned" : "Watched";
-    }
-    if (wishlistTickers?.some(t => t.toUpperCase() === tickerUpper)) {
-      return "Wishlisted";
-    }
-    return null;
-  };
+    const map = new Map();
+    (holdings || []).forEach((h) => {
+      const tUpper = h.ticker.toUpperCase();
+      if (portfolioMap.has(tUpper)) {
+        map.set(tUpper, portfolioMap.get(tUpper));
+      } else if (wishlistSet.has(tUpper)) {
+        map.set(tUpper, "Wishlisted");
+      } else {
+        map.set(tUpper, null);
+      }
+    });
+    return map;
+  }, [holdings, portfolio, wishlistSet]);
 
-  const handleWishlistToggle = async (ticker) => {
+  const handleWishlistToggle = useCallback(async (ticker) => {
     if (userRole === "GUEST") {
       setToastMessage("Sign-in required to add to Wishlist");
       setTimeout(() => setToastMessage(""), 4000);
       return;
     }
     const tickerUpper = ticker.toUpperCase();
-    const isWishlisted = wishlistTickers?.some(t => t.toUpperCase() === tickerUpper);
+    const isWishlisted = wishlistSet.has(tickerUpper);
 
     if (isWishlisted) {
       try {
@@ -222,15 +230,14 @@ export default function GuruDetail({
         setTimeout(() => setToastMessage(""), 4000);
       }
     }
-  };
+  }, [userRole, wishlistSet, wishlistTickers, onRemoveFromWishlist, onAddToWishlist]);
 
-  const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
+  const handleSort = useCallback((key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  }, []);
 
   const sortedHoldings = useMemo(() => {
     if (!holdings) return [];
@@ -259,6 +266,18 @@ export default function GuruDetail({
     });
     return sortable;
   }, [holdings, sortConfig, qoqMap, stockDataMap]);
+
+  if (!guru) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner} />
+        <span>Loading investor profile...</span>
+      </div>
+    );
+  }
+
+  const { name, fundName, bio, philosophy, currentAum, lastFilingDate } = guru;
+
 
   return (
     <div style={styles.container}>
@@ -423,7 +442,7 @@ export default function GuruDetail({
                           contentStyle={{
                             background: "rgba(20, 20, 20, 0.95)",
                             border: "1px solid rgba(255,255,255,0.1)",
-                            borderRadius: "8px",
+                            borderRadius: "0",
                             fontSize: "11px",
                           }}
                           formatter={(value) => [`${value}%`, "Allocation"]}
@@ -501,8 +520,8 @@ export default function GuruDetail({
                         const stockInfo = stockDataMap?.[h.ticker.toUpperCase()];
                         const companyName = h.companyName || stockInfo?.name || "—";
                         const weightVal = h.portfolioWeight !== undefined ? h.portfolioWeight : (h.weight || 0);
-                        const isWishlisted = wishlistTickers?.some(t => t.toUpperCase() === h.ticker.toUpperCase());
-                        const indicator = getTickerIndicator(h.ticker);
+                        const isWishlisted = wishlistSet.has(h.ticker.toUpperCase());
+                        const indicator = tickerIndicatorMap.get(h.ticker.toUpperCase());
                         const changeVal = qoqMap[`${h.ticker.toUpperCase()}-${(h.optionType || "none").toLowerCase()}`];
 
                         return (
@@ -608,7 +627,7 @@ export default function GuruDetail({
         )}
 
         {activeTab === "overlap" && (
-          <GuruHeatmap gurus={gurus} currentGuruId={id} onSelectGuru={onSelectGuru} />
+          <GuruHeatmap gurus={gurus} currentGuruId={guruId} onSelectGuru={onSelectGuru} />
         )}
 
         {activeTab === "aiStrategy" && (
@@ -644,6 +663,9 @@ export default function GuruDetail({
   );
 }
 
+export default memo(GuruDetail);
+
+
 const styles = {
   tabsContainerBar: {
     display: "flex",
@@ -660,7 +682,7 @@ const styles = {
     fontWeight: 500,
     cursor: "pointer",
     padding: "8px 16px",
-    borderRadius: "6px",
+    borderRadius: "0",
     transition: "all 0.15s ease",
     fontFamily: "var(--font-body)",
   },
@@ -684,7 +706,7 @@ const styles = {
     background: "rgba(9, 13, 23, 0.95)",
     border: "1px solid var(--accent-red)",
     boxShadow: "0 10px 30px rgba(255, 77, 109, 0.2)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "12px 24px",
     color: "var(--text-primary)",
     fontSize: "13px",
@@ -703,7 +725,7 @@ const styles = {
   backBtn: {
     background: "rgba(255, 255, 255, 0.03)",
     border: "1px solid rgba(255, 255, 255, 0.07)",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "var(--accent-blue)",
     fontSize: "12px",
     cursor: "pointer",
@@ -715,14 +737,14 @@ const styles = {
   profileCard: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "24px",
     marginBottom: "20px",
   },
   avatarBig: {
     width: "60px",
     height: "60px",
-    borderRadius: "50%",
+    borderRadius: "0",
     background: "linear-gradient(135deg, var(--accent-blue-dim), rgba(255,255,255,0.05))",
     border: "2px solid var(--accent-blue)",
     display: "flex",
@@ -764,7 +786,7 @@ const styles = {
   tag: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "20px",
+    borderRadius: "0",
     padding: "4px 10px",
     fontSize: "11px",
     color: "var(--text-secondary)",
@@ -806,7 +828,7 @@ const styles = {
   analyticsCard: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "20px",
     display: "flex",
     flexDirection: "column",
@@ -840,10 +862,10 @@ const styles = {
   },
   badge: {
     alignSelf: "flex-start",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 600,
     padding: "4px 8px",
-    borderRadius: "4px",
+    borderRadius: "0",
     marginBottom: "16px",
     textTransform: "uppercase",
   },
@@ -875,7 +897,7 @@ const styles = {
   legendDot: {
     width: "8px",
     height: "8px",
-    borderRadius: "50%",
+    borderRadius: "0",
   },
   legendText: {
     fontSize: "11px",
@@ -884,14 +906,14 @@ const styles = {
   sectionCard: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "20px",
     marginBottom: "20px",
   },
   aiReport: {
     background: "rgba(255,255,255,0.01)",
     border: "1px solid rgba(255,255,255,0.03)",
-    borderRadius: "8px",
+    borderRadius: "0",
     padding: "16px",
   },
   aiText: {
@@ -906,7 +928,7 @@ const styles = {
     textAlign: "center",
     background: "rgba(255, 255, 255, 0.01)",
     border: "1px dashed rgba(255, 255, 255, 0.15)",
-    borderRadius: "10px",
+    borderRadius: "0",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -922,7 +944,7 @@ const styles = {
     padding: "6px 12px",
     background: "var(--accent-blue)",
     color: "white",
-    borderRadius: "6px",
+    borderRadius: "0",
     textDecoration: "none",
     fontSize: "11px",
     fontWeight: 600,
@@ -942,7 +964,7 @@ const styles = {
     height: "20px",
     border: "2px solid rgba(255,255,255,0.1)",
     borderTopColor: "var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 1s linear infinite",
   },
   errorText: {
@@ -968,7 +990,7 @@ const styles = {
   th: {
     padding: "12px 16px",
     borderBottom: "1px solid rgba(255,255,255,0.06)",
-    fontSize: "10px",
+    fontSize: "11px",
     color: "var(--text-secondary)",
     fontWeight: 600,
     textTransform: "uppercase",
@@ -996,29 +1018,29 @@ const styles = {
     color: "var(--accent-blue)",
     fontWeight: "bold",
     cursor: "pointer",
-    borderRadius: "4px",
+    borderRadius: "0",
     padding: "2px 6px",
     fontFamily: "var(--font-mono)",
     fontSize: "11px",
   },
   indicatorBadge: {
     padding: "2px 6px",
-    borderRadius: "4px",
-    fontSize: "9px",
+    borderRadius: "0",
+    fontSize: "11px",
     fontWeight: "bold",
     textTransform: "uppercase",
     letterSpacing: "0.02em",
   },
   optionBadge: {
     padding: "2px 6px",
-    borderRadius: "4px",
-    fontSize: "10px",
+    borderRadius: "0",
+    fontSize: "11px",
     fontWeight: "bold",
   },
   wishlistBtnToggle: {
     background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "4px",
+    borderRadius: "0",
     padding: "4px 8px",
     fontSize: "11px",
     cursor: "pointer",

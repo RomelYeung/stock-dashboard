@@ -110,7 +110,7 @@ const summ = {
     padding: "20px 24px",
     background: "rgba(255,255,255,0.025)",
     border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "16px",
+    borderRadius: "0",
     width: "100%",
   },
   col1: {
@@ -123,7 +123,7 @@ const summ = {
   label: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
-    fontSize: "10px",
+    fontSize: "11px",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
@@ -191,7 +191,7 @@ const summ = {
   },
   zoneName: {
     color: "var(--text-secondary)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontFamily: "var(--font-body)",
   },
   zoneVal: {
@@ -213,7 +213,7 @@ const summ = {
   skel: {
     height: "20px",
     background: "rgba(255,255,255,0.04)",
-    borderRadius: "6px",
+    borderRadius: "0",
     animation: "pulse 1.5s ease-in-out infinite",
   },
 };

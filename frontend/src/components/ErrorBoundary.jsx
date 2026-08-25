@@ -10,6 +10,12 @@ export default class ErrorBoundary extends Component {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error, errorInfo) {
+    import("@sentry/react").then((Sentry) => {
+      Sentry.captureException(error, { extra: errorInfo });
+    });
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -31,7 +37,7 @@ export default class ErrorBoundary extends Component {
               padding: "8px 16px",
               background: "var(--accent-red-dim)",
               border: "1px solid var(--accent-red)",
-              borderRadius: "6px",
+              borderRadius: "0",
               color: "var(--accent-red)",
               cursor: "pointer",
             }}

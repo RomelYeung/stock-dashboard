@@ -71,7 +71,7 @@ export default function ConsolidatedMetricCard({
           ? "1px solid rgba(255,255,255,0.12)"
           : "1px solid rgba(255,255,255,0.06)",
         borderLeft: isHighlighted ? "3px solid var(--accent-blue)" : undefined,
-        borderRadius: "12px",
+        borderRadius: "0",
         padding: "14px 16px",
         display: "flex",
         flexDirection: "column",
@@ -96,7 +96,7 @@ export default function ConsolidatedMetricCard({
         <span
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: "10px",
+            fontSize: "11px",
             color: "var(--text-secondary)",
             textTransform: "uppercase",
             letterSpacing: "0.04em",
@@ -107,9 +107,9 @@ export default function ConsolidatedMetricCard({
         {hasVerdict && (
           <span
             style={{
-              borderRadius: "4px",
+              borderRadius: "0",
               padding: "2px 6px",
-              fontSize: "9px",
+              fontSize: "11px",
               fontFamily: "var(--font-body)",
               background:
                 isFavorable == null
@@ -136,7 +136,7 @@ export default function ConsolidatedMetricCard({
         <span
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: "9px",
+            fontSize: "11px",
             color: "var(--text-secondary)",
           }}
         >
@@ -162,7 +162,7 @@ export default function ConsolidatedMetricCard({
               flex: 1,
               height: "4px",
               background: "rgba(255,255,255,0.04)",
-              borderRadius: "2px",
+              borderRadius: "0",
               position: "relative",
             }}
           >
@@ -188,7 +188,7 @@ export default function ConsolidatedMetricCard({
                 transform: "translate(-50%, -50%)",
                 width: "6px",
                 height: "6px",
-                borderRadius: "50%",
+                borderRadius: "0",
                 background: barColor,
               }}
             />
@@ -235,7 +235,7 @@ export default function ConsolidatedMetricCard({
         <span
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: "10px",
+            fontSize: "11px",
             color: verdictColor,
             fontStyle: "italic",
           }}

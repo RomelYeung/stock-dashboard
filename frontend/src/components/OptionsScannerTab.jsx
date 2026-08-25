@@ -351,7 +351,7 @@ export default function OptionsScannerTab({ ticker }) {
                           display: 'inline-block', 
                           minWidth: '18px', 
                           height: '18px', 
-                          borderRadius: '4px', 
+                          borderRadius: '0', 
                           backgroundColor: opt.topColor,
                           color: '#000',
                           fontSize: '11px',
@@ -578,7 +578,7 @@ const styles = {
   card: {
     background: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.05)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "20px",
   },
   cardTitle: {
@@ -589,7 +589,7 @@ const styles = {
     margin: "0 0 16px 0",
   },
   chartWrapper: {
-    borderRadius: "8px",
+    borderRadius: "0",
     overflow: "hidden",
     background: "rgba(0,0,0,0.2)",
   },
@@ -619,7 +619,7 @@ const styles = {
   select: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "6px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     fontFamily: "var(--font-body)",
     fontSize: "13px",
@@ -660,7 +660,7 @@ const styles = {
     height: "24px",
     border: "2px solid rgba(255,255,255,0.1)",
     borderTopColor: "var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 1s linear infinite",
   },
   errorState: {
@@ -673,7 +673,7 @@ const styles = {
   controlsCard: {
     background: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.05)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "16px 20px",
     display: "flex",
     alignItems: "center",
@@ -696,7 +696,7 @@ const styles = {
   globalSelect: {
     background: "rgba(0,0,0,0.2)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     fontFamily: "var(--font-mono)",
     fontSize: "14px",

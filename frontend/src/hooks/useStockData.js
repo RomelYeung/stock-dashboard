@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMarketStatus } from "../utils/marketStatus";
 
@@ -294,14 +294,14 @@ export function useAIValuation(ticker) {
 
 // Fetch insider trading data for a single ticker
 export function useInsiderTrading(ticker) {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["insiderTrading", ticker],
     queryFn: () => apiFetch(`/${ticker}/insider-trading`),
     enabled: !!ticker,
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    staleTime: 1000 * 60 * 60 * 2, // 2 hours — matches backend cache TTL for empty results
   });
 
-  return { data, loading: isLoading, error: error?.message };
+  return { data, loading: isLoading, error: error?.message, refetch };
 }
 
 // Fetch comparables data for a single ticker
@@ -421,10 +421,10 @@ export function usePortfolioItems(userId) {
 
   const portfolio = query.data?.portfolio || [];
   const wishlist = query.data?.wishlist || [];
-  const tickers = portfolio.map((p) => p.ticker);
-  const wishlistTickers = wishlist.map((w) => w.ticker);
+  const tickers = useMemo(() => portfolio.map((p) => p.ticker), [portfolio]);
+  const wishlistTickers = useMemo(() => wishlist.map((w) => w.ticker), [wishlist]);
 
-  const addToWatchlist = async (ticker) => {
+  const addToWatchlist = useCallback(async (ticker) => {
     const res = await fetch("/api/portfolio/items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -434,9 +434,9 @@ export function usePortfolioItems(userId) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to add to watchlist");
     await query.refetch();
-  };
+  }, [query]);
 
-  const removeFromWatchlist = async (ticker) => {
+  const removeFromWatchlist = useCallback(async (ticker) => {
     const res = await fetch(`/api/portfolio/items/${ticker}`, {
       method: "DELETE",
       credentials: "include",
@@ -444,9 +444,9 @@ export function usePortfolioItems(userId) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to remove from watchlist");
     await query.refetch();
-  };
+  }, [query]);
 
-  const addToWishlist = async (ticker) => {
+  const addToWishlist = useCallback(async (ticker) => {
     const res = await fetch("/api/portfolio/wishlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -456,9 +456,9 @@ export function usePortfolioItems(userId) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to add to wishlist");
     await query.refetch();
-  };
+  }, [query]);
 
-  const removeFromWishlist = async (ticker) => {
+  const removeFromWishlist = useCallback(async (ticker) => {
     const res = await fetch(`/api/portfolio/wishlist/${ticker}`, {
       method: "DELETE",
       credentials: "include",
@@ -466,7 +466,7 @@ export function usePortfolioItems(userId) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to remove from wishlist");
     await query.refetch();
-  };
+  }, [query]);
 
   return {
     portfolio,
@@ -482,3 +482,4 @@ export function usePortfolioItems(userId) {
     refetch: query.refetch,
   };
 }
+

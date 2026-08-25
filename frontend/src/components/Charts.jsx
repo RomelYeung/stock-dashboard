@@ -10,7 +10,7 @@ import { formatRevenue, formatPercent, formatYear } from "../utils/formatters";
 const TOOLTIP_STYLE = {
   background: "rgba(9,13,23,0.95)",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: "10px",
+  borderRadius: "0",
   color: "var(--text-primary)",
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
@@ -33,7 +33,7 @@ const containerStyles = {
   wrap: {
     background: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "20px",
     display: "flex",
     flexDirection: "column",
@@ -59,12 +59,26 @@ const containerStyles = {
   },
 };
 
-// Annual Revenue & Net Income Bar Chart
-export function RevenueChart({ annualIncome }) {
-  const data = [...(annualIncome || [])]
+function formatPeriodLabel(dateStr, period) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  if (period === "quarterly") {
+    const month = d.getUTCMonth();
+    const q = Math.floor(month / 3) + 1;
+    const yy = String(d.getUTCFullYear()).slice(-2);
+    return `Q${q} '${yy}`;
+  }
+  return String(d.getUTCFullYear());
+}
+
+// Revenue & Net Income Bar Chart (Annual / Quarterly)
+export function RevenueChart({ incomeData, annualIncome, period = "annual" }) {
+  const rawData = incomeData || annualIncome || [];
+  const data = [...rawData]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
-      year: formatYear(y.date),
+      periodLabel: formatPeriodLabel(y.date, period),
       Revenue: y.totalRevenue,
       "Net Income": y.netIncome,
     }));
@@ -72,21 +86,21 @@ export function RevenueChart({ annualIncome }) {
   if (!data.length) return null;
 
   return (
-    <ChartContainer title="Revenue & Net Income" subtitle="Annual">
+    <ChartContainer title="Revenue & Net Income" subtitle={period === "quarterly" ? "Quarterly" : "Annual"}>
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} barGap={4} barSize={18}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="year" tick={{ fill: "#5a6a80", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={(v) => formatRevenue(v)} tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={52} />
+          <XAxis dataKey="periodLabel" tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={(v) => formatRevenue(v)} tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={52} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(v) => formatRevenue(v)}
             cursor={{ fill: "rgba(255,255,255,0.03)" }}
           />
-          <Bar dataKey="Revenue" fill="#4f8dff" radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Net Income" fill="#00e5a0" radius={[4, 4, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Revenue" fill="#4f8dff" radius={[0, 0, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Net Income" fill="#00e5a0" radius={[0, 0, 0, 0]} opacity={0.8} />
           <Legend
-            wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }}
+            wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tick)", paddingTop: "8px" }}
           />
         </BarChart>
       </ResponsiveContainer>
@@ -94,12 +108,13 @@ export function RevenueChart({ annualIncome }) {
   );
 }
 
-// Margin Trend Line Chart
-export function MarginsChart({ annualIncome }) {
-  const data = [...(annualIncome || [])]
+// Margin Trend Line Chart (Annual / Quarterly)
+export function MarginsChart({ incomeData, annualIncome, period = "annual" }) {
+  const rawData = incomeData || annualIncome || [];
+  const data = [...rawData]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
-      year: formatYear(y.date),
+      periodLabel: formatPeriodLabel(y.date, period),
       "Gross Margin": y.grossMargin != null ? +(y.grossMargin * 100).toFixed(1) : null,
       "Net Margin": y.netMargin != null ? +(y.netMargin * 100).toFixed(1) : null,
     }));
@@ -107,31 +122,32 @@ export function MarginsChart({ annualIncome }) {
   if (!data.length) return null;
 
   return (
-    <ChartContainer title="Profit Margins" subtitle="% of revenue">
+    <ChartContainer title="Profit Margins" subtitle={period === "quarterly" ? "Quarterly (% of revenue)" : "Annual (% of revenue)"}>
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={data}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="year" tick={{ fill: "#5a6a80", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={(v) => `${v}%`} tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={40} />
+          <XAxis dataKey="periodLabel" tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={(v) => `${v}%`} tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={40} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(v) => `${v}%`}
           />
           <Line type="monotone" dataKey="Gross Margin" stroke="#4f8dff" strokeWidth={2} dot={{ fill: "#4f8dff", r: 3 }} />
           <Line type="monotone" dataKey="Net Margin" stroke="#00e5a0" strokeWidth={2} dot={{ fill: "#00e5a0", r: 3 }} />
-          <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }} />
+          <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tick)", paddingTop: "8px" }} />
         </LineChart>
       </ResponsiveContainer>
     </ChartContainer>
   );
 }
 
-// Free Cash Flow Bar Chart
-export function CashFlowChart({ annualCashFlow }) {
-  const data = [...(annualCashFlow || [])]
+// Free Cash Flow Bar Chart (Annual / Quarterly)
+export function CashFlowChart({ cashFlowData, annualCashFlow, period = "annual" }) {
+  const rawData = cashFlowData || annualCashFlow || [];
+  const data = [...rawData]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map((y) => ({
-      year: formatYear(y.date),
+      periodLabel: formatPeriodLabel(y.date, period),
       "Operating CF": y.operatingCashFlow,
       "Free CF": y.freeCashFlow,
     }));
@@ -139,20 +155,20 @@ export function CashFlowChart({ annualCashFlow }) {
   if (!data.length) return null;
 
   return (
-    <ChartContainer title="Cash Flow" subtitle="Annual">
+    <ChartContainer title="Cash Flow" subtitle={period === "quarterly" ? "Quarterly" : "Annual"}>
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} barGap={4} barSize={18}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="year" tick={{ fill: "#5a6a80", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={(v) => formatRevenue(v)} tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={52} />
+          <XAxis dataKey="periodLabel" tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={(v) => formatRevenue(v)} tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={52} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(v) => formatRevenue(v)}
             cursor={{ fill: "rgba(255,255,255,0.03)" }}
           />
-          <Bar dataKey="Operating CF" fill="#ffb547" radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Bar dataKey="Free CF" fill="#00e5a0" radius={[4, 4, 0, 0]} opacity={0.8} />
-          <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "#5a6a80", paddingTop: "8px" }} />
+          <Bar dataKey="Operating CF" fill="#ffb547" radius={[0, 0, 0, 0]} opacity={0.8} />
+          <Bar dataKey="Free CF" fill="#00e5a0" radius={[0, 0, 0, 0]} opacity={0.8} />
+          <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tick)", paddingTop: "8px" }} />
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>
@@ -171,7 +187,7 @@ export function PriceChart({ data, ticker }) {
     const commonChartOpts = (height) => ({
       layout: {
         background: { type: "solid", color: "transparent" },
-        textColor: "#5a6a80",
+        textColor: "#8b9bb4",
       },
       grid: {
         vertLines: { visible: false },

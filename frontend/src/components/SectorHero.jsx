@@ -19,11 +19,11 @@ function VolumeSignalBadge({ obvChange, cmf }) {
           color: signal.color,
           background: signal.bg,
           padding: "3px 10px",
-          borderRadius: "6px",
+          borderRadius: "0",
           border: `1px solid ${signal.border}`,
         }}
       >
-        <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: signal.color }} />
+        <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "0", background: signal.color }} />
         {signal.label}
       </span>
     </div>
@@ -222,7 +222,7 @@ const styles = {
     fontWeight: 500,
   },
   change: {
-    borderRadius: "6px",
+    borderRadius: "0",
     fontFamily: "var(--font-mono)",
     fontSize: "11px",
     fontWeight: 400,

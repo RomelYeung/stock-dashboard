@@ -80,7 +80,7 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
     const priceChart = createChart(priceContainer, {
       layout: {
         background: { type: "solid", color: "transparent" },
-        textColor: "#5a6a80",
+        textColor: "#8b9bb4",
       },
       grid: {
         vertLines: { visible: false },
@@ -163,7 +163,7 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
     const volumeChart = createChart(volumeContainer, {
       layout: {
         background: { type: "solid", color: "transparent" },
-        textColor: "#5a6a80",
+        textColor: "#8b9bb4",
       },
       grid: {
         vertLines: { visible: false },
@@ -215,7 +215,7 @@ function TradingViewChart({ ticker, period = "5y", setPeriod, livePrice }) {
     const rsiChart = createChart(rsiContainer, {
       layout: {
         background: { type: "solid", color: "transparent" },
-        textColor: "#5a6a80",
+        textColor: "#8b9bb4",
       },
       grid: {
         vertLines: { visible: false },
@@ -572,7 +572,7 @@ const styles = {
     padding: "3px",
     background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "8px",
+    borderRadius: "0",
     position: "relative",
     width: "280px",
   },
@@ -582,7 +582,7 @@ const styles = {
     bottom: "3px",
     left: "3px",
     background: "rgba(255,255,255,0.08)",
-    borderRadius: "6px",
+    borderRadius: "0",
     transition: "transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)",
     zIndex: 1,
     pointerEvents: "none",
@@ -590,7 +590,7 @@ const styles = {
   periodBtn: {
     background: "transparent",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "0",
     cursor: "pointer",
     fontFamily: "var(--font-mono)",
     fontSize: "11px",
@@ -607,7 +607,7 @@ const styles = {
     padding: "6px 12px",
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "6px",
+    borderRadius: "0",
     color: "var(--text-secondary)",
     fontSize: "12px",
     fontFamily: "var(--font-mono)",
@@ -629,7 +629,7 @@ const styles = {
   priceChart: {
     width: "100%",
     height: "360px",
-    borderRadius: "10px 10px 0 0",
+    borderRadius: "0",
     overflow: "hidden",
   },
   volumeChart: {
@@ -651,7 +651,7 @@ const styles = {
     backdropFilter: "blur(4px)",
     WebkitBackdropFilter: "blur(4px)",
     border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "6px",
+    borderRadius: "0",
     padding: "6px 12px",
     display: "flex",
     alignItems: "center",
@@ -667,7 +667,7 @@ const styles = {
   },
   hudLabel: {
     color: "var(--text-secondary)",
-    fontSize: "10px",
+    fontSize: "11px",
   },
   hudValue: {
     fontWeight: 500,

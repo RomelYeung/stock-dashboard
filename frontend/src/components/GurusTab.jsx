@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import {
   useGurus,
   useGuruActivity,
@@ -8,9 +8,103 @@ import {
 } from "../hooks/useGuruData";
 import { useAuth } from "../context/AuthContext";
 import GuruDetail from "./GuruDetail";
-import { formatPercent, formatPriceChange } from "../utils/formatters";
+import { formatPercent } from "../utils/formatters";
 
-export default function GurusTab({
+const GuruCard = memo(function GuruCard({ guru, onSelectGuru }) {
+  let tagsArray = [];
+  try {
+    tagsArray = typeof guru.tags === "string" ? JSON.parse(guru.tags) : guru.tags || [];
+  } catch (e) {
+    tagsArray = [];
+  }
+
+  return (
+    <div
+      onClick={() => onSelectGuru(guru.id)}
+      style={styles.guruCard}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-4px)";
+        e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+      }}
+    >
+      <div style={styles.cardHeader}>
+        <h3 style={styles.cardName}>{guru.name}</h3>
+        {guru.fundName && <div style={styles.cardFund}>{guru.fundName}</div>}
+      </div>
+      <div style={styles.cardDetail}>
+        <div style={styles.cardDetailLabel}>Philosophy</div>
+        <div style={styles.cardDetailValue}>{guru.philosophy || "Value"}</div>
+      </div>
+      {tagsArray.length > 0 && (
+        <div style={styles.cardTags}>
+          {tagsArray.map((t) => (
+            <span key={t} style={styles.cardTag}>
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const ActivityCard = memo(function ActivityCard({ act, onSelectTicker }) {
+  const isNewOrInc = act.change === "New" || act.change === "Increased";
+  const changeColor = isNewOrInc ? "var(--accent-green)" : "var(--accent-red)";
+  const changeBg = isNewOrInc ? "var(--accent-green-dim)" : "var(--accent-red-dim)";
+
+  return (
+    <div style={styles.feedCard}>
+      <div style={styles.feedCardHeader}>
+        <div>
+          <span style={styles.feedGuru}>{act.name}</span>
+          {act.fundName && <span style={styles.feedFund}> ({act.fundName})</span>}
+        </div>
+        <span style={styles.feedDate}>{act.date}</span>
+      </div>
+
+      <div style={styles.feedBody}>
+        <div style={styles.feedChangeBlock}>
+          <span
+            style={{
+              ...styles.feedBadge,
+              color: changeColor,
+              backgroundColor: changeBg,
+            }}
+          >
+            {act.change}
+          </span>
+          <button
+            style={styles.feedTicker}
+            onClick={() => onSelectTicker?.(act.ticker)}
+          >
+            {act.ticker}
+          </button>
+        </div>
+
+        <div style={styles.feedMeta}>
+          {act.weight !== undefined && (
+            <span style={styles.feedWeight}>
+              Weight: {formatPercent(act.weight)}
+            </span>
+          )}
+          {act.sharesDiff !== undefined && act.sharesDiff !== 0 && (
+            <span style={styles.feedShares}>
+              Shares: {act.sharesDiff > 0 ? "+" : ""}
+              {act.sharesDiff.toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function GurusTab({
   user,
   tickers,
   wishlistTickers,
@@ -68,45 +162,55 @@ export default function GurusTab({
     });
   };
 
-  if (selectedGuruId && gurus) {
-    const selectedGuru = gurus.find((g) => g.id === selectedGuruId);
-    if (selectedGuru) {
-      return (
-        <GuruDetail
-          guru={selectedGuru}
-          gurus={gurus}
-          userRole={user?.role}
-          onBack={() => setSelectedGuruId(null)}
-          onSelectTicker={setSelectedTicker}
-          wishlistTickers={wishlistTickers}
-          onAddToWishlist={addToWishlist}
-          onRemoveFromWishlist={removeFromWishlist}
-          portfolio={portfolio}
-          onSelectGuru={setSelectedGuruId}
-        />
-      );
-    }
-  }
+  const handleBack = useCallback(() => setSelectedGuruId(null), [setSelectedGuruId]);
 
-  // Filter the investor grid based on search query
-  const reverseLookupGuruIds = new Set((reverseLookupData || []).map((r) => r.guruId));
-  const filteredGurus = (gurus || []).filter((g) => {
+  const reverseLookupGuruIds = useMemo(
+    () => new Set((reverseLookupData || []).map((r) => r.guruId)),
+    [reverseLookupData]
+  );
+
+  const filteredGurus = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    const nameMatch = g.name.toLowerCase().includes(query);
-    const fundMatch = g.fundName?.toLowerCase().includes(query);
-    const tickerMatch = reverseLookupGuruIds.has(g.id);
-    return nameMatch || fundMatch || tickerMatch;
-  });
+    return (gurus || []).filter((g) => {
+      const nameMatch = g.name.toLowerCase().includes(query);
+      const fundMatch = g.fundName?.toLowerCase().includes(query);
+      const tickerMatch = reverseLookupGuruIds.has(g.id);
+      return nameMatch || fundMatch || tickerMatch;
+    });
+  }, [gurus, searchQuery, reverseLookupGuruIds]);
 
-  // Filter the activity feed based on selected chip
-  const filteredActivity = (activity || []).filter((act) => {
-    if (feedFilter === "All") return true;
-    if (feedFilter === "New") return act.change === "New";
-    if (feedFilter === "Increased") return act.change === "Increased";
-    if (feedFilter === "Decreased") return act.change === "Decreased";
-    if (feedFilter === "Exits") return act.change === "Closed" || act.change === "Exit";
-    return true;
-  });
+  const filteredActivity = useMemo(() => {
+    return (activity || []).filter((act) => {
+      if (feedFilter === "All") return true;
+      if (feedFilter === "New") return act.change === "New";
+      if (feedFilter === "Increased") return act.change === "Increased";
+      if (feedFilter === "Decreased") return act.change === "Decreased";
+      if (feedFilter === "Exits") return act.change === "Closed" || act.change === "Exit";
+      return true;
+    });
+  }, [activity, feedFilter]);
+
+  const selectedGuru = useMemo(
+    () => (selectedGuruId && gurus) ? gurus.find((g) => g.id === selectedGuruId) || null : null,
+    [selectedGuruId, gurus]
+  );
+
+  if (selectedGuru) {
+    return (
+      <GuruDetail
+        guru={selectedGuru}
+        gurus={gurus}
+        userRole={user?.role}
+        onBack={handleBack}
+        onSelectTicker={setSelectedTicker}
+        wishlistTickers={wishlistTickers}
+        onAddToWishlist={addToWishlist}
+        onRemoveFromWishlist={removeFromWishlist}
+        portfolio={portfolio}
+        onSelectGuru={setSelectedGuruId}
+      />
+    );
+  }
 
   const activeChips = ["All", "New", "Exits", "Increased", "Decreased"];
 
@@ -166,48 +270,9 @@ export default function GurusTab({
             <div style={styles.placeholder}>No investors found matching your search.</div>
           ) : (
             <div style={styles.grid}>
-              {filteredGurus.map((g) => {
-                let tagsArray = [];
-                try {
-                  tagsArray = typeof g.tags === "string" ? JSON.parse(g.tags) : g.tags || [];
-                } catch (e) {
-                  tagsArray = [];
-                }
-
-                return (
-                  <div
-                    key={g.id}
-                    onClick={() => setSelectedGuruId(g.id)}
-                    style={styles.guruCard}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-4px)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-                    }}
-                  >
-                    <div style={styles.cardHeader}>
-                      <h3 style={styles.cardName}>{g.name}</h3>
-                      {g.fundName && <div style={styles.cardFund}>{g.fundName}</div>}
-                    </div>
-                    <div style={styles.cardDetail}>
-                      <div style={styles.cardDetailLabel}>Philosophy</div>
-                      <div style={styles.cardDetailValue}>{g.philosophy || "Value"}</div>
-                    </div>
-                    {tagsArray.length > 0 && (
-                      <div style={styles.cardTags}>
-                        {tagsArray.map((t) => (
-                          <span key={t} style={styles.cardTag}>
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {filteredGurus.map((g) => (
+                <GuruCard key={g.id} guru={g} onSelectGuru={setSelectedGuruId} />
+              ))}
             </div>
           )}
         </div>
@@ -273,57 +338,9 @@ export default function GurusTab({
             <div style={styles.placeholder}>No recent transactions found.</div>
           ) : (
             <div style={styles.feedList}>
-              {filteredActivity.map((act, index) => {
-                const isNewOrInc = act.change === "New" || act.change === "Increased";
-                const changeColor = isNewOrInc ? "var(--accent-green)" : "var(--accent-red)";
-                const changeBg = isNewOrInc ? "var(--accent-green-dim)" : "var(--accent-red-dim)";
-
-                return (
-                  <div key={index} style={styles.feedCard}>
-                    <div style={styles.feedCardHeader}>
-                      <div>
-                        <span style={styles.feedGuru}>{act.name}</span>
-                        {act.fundName && <span style={styles.feedFund}> ({act.fundName})</span>}
-                      </div>
-                      <span style={styles.feedDate}>{act.date}</span>
-                    </div>
-
-                    <div style={styles.feedBody}>
-                      <div style={styles.feedChangeBlock}>
-                        <span
-                          style={{
-                            ...styles.feedBadge,
-                            color: changeColor,
-                            backgroundColor: changeBg,
-                          }}
-                        >
-                          {act.change}
-                        </span>
-                        <button
-                          style={styles.feedTicker}
-                          onClick={() => setSelectedTicker?.(act.ticker)}
-                        >
-                          {act.ticker}
-                        </button>
-                      </div>
-
-                      <div style={styles.feedMeta}>
-                        {act.weight !== undefined && (
-                          <span style={styles.feedWeight}>
-                            Weight: {formatPercent(act.weight)}
-                          </span>
-                        )}
-                        {act.sharesDiff !== undefined && act.sharesDiff !== 0 && (
-                          <span style={styles.feedShares}>
-                            Shares: {act.sharesDiff > 0 ? "+" : ""}
-                            {act.sharesDiff.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredActivity.map((act, index) => (
+                <ActivityCard key={index} act={act} onSelectTicker={setSelectedTicker} />
+              ))}
             </div>
           )}
         </div>
@@ -331,6 +348,9 @@ export default function GurusTab({
     </div>
   );
 }
+
+export default memo(GurusTab);
+
 
 const styles = {
   container: {
@@ -367,7 +387,7 @@ const styles = {
   syncInput: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     padding: "8px 12px",
     fontSize: "12px",
@@ -377,7 +397,7 @@ const styles = {
   syncBtn: {
     background: "var(--accent-blue)",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "white",
     padding: "8px 14px",
     fontSize: "12px",
@@ -389,7 +409,7 @@ const styles = {
     top: "38px",
     right: 0,
     color: "var(--accent-red)",
-    fontSize: "10px",
+    fontSize: "11px",
     whiteSpace: "nowrap",
   },
   syncSuccess: {
@@ -397,7 +417,7 @@ const styles = {
     top: "38px",
     right: 0,
     color: "var(--accent-green)",
-    fontSize: "10px",
+    fontSize: "11px",
     whiteSpace: "nowrap",
   },
   searchContainer: {
@@ -407,7 +427,7 @@ const styles = {
     width: "100%",
     background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "10px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     padding: "12px 16px",
     fontSize: "13px",
@@ -441,7 +461,7 @@ const styles = {
   guruCard: {
     background: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "18px",
     cursor: "pointer",
     transition: "transform 0.2s, border-color 0.2s",
@@ -482,9 +502,9 @@ const styles = {
   },
   cardTag: {
     background: "rgba(255,255,255,0.04)",
-    borderRadius: "4px",
+    borderRadius: "0",
     padding: "2px 6px",
-    fontSize: "10px",
+    fontSize: "11px",
     color: "var(--text-muted)",
   },
   chipsContainer: {
@@ -496,7 +516,7 @@ const styles = {
   chip: {
     background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "20px",
+    borderRadius: "0",
     color: "var(--text-secondary)",
     padding: "6px 12px",
     fontSize: "11px",
@@ -519,7 +539,7 @@ const styles = {
   feedCard: {
     background: "rgba(255,255,255,0.015)",
     border: "1px solid rgba(255,255,255,0.04)",
-    borderRadius: "10px",
+    borderRadius: "0",
     padding: "14px",
   },
   feedCardHeader: {
@@ -552,10 +572,10 @@ const styles = {
     gap: "8px",
   },
   feedBadge: {
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: "bold",
     padding: "2px 6px",
-    borderRadius: "4px",
+    borderRadius: "0",
     textTransform: "uppercase",
   },
   feedTicker: {
@@ -590,7 +610,7 @@ const styles = {
     height: "20px",
     border: "2px solid rgba(255,255,255,0.1)",
     borderTopColor: "var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 1s linear infinite",
   },
   errorText: {
@@ -608,7 +628,7 @@ const styles = {
   aiSummaryCard: {
     background: "linear-gradient(135deg, rgba(0, 229, 160, 0.05), rgba(79, 141, 255, 0.05))",
     border: "1px solid rgba(0, 229, 160, 0.15)",
-    borderRadius: "10px",
+    borderRadius: "0",
     padding: "16px",
     marginBottom: "16px",
   },
@@ -622,7 +642,7 @@ const styles = {
     fontSize: "14px",
   },
   aiSummaryTitle: {
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 700,
     color: "var(--accent-green)",
     letterSpacing: "0.08em",
@@ -646,7 +666,7 @@ const styles = {
     padding: "4px 10px",
     background: "var(--accent-blue)",
     color: "white",
-    borderRadius: "6px",
+    borderRadius: "0",
     textDecoration: "none",
     fontSize: "11px",
     fontWeight: 600,
@@ -663,7 +683,7 @@ const styles = {
     height: "12px",
     border: "1.5px solid rgba(255,255,255,0.1)",
     borderTopColor: "var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 1s linear infinite",
   },
   aiSummaryError: {

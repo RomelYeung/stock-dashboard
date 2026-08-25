@@ -285,7 +285,7 @@ const styles = {
   },
   statusBadge: {
     fontFamily: "var(--font-display)",
-    fontSize: "9px",
+    fontSize: "11px",
     fontWeight: 800,
     letterSpacing: "0.06em",
     padding: "4px 8px",
@@ -314,7 +314,7 @@ const styles = {
     height: "12px",
     border: "1.5px solid rgba(0,240,255,0.1)",
     borderTop: "1.5px solid var(--accent-blue)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 0.8s linear infinite",
   },
   closeBtn: {
@@ -349,7 +349,7 @@ const styles = {
     height: "28px",
     border: "2px solid rgba(255,255,255,0.06)",
     borderTop: "2px solid var(--accent-green)",
-    borderRadius: "50%",
+    borderRadius: "0",
     animation: "spin 0.8s linear infinite",
   },
   errorState: {
@@ -394,7 +394,7 @@ const styles = {
     color: "var(--text-primary)",
   },
   guruFund: {
-    fontSize: "10px",
+    fontSize: "11px",
     color: "var(--text-secondary)",
   },
   guruWeight: {

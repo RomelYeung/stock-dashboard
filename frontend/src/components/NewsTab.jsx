@@ -97,7 +97,7 @@ function AISummaryCard({ aiSummary, loading }) {
             background: 'rgba(79,141,255, 0.15)',
             color: 'var(--accent-blue)',
             padding: '4px 10px',
-            borderRadius: '6px',
+            borderRadius: '0',
             fontFamily: 'var(--font-display)',
             fontSize: '11px',
             fontWeight: 700,
@@ -108,9 +108,9 @@ function AISummaryCard({ aiSummary, loading }) {
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', width: '90%', animation: 'pulse 1.5s ease-in-out infinite' }} />
-          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', width: '75%', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.1s' }} />
-          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', width: '60%', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.2s' }} />
+          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '0', width: '90%', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '0', width: '75%', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.1s' }} />
+          <div style={{ height: '14px', background: 'rgba(255,255,255,0.06)', borderRadius: '0', width: '60%', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: '0.2s' }} />
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ function AISummaryCard({ aiSummary, loading }) {
           background: `rgba(${isBullish ? '0,229,160' : isBearish ? '255,77,109' : '79,141,255'}, 0.15)`,
           color: scoreColor,
           padding: '4px 10px',
-          borderRadius: '6px',
+          borderRadius: '0',
           fontFamily: 'var(--font-display)',
           fontSize: '11px',
           fontWeight: 700,
@@ -157,7 +157,7 @@ function AISummaryCard({ aiSummary, loading }) {
       <p style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.6, color: 'rgba(255,255,255,0.85)', margin: 0 }}>
         {aiSummary.summary}
       </p>
-      <div style={{ marginTop: '16px', fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ marginTop: '16px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Generated: {new Date().toLocaleDateString()} • Sources: Yahoo Finance
       </div>
     </div>
@@ -248,7 +248,7 @@ export default function NewsTab({ ticker }) {
           <div key={i} style={{
             height: i === 1 ? '150px' : '100px',
             background: 'rgba(255,255,255,0.04)',
-            borderRadius: '16px',
+            borderRadius: '0',
             animation: 'pulse 1.5s ease-in-out infinite',
             animationDelay: `${i * 0.1}s`,
           }} />
@@ -304,7 +304,7 @@ const styles = {
     background: 'var(--glass-bg)',
     backdropFilter: 'blur(16px)',
     border: '1px solid var(--glass-border)',
-    borderRadius: '16px',
+    borderRadius: '0',
     padding: '24px',
   },
   freshnessBar: {
@@ -315,14 +315,14 @@ const styles = {
   },
   freshnessText: {
     fontFamily: 'var(--font-mono)',
-    fontSize: '10px',
+    fontSize: '11px',
     color: 'var(--text-muted)',
     letterSpacing: '0.02em',
   },
   refreshBtn: {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '6px',
+    borderRadius: '0',
     color: 'var(--text-secondary)',
     cursor: 'pointer',
     display: 'flex',
@@ -335,7 +335,7 @@ const styles = {
     display: 'flex',
     gap: '16px',
     padding: '16px',
-    borderRadius: '12px',
+    borderRadius: '0',
     border: '1px solid var(--glass-border)',
     background: 'var(--glass-bg)',
     backdropFilter: 'blur(16px)',
@@ -346,21 +346,21 @@ const styles = {
   thumbnail: {
     width: '80px',
     height: '80px',
-    borderRadius: '10px',
+    borderRadius: '0',
     objectFit: 'cover',
     flexShrink: 0,
   },
   thumbnailPlaceholder: {
     width: '80px',
     height: '80px',
-    borderRadius: '10px',
+    borderRadius: '0',
     flexShrink: 0,
     background: 'linear-gradient(135deg, rgba(79,141,255,0.08) 0%, rgba(155,109,255,0.08) 100%)',
   },
   sentimentDot: {
     width: '8px',
     height: '8px',
-    borderRadius: '50%',
+    borderRadius: '0',
   },
   headline: {
     fontFamily: 'var(--font-body)',
@@ -373,23 +373,23 @@ const styles = {
   },
   timeLabel: {
     fontFamily: 'var(--font-mono)',
-    fontSize: '10px',
+    fontSize: '11px',
     color: 'var(--text-muted)',
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },
   categoryBadge: {
     fontFamily: 'var(--font-display)',
-    fontSize: '9px',
+    fontSize: '11px',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
     padding: '2px 7px',
-    borderRadius: '4px',
+    borderRadius: '0',
   },
   publisher: {
     fontFamily: 'var(--font-body)',
-    fontSize: '10px',
+    fontSize: '11px',
     color: 'var(--text-muted)',
   },
   snippet: {
@@ -404,7 +404,7 @@ const styles = {
   },
   timeGroupHeader: {
     fontFamily: 'var(--font-display)',
-    fontSize: '10px',
+    fontSize: '11px',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
@@ -423,7 +423,7 @@ const styles = {
     fontSize: '12px',
     fontFamily: 'var(--font-body)',
     background: 'rgba(255,255,255,0.01)',
-    borderRadius: '8px',
+    borderRadius: '0',
     border: '1px dashed rgba(255,255,255,0.05)',
   },
   skeletonContainer: {
@@ -446,7 +446,7 @@ const styles = {
   retryButton: {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px',
+    borderRadius: '0',
     color: 'var(--text-primary)',
     cursor: 'pointer',
     fontFamily: 'var(--font-body)',

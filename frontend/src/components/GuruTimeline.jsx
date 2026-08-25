@@ -118,26 +118,26 @@ export default function GuruTimeline({ history, userRole }) {
               <XAxis
                 dataKey="quarter"
                 stroke="var(--text-secondary)"
-                tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
+                tick={{ fontSize: 11, fontFamily: "var(--font-mono)" }}
               />
               <YAxis
                 yAxisId="left"
                 stroke="var(--accent-blue)"
                 tickFormatter={formatLargeNumber}
-                tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
+                tick={{ fontSize: 11, fontFamily: "var(--font-mono)" }}
               />
               <YAxis
                 yAxisId="right"
                 orientation="right"
                 stroke="var(--accent-green)"
                 tickFormatter={(v) => `${v.toFixed(1)}%`}
-                tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }}
+                tick={{ fontSize: 11, fontFamily: "var(--font-mono)" }}
               />
               <Tooltip
                 contentStyle={{
                   background: "rgba(20, 20, 20, 0.95)",
                   border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  borderRadius: "0",
                 }}
                 labelStyle={{ color: "var(--text-primary)", fontWeight: "bold" }}
                 formatter={(value, name) => {
@@ -180,7 +180,7 @@ const styles = {
   container: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px solid rgba(255, 255, 255, 0.06)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "20px",
     marginTop: "20px",
   },
@@ -207,7 +207,7 @@ const styles = {
   select: {
     background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     padding: "6px 12px",
     fontSize: "12px",
@@ -226,7 +226,7 @@ const styles = {
   upgradeWall: {
     background: "rgba(255, 255, 255, 0.02)",
     border: "1px dashed rgba(255, 255, 255, 0.15)",
-    borderRadius: "14px",
+    borderRadius: "0",
     padding: "40px 20px",
     textAlign: "center",
     marginTop: "20px",
@@ -245,7 +245,7 @@ const styles = {
     padding: "8px 16px",
     background: "var(--accent-blue)",
     color: "white",
-    borderRadius: "8px",
+    borderRadius: "0",
     textDecoration: "none",
     fontSize: "12px",
     fontWeight: 600,

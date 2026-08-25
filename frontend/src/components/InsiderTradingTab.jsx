@@ -35,10 +35,10 @@ function SignalGauge({ score, label }) {
 
 const gauge = {
   wrap: { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "20px 0" },
-  barBg: { width: "100%", maxWidth: "400px", height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" },
-  barFill: { height: "100%", borderRadius: "4px", transition: "width 0.6s ease" },
+  barBg: { width: "100%", maxWidth: "400px", height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "0", overflow: "hidden" },
+  barFill: { height: "100%", borderRadius: "0", transition: "width 0.6s ease" },
   labels: { display: "flex", justifyContent: "space-between", width: "100%", maxWidth: "400px" },
-  label: { color: "var(--text-secondary)", fontSize: "10px", fontFamily: "var(--font-body)" },
+  label: { color: "var(--text-secondary)", fontSize: "11px", fontFamily: "var(--font-body)" },
   score: { fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 600 },
   signalLabel: { fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600, letterSpacing: "0.04em" },
 };
@@ -85,8 +85,8 @@ function TransactionTable({ insiders }) {
                   {row.role}
                 </span>
               </td>
-              <td style={{ ...table.td, color: row.type === "Buy" ? "var(--accent-green)" : "var(--accent-red)" }}>
-                {row.type === "Buy" ? "▲ Buy" : "▼ Sell"}
+              <td style={{ ...table.td, color: row.type === "Buy" ? "var(--accent-green)" : row.type === "Sell" ? "var(--accent-red)" : "var(--text-secondary)" }}>
+                {row.type === "Buy" ? "▲ Buy" : row.type === "Sell" ? "▼ Sell" : row.type}
               </td>
               <td style={{ ...table.td, fontFamily: "var(--font-mono)" }}>{row.shares.toLocaleString()}</td>
               <td style={{ ...table.td, fontFamily: "var(--font-mono)" }}>${row.price.toFixed(2)}</td>
@@ -106,10 +106,10 @@ function TransactionTable({ insiders }) {
 
 const table = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
-  th: { textAlign: "left", padding: "10px 8px", color: "var(--text-secondary)", fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)" },
+  th: { textAlign: "left", padding: "10px 8px", color: "var(--text-secondary)", fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "1px solid rgba(255,255,255,0.06)" },
   tr: { borderBottom: "1px solid rgba(255,255,255,0.03)" },
   td: { padding: "10px 8px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px" },
-  roleBadge: { display: "inline-block", padding: "2px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: 600, color: "white", textTransform: "uppercase", letterSpacing: "0.04em" },
+  roleBadge: { display: "inline-block", padding: "2px 8px", borderRadius: "0", fontSize: "11px", fontWeight: 600, color: "white", textTransform: "uppercase", letterSpacing: "0.04em" },
   empty: { color: "var(--text-secondary)", padding: "40px 0", textAlign: "center", fontSize: "13px" },
 };
 
@@ -123,20 +123,20 @@ function SummaryCard({ summary }) {
 }
 
 const summaryCard = {
-  wrap: { display: "flex", alignItems: "flex-start", gap: "10px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "14px 16px" },
+  wrap: { display: "flex", alignItems: "flex-start", gap: "10px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "0", padding: "14px 16px" },
   icon: { fontSize: "16px", lineHeight: 1 },
   text: { color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "13px", lineHeight: 1.5 },
 };
 
 export default function InsiderTradingTab({ ticker }) {
-  const { data, loading, error } = useInsiderTrading(ticker);
+  const { data, loading, error, refetch } = useInsiderTrading(ticker);
 
   if (loading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "40px 0" }}>
-        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "6px", animation: "pulse 1.5s ease-in-out infinite" }} />
-        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "6px", animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.1s" }} />
-        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "6px", animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.2s" }} />
+        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite" }} />
+        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.1s" }} />
+        <div style={{ height: "20px", background: "rgba(255,255,255,0.04)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.2s" }} />
       </div>
     );
   }
@@ -147,6 +147,28 @@ export default function InsiderTradingTab({ ticker }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={() => refetch()}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "0",
+            color: "var(--text-secondary)",
+            fontFamily: "var(--font-body)",
+            fontSize: "12px",
+            padding: "6px 12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
       <SignalGauge score={data.score} label={data.label} />
       <SummaryCard summary={data.summary} />
       <div>

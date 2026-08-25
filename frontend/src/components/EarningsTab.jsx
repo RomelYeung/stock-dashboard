@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useEarningsData, useEarningsSentiment, useSecGuidance } from "../hooks/useStockData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, Legend, ComposedChart, Line, Cell } from "recharts";
+import PeriodToggle from "./PeriodToggle";
 
 // ─── Responsive hook ───────────────────────────────────────────────────────
 function useWindowWidth() {
@@ -40,7 +41,7 @@ const formatDate = (dateStr) => {
 const tooltipStyle = {
   backgroundColor: "rgba(9,13,23,0.95)",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: "10px",
+  borderRadius: "0",
   color: "var(--text-primary)",
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
@@ -48,10 +49,13 @@ const tooltipStyle = {
 };
 
 // ─── Reusable Components ───────────────────────────────────────────────────
-function Section({ title, children, fullHeight = false }) {
+function Section({ title, children, fullHeight = false, rightAction = null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: fullHeight ? "100%" : "auto" }}>
-      <h3 style={styles.sectionTitle}>{title}</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: "30px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "8px" }}>
+        <h3 style={{ ...styles.sectionTitle, borderBottom: "none", paddingBottom: 0, margin: 0 }}>{title}</h3>
+        {rightAction}
+      </div>
       <div style={{ ...styles.glassCard, flex: fullHeight ? 1 : "none" }}>
         {children}
       </div>
@@ -65,7 +69,7 @@ function EmptyState({ message }) {
       display: "flex", alignItems: "center", justifyContent: "center", 
       height: "100%", minHeight: "150px", color: "var(--text-muted)", 
       fontSize: "12px", fontFamily: "var(--font-body)",
-      background: "rgba(255,255,255,0.01)", borderRadius: "8px",
+      background: "rgba(255,255,255,0.01)", borderRadius: "0",
       border: "1px dashed rgba(255,255,255,0.05)"
     }}>
       {message}
@@ -92,10 +96,10 @@ function AISentimentCard({ ticker }) {
     return (
       <div style={{ ...styles.glassCard, display: "flex", flexDirection: "column", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(255,255,255,0.1)", animation: "pulse 1.5s infinite" }} />
-          <div style={{ width: "150px", height: "14px", background: "rgba(255,255,255,0.1)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+          <div style={{ width: "18px", height: "18px", borderRadius: "0", background: "rgba(255,255,255,0.1)", animation: "pulse 1.5s infinite" }} />
+          <div style={{ width: "150px", height: "14px", background: "rgba(255,255,255,0.1)", borderRadius: "0", animation: "pulse 1.5s infinite" }} />
         </div>
-        <div style={{ width: "100%", height: "40px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+        <div style={{ width: "100%", height: "40px", background: "rgba(255,255,255,0.05)", borderRadius: "0", animation: "pulse 1.5s infinite" }} />
       </div>
     );
   }
@@ -126,7 +130,7 @@ function AISentimentCard({ ticker }) {
           background: `rgba(${isBullish ? "0,229,160" : isBearish ? "255,77,109" : "79,141,255"}, 0.15)`,
           color: scoreColor,
           padding: "4px 10px",
-          borderRadius: "6px",
+          borderRadius: "0",
           fontFamily: "var(--font-display)",
           fontSize: "11px",
           fontWeight: 700,
@@ -139,7 +143,7 @@ function AISentimentCard({ ticker }) {
       <p style={{ fontFamily: "var(--font-body)", fontSize: "14px", lineHeight: 1.6, color: "rgba(255,255,255,0.85)", margin: 0 }}>
         {aiSentiment.summary}
       </p>
-      <div style={{ marginTop: "16px", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div style={{ marginTop: "16px", fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
         Generated: {new Date().toLocaleDateString()} • Sources: Yahoo Finance, Earnings Transcripts
       </div>
     </div>
@@ -184,8 +188,8 @@ function EpsSurpriseChart({ surprises }) {
     <ResponsiveContainer width="100%" height={250}>
       <BarChart data={data} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-        <XAxis dataKey="quarter" stroke="#5a6a80" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} />
-        <YAxis stroke="#5a6a80" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+        <XAxis dataKey="quarter" stroke="var(--text-tick)" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} />
+        <YAxis stroke="var(--text-tick)" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
         <Tooltip cursor={{ fill: "rgba(255,255,255,0.02)" }} content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: "11px", fontFamily: "var(--font-body)", paddingTop: "10px" }} />
         <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" />
@@ -200,16 +204,32 @@ function EpsSurpriseChart({ surprises }) {
   );
 }
 
-function RevenueChart({ annualIncome }) {
-  if (!annualIncome || annualIncome.length === 0) return <EmptyState message="No revenue data available" />;
+function RevenueChart({ incomeData, annualIncome, period = "annual" }) {
+  const rawData = incomeData || annualIncome || [];
+  if (!rawData || rawData.length === 0) return <EmptyState message="No revenue data available" />;
 
-  const data = [...annualIncome]
+  const data = [...rawData]
     .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .map(s => ({
-      year: new Date(s.date).getFullYear().toString(),
-      Revenue: s.totalRevenue,
-      NetIncome: s.netIncome,
-    }));
+    .map(s => {
+      let periodLabel = "Unknown";
+      if (s.date) {
+        const d = new Date(s.date);
+        if (!isNaN(d.getTime())) {
+          if (period === "quarterly") {
+            const q = Math.floor(d.getUTCMonth() / 3) + 1;
+            const yy = String(d.getUTCFullYear()).slice(-2);
+            periodLabel = `Q${q} '${yy}`;
+          } else {
+            periodLabel = d.getUTCFullYear().toString();
+          }
+        }
+      }
+      return {
+        periodLabel,
+        Revenue: s.totalRevenue,
+        NetIncome: s.netIncome,
+      };
+    });
 
   data.forEach((d, i) => {
     if (i > 0 && data[i-1].Revenue) {
@@ -223,9 +243,9 @@ function RevenueChart({ annualIncome }) {
     <ResponsiveContainer width="100%" height={250}>
       <ComposedChart data={data} margin={{ top: 20, right: 0, left: -10, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-        <XAxis dataKey="year" stroke="#5a6a80" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} />
-        <YAxis yAxisId="left" stroke="#5a6a80" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1e9).toFixed(0)}B`} />
-        <YAxis yAxisId="right" orientation="right" stroke="#5a6a80" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `${v.toFixed(0)}%`} />
+        <XAxis dataKey="periodLabel" stroke="var(--text-tick)" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} />
+        <YAxis yAxisId="left" stroke="var(--text-tick)" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1e9).toFixed(0)}B`} />
+        <YAxis yAxisId="right" orientation="right" stroke="var(--text-tick)" fontSize={11} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} tickFormatter={v => `${v.toFixed(0)}%`} />
         <Tooltip 
           cursor={{ fill: "rgba(255,255,255,0.02)" }} 
           contentStyle={tooltipStyle}
@@ -292,7 +312,7 @@ function ForwardEstimates({ estimates }) {
       <div style={styles.statBox}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={styles.statLabel}>{label}</span>
-          {analysts && <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: "4px" }}>{analysts} Analysts</span>}
+          {analysts && <span style={{ fontSize: "11px", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: "0" }}>{analysts} Analysts</span>}
         </div>
         
         <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginTop: "4px" }}>
@@ -306,12 +326,12 @@ function ForwardEstimates({ estimates }) {
         
         {low != null && high != null && (
           <div style={{ marginTop: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginBottom: "4px" }}>
               <span>${low.toFixed(2)}</span>
               <span>Range</span>
               <span>${high.toFixed(2)}</span>
             </div>
-            <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", position: "relative" }}>
+            <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "0", position: "relative" }}>
               <div style={{ 
                 position: "absolute", 
                 left: `${Math.max(0, Math.min(100, ((avg - low) / (high - low)) * 100))}%`, 
@@ -319,7 +339,7 @@ function ForwardEstimates({ estimates }) {
                 width: "8px", 
                 height: "8px", 
                 background: "var(--accent-blue)", 
-                borderRadius: "50%",
+                borderRadius: "0",
                 transform: "translateX(-50%)"
               }} />
             </div>
@@ -369,7 +389,7 @@ function EarningsHistoryTable({ surprises }) {
                 </td>
                 <td style={styles.td}>
                   <span style={{ 
-                    padding: "4px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: 600,
+                    padding: "4px 8px", borderRadius: "0", fontSize: "11px", fontWeight: 600,
                     background: isBeat ? "rgba(0,229,160,0.1)" : "rgba(255,77,109,0.1)",
                     color: isBeat ? "var(--accent-green)" : "var(--accent-red)"
                   }}>
@@ -425,11 +445,11 @@ function SecGuidanceCard({ ticker }) {
     return (
       <div style={{ ...styles.glassCard, display: "flex", flexDirection: "column", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(255,255,255,0.1)", animation: "pulse 1.5s infinite" }} />
-          <div style={{ width: "120px", height: "14px", background: "rgba(255,255,255,0.1)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+          <div style={{ width: "18px", height: "18px", borderRadius: "0", background: "rgba(255,255,255,0.1)", animation: "pulse 1.5s infinite" }} />
+          <div style={{ width: "120px", height: "14px", background: "rgba(255,255,255,0.1)", borderRadius: "0", animation: "pulse 1.5s infinite" }} />
         </div>
-        <div style={{ width: "100%", height: "60px", background: "rgba(255,255,255,0.05)", borderRadius: "8px", animation: "pulse 1.5s infinite" }} />
-        <div style={{ width: "80%", height: "40px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", animation: "pulse 1.5s infinite" }} />
+        <div style={{ width: "100%", height: "60px", background: "rgba(255,255,255,0.05)", borderRadius: "0", animation: "pulse 1.5s infinite" }} />
+        <div style={{ width: "80%", height: "40px", background: "rgba(255,255,255,0.03)", borderRadius: "0", animation: "pulse 1.5s infinite" }} />
       </div>
     );
   }
@@ -483,7 +503,7 @@ function SecGuidanceCard({ ticker }) {
           background: "rgba(255,181,71,0.15)",
           color: "var(--accent-amber)",
           padding: "4px 10px",
-          borderRadius: "6px",
+          borderRadius: "0",
           fontFamily: "var(--font-display)",
           fontSize: "11px",
           fontWeight: 700,
@@ -498,7 +518,7 @@ function SecGuidanceCard({ ticker }) {
       {allGuidanceSnippets.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <span style={{
-            fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 600,
+            fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600,
             color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.1em"
           }}>
             Key Figures
@@ -509,7 +529,7 @@ function SecGuidanceCard({ ticker }) {
                 display: "flex", alignItems: "center", gap: "6px",
                 background: "rgba(0,229,160,0.08)",
                 border: "1px solid rgba(0,229,160,0.18)",
-                padding: "6px 12px", borderRadius: "8px"
+                padding: "6px 12px", borderRadius: "0"
               }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -536,7 +556,7 @@ function SecGuidanceCard({ ticker }) {
           return (
             <div key={i} style={{
               background: "rgba(0,0,0,0.2)",
-              borderRadius: "12px",
+              borderRadius: "0",
               padding: "16px 18px",
               border: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
@@ -555,7 +575,7 @@ function SecGuidanceCard({ ticker }) {
                   {filing.isAmendment && (
                     <span style={{
                       background: "rgba(255,181,71,0.1)", color: "var(--accent-amber)",
-                      padding: "2px 6px", borderRadius: "4px", fontSize: "9px",
+                      padding: "2px 6px", borderRadius: "0", fontSize: "11px",
                       fontFamily: "var(--font-display)", fontWeight: 700, letterSpacing: "0.05em"
                     }}>
                       AMENDED
@@ -569,7 +589,7 @@ function SecGuidanceCard({ ticker }) {
                       <span key={j} style={{
                         background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)",
                         border: "1px solid rgba(255,255,255,0.08)",
-                        padding: "3px 8px", borderRadius: "100px", fontSize: "10px",
+                        padding: "3px 8px", borderRadius: "0", fontSize: "11px",
                         fontFamily: "var(--font-mono)", fontWeight: 500
                       }}>
                         {itemLabels[item.code] || `Item ${item.code}`}
@@ -586,7 +606,7 @@ function SecGuidanceCard({ ticker }) {
                     <div key={j} style={{
                       padding: "12px 16px",
                       background: "rgba(255,181,71,0.04)",
-                      borderRadius: "8px",
+                      borderRadius: "0",
                       borderLeft: "3px solid rgba(255,181,71,0.4)",
                       fontFamily: "var(--font-body)",
                       fontSize: "13px",
@@ -608,7 +628,7 @@ function SecGuidanceCard({ ticker }) {
                       fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
                       color: "var(--accent-green)", background: "rgba(0,229,160,0.06)",
                       border: "1px solid rgba(0,229,160,0.15)",
-                      padding: "4px 10px", borderRadius: "6px"
+                      padding: "4px 10px", borderRadius: "0"
                     }}>
                       {snippet}
                     </span>
@@ -620,7 +640,7 @@ function SecGuidanceCard({ ticker }) {
         })}
       </div>
 
-      <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
         Source: SEC EDGAR • Cached 24h
       </div>
     </div>
@@ -639,14 +659,14 @@ function AnalystRevisions({ recommendationTrend, upgradesDowngrades }) {
       {current && (
         <div>
           <div style={{ color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>Consensus Rating</div>
-          <div style={{ display: "flex", height: "8px", borderRadius: "4px", overflow: "hidden", gap: "2px", marginBottom: "8px" }}>
+          <div style={{ display: "flex", height: "8px", borderRadius: "0", overflow: "hidden", gap: "2px", marginBottom: "8px" }}>
             <div style={{ flex: current.strongBuy || 0, background: "var(--accent-green)" }} title={`Strong Buy: ${current.strongBuy}`} />
             <div style={{ flex: current.buy || 0, background: "rgba(0, 229, 160, 0.6)" }} title={`Buy: ${current.buy}`} />
             <div style={{ flex: current.hold || 0, background: "var(--accent-amber)" }} title={`Hold: ${current.hold}`} />
             <div style={{ flex: current.sell || 0, background: "rgba(255, 77, 109, 0.6)" }} title={`Sell: ${current.sell}`} />
             <div style={{ flex: current.strongSell || 0, background: "var(--accent-red)" }} title={`Strong Sell: ${current.strongSell}`} />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
             <span>Buy</span>
             <span>Hold</span>
             <span>Sell</span>
@@ -669,11 +689,11 @@ function AnalystRevisions({ recommendationTrend, upgradesDowngrades }) {
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <div>
                     <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)" }}>{item.firm}</div>
-                    <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
                       {item.fromGrade ? `${item.fromGrade} → ` : ""}{item.toGrade}
                     </div>
                   </div>
-                  <div style={{ fontSize: "10px", fontWeight: 700, color, background: bg, padding: "4px 8px", borderRadius: "4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color, background: bg, padding: "4px 8px", borderRadius: "0" }}>
                     {item.action === "up" ? "UPGRADE" : item.action === "down" ? "DOWNGRADE" : "INITIATED"}
                   </div>
                 </div>
@@ -695,8 +715,8 @@ function BeatMissRatio({ surprises }) {
   
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
-      <div style={{ position: "relative", width: "100px", height: "100px", borderRadius: "50%", background: `conic-gradient(var(--accent-green) ${beatPct}%, rgba(255,255,255,0.05) 0)` }}>
-        <div style={{ position: "absolute", inset: "8px", background: "var(--bg-surface)", borderRadius: "50%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ position: "relative", width: "100px", height: "100px", borderRadius: "0", background: `conic-gradient(var(--accent-green) ${beatPct}%, rgba(255,255,255,0.05) 0)` }}>
+        <div style={{ position: "absolute", inset: "8px", background: "var(--bg-surface)", borderRadius: "0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: "20px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{beatPct.toFixed(0)}%</span>
         </div>
       </div>
@@ -710,6 +730,7 @@ function BeatMissRatio({ surprises }) {
 // ─── Main Export ────────────────────────────────────────────────────────────
 export default function EarningsTab({ ticker }) {
   const { data, loading, error, refetch } = useEarningsData(ticker);
+  const [periodMode, setPeriodMode] = useState("annual");
   const width = useWindowWidth();
   const isMobile = width < 768;
   const isTablet = width < 1024;
@@ -723,7 +744,7 @@ export default function EarningsTab({ ticker }) {
             style={{
               height: i === 1 ? "150px" : "250px",
               background: "rgba(255,255,255,0.04)",
-              borderRadius: "16px",
+              borderRadius: "0",
               animation: "pulse 1.5s ease-in-out infinite",
               animationDelay: `${i * 0.1}s`,
             }}
@@ -744,7 +765,11 @@ export default function EarningsTab({ ticker }) {
 
   if (!data) return null;
 
-  const { epsSurprises, estimates, annualIncome, peers, earningsDate, recommendationTrend, upgradesDowngrades } = data;
+  const { epsSurprises, estimates, annualIncome, quarterlyIncome, peers, earningsDate, recommendationTrend, upgradesDowngrades } = data;
+
+  const incomeData = periodMode === "quarterly" && quarterlyIncome?.length
+    ? quarterlyIncome
+    : annualIncome;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -771,8 +796,11 @@ export default function EarningsTab({ ticker }) {
         </div>
 
         <div style={{ gridColumn: isMobile ? "1 / -1" : isTablet ? "1 / -1" : "span 6" }}>
-          <Section title="Annual Revenue & Growth">
-            <RevenueChart annualIncome={annualIncome} />
+          <Section
+            title={periodMode === "quarterly" ? "Quarterly Revenue & Growth" : "Annual Revenue & Growth"}
+            rightAction={<PeriodToggle value={periodMode} onChange={setPeriodMode} size="sm" />}
+          >
+            <RevenueChart incomeData={incomeData} annualIncome={annualIncome} period={periodMode} />
           </Section>
         </div>
 
@@ -822,7 +850,7 @@ const styles = {
     background: "var(--glass-bg)",
     backdropFilter: "blur(16px)",
     border: "1px solid var(--glass-border)",
-    borderRadius: "16px",
+    borderRadius: "0",
     padding: "24px",
   },
   sectionTitle: {
@@ -838,7 +866,7 @@ const styles = {
   },
   statBox: {
     background: "rgba(255,255,255,0.035)",
-    borderRadius: "10px",
+    borderRadius: "0",
     padding: "14px 16px",
     display: "flex",
     flexDirection: "column",
@@ -847,7 +875,7 @@ const styles = {
   statLabel: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 400,
     letterSpacing: "0.06em",
     textTransform: "uppercase",
@@ -861,7 +889,7 @@ const styles = {
   statSub: { 
     color: "var(--text-secondary)", 
     fontFamily: "var(--font-body)", 
-    fontSize: "10px" 
+    fontSize: "11px" 
   },
   table: {
     width: "100%",
@@ -871,7 +899,7 @@ const styles = {
   th: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-display)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 600,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
@@ -903,7 +931,7 @@ const styles = {
   retryButton: {
     background: "rgba(255,255,255,0.06)",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
+    borderRadius: "0",
     color: "var(--text-primary)",
     cursor: "pointer",
     fontFamily: "var(--font-body)",

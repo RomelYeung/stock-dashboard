@@ -64,7 +64,7 @@ const styles = {
   },
   loadingCard: {
     background: "var(--glass-bg)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "20px",
     height: "200px",
     display: "flex",
@@ -76,7 +76,7 @@ const styles = {
     background: "var(--glass-bg)",
     backdropFilter: "blur(12px)",
     border: "1px solid var(--accent-red)",
-    borderRadius: "12px",
+    borderRadius: "0",
     padding: "16px",
     display: "flex",
     flexDirection: "column",

@@ -461,7 +461,7 @@ Organize the output exactly into the following sections using clear markdown hea
                  {sessionsList.map(s => (
                    <div key={s.id} style={sessionItem} onClick={() => { setSessionId(s.id); setShowSessions(false); }}>
                      <div style={{color: "var(--text-primary)", fontSize: "13px", marginBottom: "4px"}}>{s.snippet}</div>
-                     <div style={{color: "var(--text-muted)", fontSize: "10px"}}>{new Date(s.updatedAt).toLocaleString()}</div>
+                     <div style={{color: "var(--text-muted)", fontSize: "11px"}}>{new Date(s.updatedAt).toLocaleString()}</div>
                    </div>
                  ))}
                  {sessionsList.length === 0 && <div style={{color: "var(--text-muted)", fontSize: "12px"}}>No past sessions found.</div>}
@@ -485,7 +485,7 @@ Organize the output exactly into the following sections using clear markdown hea
                           left: "12px",
                           background: "rgba(255,255,255,0.1)",
                           border: "none",
-                          borderRadius: "50%",
+                          borderRadius: "0",
                           width: "24px",
                           height: "24px",
                           display: "flex",
@@ -512,7 +512,7 @@ Organize the output exactly into the following sections using clear markdown hea
                               left: "0",
                               background: "rgba(30, 30, 30, 0.95)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
-                              borderRadius: "12px",
+                              borderRadius: "0",
                               padding: "8px",
                               backdropFilter: "blur(16px)",
                               WebkitBackdropFilter: "blur(16px)",
@@ -534,7 +534,7 @@ Organize the output exactly into the following sections using clear markdown hea
                                 padding: "10px 12px",
                                 color: isDeepResearching ? "var(--text-muted)" : "var(--text-primary)",
                                 cursor: isDeepResearching ? "not-allowed" : "pointer",
-                                borderRadius: "8px",
+                                borderRadius: "0",
                                 transition: "background 0.2s",
                                 textAlign: "left",
                                 fontSize: "13px",
@@ -600,7 +600,7 @@ Organize the output exactly into the following sections using clear markdown hea
                     )}
                     {toolStatus && (
                       <div style={{ ...chatBubbleWrapper, alignItems: "center", opacity: 0.7 }}>
-                        <div style={{ background: "rgba(255,255,255,0.05)", padding: "6px 12px", borderRadius: "12px", fontSize: "11px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div style={{ background: "rgba(255,255,255,0.05)", padding: "6px 12px", borderRadius: "0", fontSize: "11px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
                            <span style={{...typingDot, background: "var(--accent-blue)", animationDelay: "0ms", width: "4px", height: "4px"}} />
                            {toolStatus}
                         </div>
@@ -644,7 +644,7 @@ Organize the output exactly into the following sections using clear markdown hea
                             left: "12px",
                             background: "rgba(255,255,255,0.1)",
                             border: "none",
-                            borderRadius: "50%",
+                            borderRadius: "0",
                             width: "24px",
                             height: "24px",
                             display: "flex",
@@ -671,7 +671,7 @@ Organize the output exactly into the following sections using clear markdown hea
                                 left: "0",
                                 background: "rgba(30, 30, 30, 0.95)",
                                 border: "1px solid rgba(255, 255, 255, 0.1)",
-                                borderRadius: "12px",
+                                borderRadius: "0",
                                 padding: "8px",
                                 backdropFilter: "blur(16px)",
                                 WebkitBackdropFilter: "blur(16px)",
@@ -693,7 +693,7 @@ Organize the output exactly into the following sections using clear markdown hea
                                   padding: "10px 12px",
                                   color: isDeepResearching ? "var(--text-muted)" : "var(--text-primary)",
                                   cursor: isDeepResearching ? "not-allowed" : "pointer",
-                                  borderRadius: "8px",
+                                  borderRadius: "0",
                                   transition: "background 0.2s",
                                   textAlign: "left",
                                   fontSize: "13px",
@@ -761,7 +761,7 @@ const floatingWindow = {
   backdropFilter: "blur(24px)",
   WebkitBackdropFilter: "blur(24px)",
   border: "1px solid rgba(255, 255, 255, 0.1)",
-  borderRadius: "16px",
+  borderRadius: "0",
   boxShadow: "0 12px 48px rgba(0, 0, 0, 0.5)",
   display: "flex",
   flexDirection: "column",
@@ -803,7 +803,7 @@ const headerTitle = {
 
 const headerBtn = {
   background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: "6px", padding: "4px 10px", color: "var(--text-secondary)",
+  borderRadius: "0", padding: "4px 10px", color: "var(--text-secondary)",
   fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600,
   cursor: "pointer", transition: "all 0.2s"
 };
@@ -826,7 +826,7 @@ const fabStyle = {
   right: "32px",
   width: "60px",
   height: "60px",
-  borderRadius: "30px",
+  borderRadius: "0",
   background: "linear-gradient(135deg, var(--accent-blue) 0%, #a259ff 100%)",
   color: "white",
   border: "none",
@@ -855,13 +855,13 @@ const debateSplashDesc = { color: "var(--text-secondary)", fontFamily: "var(--fo
 const chatInputWrap = { display: "flex", gap: "8px", width: "100%" };
 const chatInput = {
   flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: "24px", padding: "14px 20px", color: "var(--text-primary)", fontFamily: "var(--font-body)",
+  borderRadius: "0", padding: "14px 20px", color: "var(--text-primary)", fontFamily: "var(--font-body)",
   fontSize: "14px", outline: "none", transition: "all 0.3s ease",
   boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)"
 };
 const chatSendBtn = {
   background: "linear-gradient(135deg, var(--accent-blue) 0%, #a259ff 100%)", color: "#fff", border: "none", 
-  borderRadius: "50%", width: "48px", height: "48px", display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: "0", width: "48px", height: "48px", display: "flex", alignItems: "center", justifyContent: "center",
   cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s", 
   boxShadow: "0 4px 12px rgba(79, 141, 255, 0.4)", flexShrink: 0
 };
@@ -871,13 +871,13 @@ const chatBubbleWrapper = { display: "flex", flexDirection: "column", gap: "6px"
 const chatAgentLabel = { fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, letterSpacing: "0.02em" };
 const chatBubble = {
   background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-  borderRadius: "20px 20px 20px 4px", padding: "14px 20px",
+  borderRadius: "0", padding: "14px 20px",
   color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "14px", lineHeight: 1.6,
   whiteSpace: "pre-wrap", boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
   backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", maxWidth: "90%"
 };
 
-const typingDot = { width: "6px", height: "6px", background: "currentColor", borderRadius: "50%", animation: "pulse 1.5s infinite" };
+const typingDot = { width: "6px", height: "6px", background: "currentColor", borderRadius: "0", animation: "pulse 1.5s infinite" };
 
 const sessionsDrawer = {
   position: "absolute", top: "60px", right: "20px", width: "260px",

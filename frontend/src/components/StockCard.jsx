@@ -347,7 +347,7 @@ const styles = {
   footerText: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-mono)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 300,
   },
   footerCta: {
@@ -390,7 +390,7 @@ const styles = {
     fontSize: "14px",
   },
   changeSecondary: {
-    fontSize: "10px",
+    fontSize: "11px",
   },
   rangeContainer: {
     display: "flex",
@@ -403,7 +403,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     fontFamily: "var(--font-mono)",
-    fontSize: "10px",
+    fontSize: "11px",
     color: "var(--text-secondary)",
   },
   rangeTrack: {

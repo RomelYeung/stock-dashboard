@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { RevenueChart, MarginsChart, CashFlowChart } from "./Charts";
+import PeriodToggle from "./PeriodToggle";
 import { formatMarketCap, formatPercent, formatMultiple, formatRevenue } from "../utils/formatters";
 
 // ─── Category constants (matching ComparablesTab) ──────────────────────────
@@ -28,38 +29,30 @@ function StatBox({ label, value, sub, positive, historicalData, higherIsBetter =
     const isNegativeChange = diff < 0;
     
     let favorable = null;
-    if (isPositiveChange) favorable = higherIsBetter;
-    else if (isNegativeChange) favorable = !higherIsBetter;
+    if (higherIsBetter) {
+      favorable = isPositiveChange ? true : isNegativeChange ? false : null;
+    } else {
+      favorable = isNegativeChange ? true : isPositiveChange ? false : null;
+    }
 
-    const trendColor = favorable === true
-      ? "var(--accent-green)"
-      : favorable === false
-        ? "var(--accent-red)"
-        : "var(--text-secondary)";
-    
-    const trendBg = favorable === true
-      ? "rgba(0, 229, 160, 0.08)"
-      : favorable === false
-        ? "rgba(255, 77, 109, 0.08)"
-        : "rgba(255,255,255,0.04)";
-        
-    const trendArrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "•";
-    const trendText = `${trendArrow} ${Math.abs(pctChange)}% YoY`;
+    const badgeColor = favorable === true ? "var(--accent-green)" : favorable === false ? "var(--accent-red)" : "var(--text-secondary)";
+    const badgeBg = favorable === true ? "rgba(0, 229, 160, 0.1)" : favorable === false ? "rgba(255, 0, 60, 0.1)" : "rgba(255, 255, 255, 0.05)";
+    const arrow = isPositiveChange ? "▲" : isNegativeChange ? "▼" : "•";
 
     trendBadge = (
       <span
         style={{
           fontSize: "11px",
-          fontFamily: "var(--font-body)",
+          fontFamily: "var(--font-mono)",
           fontWeight: 500,
           padding: "2px 6px",
-          borderRadius: "4px",
+          borderRadius: "0",
           whiteSpace: "nowrap",
-          color: trendColor,
-          background: trendBg,
+          color: badgeColor,
+          background: badgeBg,
         }}
       >
-        {trendText}
+        {arrow} {Math.abs(pctChange)}%
       </span>
     );
   }
@@ -92,20 +85,23 @@ const sbox = {
   label: {
     color: "var(--text-secondary)",
     fontFamily: "var(--font-body)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 400,
     letterSpacing: "0.06em",
     textTransform: "uppercase",
   },
   value: { fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 500 },
-  sub: { color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "10px" },
+  sub: { color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px" },
 };
 
 // ─── Section (matching existing StockAnalysisPage pattern) ──────────────────
-function Section({ title, children }) {
+function Section({ title, children, rightAction = null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <h3 style={sec.title}>{title}</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: "30px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "8px" }}>
+        <h3 style={{ ...sec.title, borderBottom: "none", paddingBottom: 0, margin: 0 }}>{title}</h3>
+        {rightAction}
+      </div>
       {children}
     </div>
   );
@@ -119,8 +115,6 @@ const sec = {
     fontWeight: 600,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
-    borderBottom: "1px solid rgba(255,255,255,0.05)",
-    paddingBottom: "8px",
   },
 };
 
@@ -142,7 +136,7 @@ const tbl = {
     padding: "8px 12px",
     color: "var(--text-secondary)",
     fontFamily: "var(--font-display)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 600,
     letterSpacing: "0.06em",
     textTransform: "uppercase",
@@ -158,7 +152,7 @@ const tbl = {
 };
 
 function Sparkline({ data, color, label }) {
-  if (!data || data.length < 2) return <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>—</span>;
+  if (!data || data.length < 2) return <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>—</span>;
   const chartData = data.map((d, i) => ({ v: d.value, i }));
   const first = data[0].value;
   const last = data[data.length - 1].value;
@@ -328,7 +322,7 @@ function PeerComparisonSection({ comparablesData, ticker }) {
       style={{
         background: "var(--glass-bg)",
         border: "1px solid var(--glass-border)",
-        borderRadius: "14px",
+        borderRadius: "0",
         overflow: "hidden",
       }}
     >
@@ -456,6 +450,8 @@ export default function FundamentalsTab({
   error,
   onRetry,
 }) {
+  const [periodMode, setPeriodMode] = useState("annual");
+
   // ── Loading state ───────────────────────────────────────────────────────
   if ((financialLoading && !financialData) || (comparablesLoading && !comparablesData)) {
     return (
@@ -466,7 +462,7 @@ export default function FundamentalsTab({
             style={{
               height: "20px",
               background: "rgba(255,255,255,0.04)",
-              borderRadius: "6px",
+              borderRadius: "0",
               animation: "pulse 1.5s ease-in-out infinite",
               animationDelay: `${i * 0.1}s`,
             }}
@@ -487,7 +483,7 @@ export default function FundamentalsTab({
             style={{
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "8px",
+              borderRadius: "0",
               color: "var(--text-primary)",
               cursor: "pointer",
               fontFamily: "var(--font-body)",
@@ -510,6 +506,14 @@ export default function FundamentalsTab({
   const summary = financialData.summary || {};
   const financials = financialData.financials || {};
   const balanceSheet = financialData.balanceSheet || {};
+
+  const incomeData = periodMode === "quarterly" && financials.quarterlyIncome?.length
+    ? financials.quarterlyIncome
+    : financials.annualIncome;
+
+  const cashFlowData = periodMode === "quarterly" && balanceSheet.quarterlyCashFlow?.length
+    ? balanceSheet.quarterlyCashFlow
+    : balanceSheet.annualCashFlow;
 
   // Helper to extract historical data for StatBox
   const getHistory = (source, key) => {
@@ -554,33 +558,39 @@ export default function FundamentalsTab({
           </Section>
 
           {/* Profitability */}
-          <Section title="Profitability">
+          <Section
+            title="Profitability"
+            rightAction={<PeriodToggle value={periodMode} onChange={setPeriodMode} size="sm" />}
+          >
             <div className="stat-group-grid-3">
               <StatBox
                 label="Operating Margin"
                 value={formatPercent(financials.operatingMargins)}
-                historicalData={getComputedHistory(financials.annualIncome, item => item.totalRevenue ? item.operatingIncome / item.totalRevenue : null)}
+                historicalData={getComputedHistory(incomeData, item => item.totalRevenue ? item.operatingIncome / item.totalRevenue : null)}
               />
               <StatBox
                 label="Net Margin"
                 value={formatPercent(financials.profitMargins)}
-                historicalData={getComputedHistory(financials.annualIncome, item => item.totalRevenue ? item.netIncome / item.totalRevenue : null)}
+                historicalData={getComputedHistory(incomeData, item => item.totalRevenue ? item.netIncome / item.totalRevenue : null)}
               />
               <StatBox
                 label="ROA"
                 value={formatPercent(financials.returnOnAssets)}
               />
             </div>
-            <MarginsChart annualIncome={financials.annualIncome} />
+            <MarginsChart incomeData={incomeData} annualIncome={financials.annualIncome} period={periodMode} />
           </Section>
 
           {/* Revenue & Earnings */}
-          <Section title="Revenue & Earnings">
+          <Section
+            title="Revenue & Earnings"
+            rightAction={<PeriodToggle value={periodMode} onChange={setPeriodMode} size="sm" />}
+          >
             <div className="stat-group-grid-2">
               <StatBox
                 label="Total Revenue"
                 value={formatRevenue(financials.totalRevenue)}
-                historicalData={getHistory(financials.annualIncome, 'totalRevenue')}
+                historicalData={getHistory(incomeData, 'totalRevenue')}
               />
               <StatBox
                 label="Earnings Growth"
@@ -608,11 +618,14 @@ export default function FundamentalsTab({
                 }
               />
             </div>
-            <RevenueChart annualIncome={financials.annualIncome} />
+            <RevenueChart incomeData={incomeData} annualIncome={financials.annualIncome} period={periodMode} />
           </Section>
 
           {/* Balance Sheet & Cash Flow */}
-          <Section title="Balance Sheet & Cash Flow">
+          <Section
+            title="Balance Sheet & Cash Flow"
+            rightAction={<PeriodToggle value={periodMode} onChange={setPeriodMode} size="sm" />}
+          >
             <div className="stat-group-grid-3">
               <StatBox
                 label="Total Cash"
@@ -633,15 +646,15 @@ export default function FundamentalsTab({
               <StatBox
                 label="Free Cash Flow"
                 value={formatRevenue(balanceSheet.freeCashflow)}
-                historicalData={getHistory(balanceSheet.annualCashFlow, 'freeCashFlow')}
+                historicalData={getHistory(cashFlowData, 'freeCashFlow')}
               />
               <StatBox
                 label="Operating CF"
                 value={formatRevenue(balanceSheet.operatingCashflow)}
-                historicalData={getHistory(balanceSheet.annualCashFlow, 'operatingCashFlow')}
+                historicalData={getHistory(cashFlowData, 'operatingCashFlow')}
               />
             </div>
-            <CashFlowChart annualCashFlow={balanceSheet.annualCashFlow} />
+            <CashFlowChart cashFlowData={cashFlowData} annualCashFlow={balanceSheet.annualCashFlow} period={periodMode} />
           </Section>
         </div>
       </Section>
@@ -651,7 +664,7 @@ export default function FundamentalsTab({
         <Section title="Peer Comparison">
           <div style={{ ...states.skeleton, padding: "24px" }}>
             {[1,2,3,4].map(i => (
-              <div key={i} style={{ height: "16px", background: "rgba(255,255,255,0.04)", borderRadius: "4px", animation: "pulse 1.5s ease-in-out infinite", animationDelay: `${i * 0.1}s` }} />
+              <div key={i} style={{ height: "16px", background: "rgba(255,255,255,0.04)", borderRadius: "0", animation: "pulse 1.5s ease-in-out infinite", animationDelay: `${i * 0.1}s` }} />
             ))}
           </div>
         </Section>

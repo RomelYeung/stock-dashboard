@@ -75,7 +75,7 @@ const cardStyles = {
   },
   label: {
     fontFamily: "var(--font-mono)",
-    fontSize: "10px",
+    fontSize: "11px",
     fontWeight: 700,
     letterSpacing: "0.04em",
     textTransform: "uppercase",

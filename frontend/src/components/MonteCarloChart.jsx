@@ -7,7 +7,7 @@ import { formatPrice } from "../utils/formatters";
 const TOOLTIP_STYLE = {
   background: "rgba(9,13,23,0.95)",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: "10px",
+  borderRadius: "0",
   color: "var(--text-primary)",
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
@@ -37,7 +37,7 @@ export default function MonteCarloChart({ histogram, bear, base, bull, currentPr
           <XAxis
             dataKey="bin"
             tickFormatter={(v) => formatPrice(v)}
-            tick={{ fill: "#5a6a80", fontSize: 10, fontFamily: "var(--font-mono)" }}
+            tick={{ fill: "var(--text-tick)", fontSize: 11, fontFamily: "var(--font-mono)" }}
             axisLine={false} tickLine={false} interval="preserveStartEnd"
           />
           <YAxis hide />
@@ -53,15 +53,15 @@ export default function MonteCarloChart({ histogram, bear, base, bull, currentPr
           </Bar>
           {bear != null && (
             <ReferenceLine x={bear} stroke="var(--accent-red)" strokeWidth={1.5} strokeDasharray="4 4"
-              label={{ value: `Bear $${bear}`, fill: "var(--accent-red)", fontSize: 9, position: "top" }} />
+              label={{ value: `Bear $${bear}`, fill: "var(--accent-red)", fontSize: 11, position: "top" }} />
           )}
           {base != null && (
             <ReferenceLine x={base} stroke="var(--accent-amber)" strokeWidth={1.5} strokeDasharray="4 4"
-              label={{ value: `Base $${base}`, fill: "var(--accent-amber)", fontSize: 9, position: "top" }} />
+              label={{ value: `Base $${base}`, fill: "var(--accent-amber)", fontSize: 11, position: "top" }} />
           )}
           {bull != null && (
             <ReferenceLine x={bull} stroke="var(--accent-green)" strokeWidth={1.5} strokeDasharray="4 4"
-              label={{ value: `Bull $${bull}`, fill: "var(--accent-green)", fontSize: 9, position: "top" }} />
+              label={{ value: `Bull $${bull}`, fill: "var(--accent-green)", fontSize: 11, position: "top" }} />
           )}
         </BarChart>
       </ResponsiveContainer>
@@ -72,7 +72,7 @@ export default function MonteCarloChart({ histogram, bear, base, bull, currentPr
 const mcStyles = {
   wrap: {
     background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
-    borderRadius: "14px", padding: "20px",
+    borderRadius: "0", padding: "20px",
   },
   header: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px" },
   title: {
