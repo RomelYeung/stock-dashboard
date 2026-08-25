@@ -1,0 +1,106 @@
+[
+  {
+    "ticker": "SYNBANK",
+    "asOfDate": "2023-01-01",
+    "outcomeDate": "2024-01-01",
+    "capturedAt": "2022-12-31",
+    "priceBasis": "split-adjusted",
+    "asOfPrice": 100,
+    "outcomePrice": 110,
+    "summary": {
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "marketCap": 10000,
+      "currentPrice": 100,
+      "sharesOutstanding": 100
+    },
+    "financials": { "availableDate": "2022-12-31", "revenueGrowth": 0.08 },
+    "balanceSheet": { "availableDate": "2022-12-31", "freeCashflow": 100, "totalCash": 50, "totalDebt": 20 },
+    "annualIncome": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "totalRevenue": 1000, "interestExpense": 10, "netIncome": 80, "operatingIncome": 120 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "totalRevenue": 1080, "interestExpense": 10, "netIncome": 85, "operatingIncome": 130 }
+    ],
+    "annualCashFlow": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "freeCashFlow": 100 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "freeCashFlow": 105 }
+    ],
+    "riskFreeRate": 0.04
+  },
+  {
+    "ticker": "SYNMATURE",
+    "asOfDate": "2023-01-01",
+    "outcomeDate": "2024-01-01",
+    "capturedAt": "2022-12-31",
+    "priceBasis": "split-adjusted",
+    "asOfPrice": 50,
+    "outcomePrice": 55,
+    "summary": {
+      "sector": "Technology",
+      "industry": "Software",
+      "marketCap": 10000,
+      "currentPrice": 50,
+      "sharesOutstanding": 200,
+      "beta": 1
+    },
+    "financials": { "availableDate": "2022-12-31", "revenueGrowth": 0.05 },
+    "balanceSheet": { "availableDate": "2022-12-31", "freeCashflow": 200, "totalCash": 300, "totalDebt": 100 },
+    "annualIncome": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "totalRevenue": 1000, "interestExpense": 10, "incomeTaxExpense": 20, "ebt": 100, "netIncome": 80, "operatingIncome": 110 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "totalRevenue": 1050, "interestExpense": 10, "incomeTaxExpense": 20, "ebt": 100, "netIncome": 80, "operatingIncome": 110 }
+    ],
+    "annualCashFlow": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "freeCashFlow": 200 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "freeCashFlow": 210 }
+    ],
+    "riskFreeRate": 0.04
+  },
+  {
+    "ticker": "SYNGROWTH",
+    "asOfDate": "2023-01-01",
+    "outcomeDate": "2024-01-01",
+    "capturedAt": "2022-12-31",
+    "priceBasis": "split-adjusted",
+    "asOfPrice": 40,
+    "outcomePrice": 60,
+    "summary": {
+      "sector": "Technology",
+      "industry": "Software",
+      "marketCap": 8000,
+      "currentPrice": 40,
+      "sharesOutstanding": 200,
+      "beta": 1.1
+    },
+    "financials": { "availableDate": "2022-12-31", "revenueGrowth": 0.2 },
+    "balanceSheet": { "availableDate": "2022-12-31", "freeCashflow": 100, "totalCash": 200, "totalDebt": 100 },
+    "annualIncome": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "totalRevenue": 1000, "interestExpense": 10, "incomeTaxExpense": 10, "ebt": 90, "netIncome": 80, "operatingIncome": 100 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "totalRevenue": 1500, "interestExpense": 10, "incomeTaxExpense": 10, "ebt": 90, "netIncome": 80, "operatingIncome": 100 }
+    ],
+    "annualCashFlow": [
+      { "date": "2021-12-31", "availableDate": "2022-02-15", "freeCashFlow": 100 },
+      { "date": "2022-12-31", "availableDate": "2022-12-31", "freeCashFlow": 120 }
+    ],
+    "riskFreeRate": 0.04
+  },
+  {
+    "ticker": "SYNUNSUPPORTED",
+    "asOfDate": "2023-01-01",
+    "outcomeDate": "2024-01-01",
+    "capturedAt": "2022-12-31",
+    "priceBasis": "split-adjusted",
+    "asOfPrice": 20,
+    "outcomePrice": 18,
+    "summary": {
+      "sector": "Industrials",
+      "industry": "Machinery",
+      "marketCap": 2000,
+      "currentPrice": 20,
+      "sharesOutstanding": 100
+    },
+    "financials": { "availableDate": "2022-12-31", "revenueGrowth": 0.03 },
+    "balanceSheet": { "availableDate": "2022-12-31", "freeCashflow": -10, "totalCash": 50, "totalDebt": 100 },
+    "annualIncome": [],
+    "annualCashFlow": [],
+    "riskFreeRate": 0.04
+  }
+]

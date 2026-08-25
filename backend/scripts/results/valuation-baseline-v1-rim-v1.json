@@ -1,0 +1,737 @@
+{
+  "format": "valuation-backtest-comparison/v1",
+  "version": 1,
+  "generatedAt": "2026-08-24T06:06:13.766Z",
+  "model": {
+    "modelId": "finite-fade-residual-income/v1",
+    "years": 5,
+    "erp": 0.0605,
+    "sourceDate": "2022-09-23",
+    "publicationDate": "2022-09-26",
+    "sourceUrl": "https://aswathdamodaran.blogspot.com/2022/09/",
+    "fixtureSha256": "81d02ad6427bceeac482873cae4a6febc28f313b6c3e7997327a9c3951882f70",
+    "baselineResultsSha256": "73fdf3f80871c991ec26b171361800a23e6fe746cf39789995734e173d0c7043",
+    "terminalValue": false,
+    "carriedForwardToCutoff": true
+  },
+  "fixture": {
+    "filename": "valuation-baseline-v1.json",
+    "sha256": "81d02ad6427bceeac482873cae4a6febc28f313b6c3e7997327a9c3951882f70"
+  },
+  "baseline": {
+    "filename": "valuation-baseline-v1.json",
+    "sha256": "73fdf3f80871c991ec26b171361800a23e6fe746cf39789995734e173d0c7043",
+    "fixtureSha256": "81d02ad6427bceeac482873cae4a6febc28f313b6c3e7997327a9c3951882f70",
+    "summary": {
+      "bank-insurer": {
+        "total": 8,
+        "coverage": 0,
+        "valued": 0,
+        "unvalued": 8,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      },
+      "mature-fcff": {
+        "total": 10,
+        "coverage": 1,
+        "valued": 10,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.2629747019149502,
+        "directionalAccuracy": 0.8
+      },
+      "growth-fcff": {
+        "total": 8,
+        "coverage": 1,
+        "valued": 8,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.6492861067655127,
+        "directionalAccuracy": 1
+      },
+      "unsupported": {
+        "total": 4,
+        "coverage": 0,
+        "valued": 0,
+        "unvalued": 4,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      }
+    }
+  },
+  "candidate": {
+    "records": [
+      {
+        "ticker": "JPM",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 90.29016575858802,
+        "equityValue": 273272215684.9425,
+        "predictedReturn": -0.29543371003574426,
+        "realizedReturn": 0.08419827591749796,
+        "absolutePercentageError": 0.3501499627750102,
+        "directionalHit": false,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 34642000000,
+        "normalizedROE": 0.13360381659075396,
+        "rawPayout": 0.35630159921482596,
+        "payout": 0.35630159921482596,
+        "ke": 0.10888136223796335,
+        "erp": 0.0605,
+        "B0": 259289000000,
+        "shares": 3026600000,
+        "shareBasis": "annual-weighted-average",
+        "pvResidualIncome": 13983215684.942516,
+        "endingBook": 377531070583.8984,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "BAC",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 29.12958155257066,
+        "equityValue": 235303850369.37967,
+        "predictedReturn": -0.19531544368383802,
+        "realizedReturn": -0.270718257952142,
+        "absolutePercentageError": 0.10339325657127962,
+        "directionalHit": true,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 25998000000,
+        "normalizedROE": 0.10595945516347541,
+        "rawPayout": 0.2364028002154012,
+        "payout": 0.2364028002154012,
+        "ke": 0.12529955838640025,
+        "erp": 0.0605,
+        "B0": 245358000000,
+        "shares": 8077831463,
+        "shareBasis": "point-in-time",
+        "pvResidualIncome": -10054149630.620321,
+        "endingBook": 374559678109.80615,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "WFC",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 40.64711575498295,
+        "equityValue": 166498715555.56116,
+        "predictedReturn": -0.1342467498516371,
+        "realizedReturn": -0.15633652893104544,
+        "absolutePercentageError": 0.02618316406590382,
+        "directionalHit": true,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 18103000000,
+        "normalizedROE": 0.10804600445242885,
+        "rawPayout": 0.4528531182676904,
+        "payout": 0.4528531182676904,
+        "ke": 0.11100835029297759,
+        "erp": 0.0605,
+        "B0": 167549000000,
+        "shares": 4096200000,
+        "shareBasis": "annual-weighted-average",
+        "pvResidualIncome": -1050284444.4388485,
+        "endingBook": 224141567445.94424,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "C",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 82.67376972501732,
+        "equityValue": 169431623674.4505,
+        "predictedReturn": 0.7887011584064092,
+        "realizedReturn": -0.14322809545095305,
+        "absolutePercentageError": 1.0877215381471612,
+        "directionalHit": false,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 18292000000,
+        "normalizedROE": 0.09996884854380605,
+        "rawPayout": 0.2977804504701509,
+        "payout": 0.2977804504701509,
+        "ke": 0.13598734244756952,
+        "erp": 0.0605,
+        "B0": 182977000000,
+        "shares": 2049400000,
+        "shareBasis": "annual-weighted-average",
+        "pvResidualIncome": -13545376325.549513,
+        "endingBook": 272394371153.97058,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "USB",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 35.2541124072854,
+        "equityValue": 52317102812.41153,
+        "predictedReturn": -0.17784254829462454,
+        "realizedReturn": -0.2569962729305513,
+        "absolutePercentageError": 0.10653206942598303,
+        "directionalHit": true,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 6583000000,
+        "normalizedROE": 0.13560055204235072,
+        "rawPayout": 0.37110739784292873,
+        "payout": 0.37110739784292873,
+        "ke": 0.10050870933422293,
+        "erp": 0.0605,
+        "B0": 48547000000,
+        "shares": 1484000000,
+        "shareBasis": "point-in-time",
+        "pvResidualIncome": 3770102812.4115257,
+        "endingBook": 69446599361.06865,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "GS",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 275.92266443538364,
+        "equityValue": 92040421028.06099,
+        "predictedReturn": -0.2084380197823522,
+        "realizedReturn": -0.11882490247778266,
+        "absolutePercentageError": 0.10169728758399255,
+        "directionalHit": true,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 8915000000,
+        "normalizedROE": 0.0898481198915574,
+        "rawPayout": 0.26203028603477285,
+        "payout": 0.26203028603477285,
+        "ke": 0.12441822979178371,
+        "erp": 0.0605,
+        "B0": 99223000000,
+        "shares": 333573254,
+        "shareBasis": "point-in-time",
+        "pvResidualIncome": -7182578971.939015,
+        "endingBook": 145147211084.3091,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs."
+        ]
+      },
+      {
+        "ticker": "AIG",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 65.51250031434469,
+        "equityValue": 56660770907.35947,
+        "predictedReturn": 0.14793237541030058,
+        "realizedReturn": 0.08726125054961176,
+        "absolutePercentageError": 0.05580179081156378,
+        "directionalHit": true,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 3326000000,
+        "normalizedROE": 0.05080111805226742,
+        "rawPayout": 0.22532717613968167,
+        "payout": 0.22532717613968167,
+        "ke": 0.11541314820406073,
+        "erp": 0.0605,
+        "B0": 65471000000,
+        "shares": 864884879,
+        "shareBasis": "annual-weighted-average",
+        "pvResidualIncome": -8810229092.640533,
+        "endingBook": 89413028875.61617,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs.",
+          "Experimental insurer RIM: GAAP equity is used as a proxy."
+        ]
+      },
+      {
+        "ticker": "ALL",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "bank-insurer",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 108.21399910012943,
+        "equityValue": 30408133747.136368,
+        "predictedReturn": -0.1394512994025493,
+        "realizedReturn": 0.031809145129224614,
+        "absolutePercentageError": 0.16598073911268263,
+        "directionalHit": false,
+        "modelId": "finite-fade-residual-income/v1",
+        "selectedPeriods": [
+          "2019-12-31",
+          "2020-12-31",
+          "2021-12-31"
+        ],
+        "normalizedEarnings": 4678000000,
+        "normalizedROE": 0.2015597397561291,
+        "rawPayout": 0.13958956819153484,
+        "payout": 0.13958956819153484,
+        "ke": 0.07800781297392242,
+        "erp": 0.0605,
+        "B0": 23209000000,
+        "shares": 281000000,
+        "shareBasis": "point-in-time",
+        "pvResidualIncome": 7199133747.13637,
+        "endingBook": 40900567508.97324,
+        "warnings": [
+          "Historical beginning-book values unavailable; clean-surplus is approximate.",
+          "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs.",
+          "Experimental insurer RIM: GAAP equity is used as a proxy."
+        ]
+      },
+      {
+        "ticker": "KO",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 52.64192485599259,
+        "predictedReturn": -0.11733860840499077,
+        "realizedReturn": -0.053655278264386874,
+        "absolutePercentageError": 0.06729400891443393,
+        "directionalHit": true
+      },
+      {
+        "ticker": "PEP",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 149.29624657404145,
+        "predictedReturn": -0.17406366944542373,
+        "realizedReturn": -0.08790661580290937,
+        "absolutePercentageError": 0.09446078124813695,
+        "directionalHit": true
+      },
+      {
+        "ticker": "PG",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 227.77033457830532,
+        "predictedReturn": 0.6886886590506764,
+        "realizedReturn": 0.10920814942390389,
+        "absolutePercentageError": 0.522427201718398,
+        "directionalHit": true
+      },
+      {
+        "ticker": "WMT",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 194.52185590917878,
+        "predictedReturn": 0.3728693471277289,
+        "realizedReturn": 0.16359664167715504,
+        "absolutePercentageError": 0.17984987061232638,
+        "directionalHit": true
+      },
+      {
+        "ticker": "JNJ",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 268.47199247531535,
+        "predictedReturn": 0.5510543541247099,
+        "realizedReturn": -0.14096709464857182,
+        "absolutePercentageError": 0.805582003276321,
+        "directionalHit": false
+      },
+      {
+        "ticker": "MCD",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 216.86167440978144,
+        "predictedReturn": -0.2054894130384104,
+        "realizedReturn": -0.04022718628054078,
+        "absolutePercentageError": 0.172188901785434,
+        "directionalHit": true
+      },
+      {
+        "ticker": "CSCO",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 70.2529327900388,
+        "predictedReturn": 0.545379107014422,
+        "realizedReturn": 0.1480422278436655,
+        "absolutePercentageError": 0.34609953321757403,
+        "directionalHit": true
+      },
+      {
+        "ticker": "VZ",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 160.00683006365483,
+        "predictedReturn": 3.2816921230129896,
+        "realizedReturn": -0.05271601451197849,
+        "absolutePercentageError": 3.5199667561223986,
+        "directionalHit": false
+      },
+      {
+        "ticker": "XOM",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 62.6862981429133,
+        "predictedReturn": -0.4398508078671638,
+        "realizedReturn": -0.056027201030142026,
+        "absolutePercentageError": 0.4066045200199436,
+        "directionalHit": true
+      },
+      {
+        "ticker": "CVX",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "mature-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 135.42793804766487,
+        "predictedReturn": -0.2567888423859912,
+        "realizedReturn": -0.20985624649869328,
+        "absolutePercentageError": 0.05939754086434135,
+        "directionalHit": true
+      },
+      {
+        "ticker": "AAPL",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 284.30315663491905,
+        "predictedReturn": 0.8871766887044903,
+        "realizedReturn": 0.1547959393894336,
+        "absolutePercentageError": 0.6342079360811421,
+        "directionalHit": true
+      },
+      {
+        "ticker": "MSFT",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 438.21659746166245,
+        "predictedReturn": 0.9205706314516908,
+        "realizedReturn": 0.516720033752974,
+        "absolutePercentageError": 0.2662657502449073,
+        "directionalHit": true
+      },
+      {
+        "ticker": "NVDA",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 142.0578221300343,
+        "predictedReturn": 0.04893908151244908,
+        "realizedReturn": 2.1252307517887115,
+        "absolutePercentageError": 0.6643642774498831,
+        "directionalHit": true
+      },
+      {
+        "ticker": "TSLA",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 52.238702991166605,
+        "predictedReturn": -0.7707018641395097,
+        "realizedReturn": -0.097269787330718,
+        "absolutePercentageError": 0.7459948358408446,
+        "directionalHit": true
+      },
+      {
+        "ticker": "GOOGL",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 286.6957964746135,
+        "predictedReturn": 2.1689597944761174,
+        "realizedReturn": 0.39770084273310924,
+        "absolutePercentageError": 1.2672661399269325,
+        "directionalHit": true
+      },
+      {
+        "ticker": "META",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 752.9909772283806,
+        "predictedReturn": 6.909569342084776,
+        "realizedReturn": 2.2757354632380977,
+        "absolutePercentageError": 1.4145934343141633,
+        "directionalHit": true
+      },
+      {
+        "ticker": "AMD",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 61.06664053760486,
+        "predictedReturn": 0.023577618065544925,
+        "realizedReturn": 0.810928615351209,
+        "absolutePercentageError": 0.43477748963228247,
+        "directionalHit": true
+      },
+      {
+        "ticker": "CRM",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 311.6995936151855,
+        "predictedReturn": 0.9503164768529657,
+        "realizedReturn": 0.2758728214074442,
+        "absolutePercentageError": 0.5286135452760312,
+        "directionalHit": true
+      },
+      {
+        "ticker": "RIVN",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "unsupported",
+        "status": "unvalued",
+        "reasonCodes": [
+          "fcf-non-positive"
+        ]
+      },
+      {
+        "ticker": "LYFT",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "unsupported",
+        "status": "unvalued",
+        "reasonCodes": [
+          "fcf-non-positive"
+        ]
+      },
+      {
+        "ticker": "BYND",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "unsupported",
+        "status": "unvalued",
+        "reasonCodes": [
+          "fcf-non-positive"
+        ]
+      },
+      {
+        "ticker": "LCID",
+        "asOfDate": "2022-11-01T20:00:00.000Z",
+        "outcomeDate": "2023-11-01T20:00:00.000Z",
+        "cohort": "unsupported",
+        "status": "unvalued",
+        "reasonCodes": [
+          "fcf-non-positive"
+        ]
+      }
+    ],
+    "summary": {
+      "bank-insurer": {
+        "total": 8,
+        "coverage": 1,
+        "valued": 8,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.10496266299863133,
+        "directionalAccuracy": 0.625
+      },
+      "mature-fcff": {
+        "total": 10,
+        "coverage": 1,
+        "valued": 10,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.2629747019149502,
+        "directionalAccuracy": 0.8
+      },
+      "growth-fcff": {
+        "total": 8,
+        "coverage": 1,
+        "valued": 8,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.6492861067655127,
+        "directionalAccuracy": 1
+      },
+      "unsupported": {
+        "total": 4,
+        "coverage": 0,
+        "valued": 0,
+        "unvalued": 4,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      }
+    }
+  },
+  "comparisons": {
+    "bank-insurer": {
+      "coverage": {
+        "baseline": 0,
+        "candidate": 1,
+        "delta": 1
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": null,
+        "candidate": 0.10496266299863133,
+        "delta": null
+      },
+      "directionalAccuracy": {
+        "baseline": null,
+        "candidate": 0.625,
+        "delta": null
+      }
+    },
+    "mature-fcff": {
+      "coverage": {
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": 0.2629747019149502,
+        "candidate": 0.2629747019149502,
+        "delta": 0
+      },
+      "directionalAccuracy": {
+        "baseline": 0.8,
+        "candidate": 0.8,
+        "delta": 0
+      }
+    },
+    "growth-fcff": {
+      "coverage": {
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": 0.6492861067655127,
+        "candidate": 0.6492861067655127,
+        "delta": 0
+      },
+      "directionalAccuracy": {
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      }
+    },
+    "unsupported": {
+      "coverage": {
+        "baseline": 0,
+        "candidate": 0,
+        "delta": 0
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "directionalAccuracy": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      }
+    }
+  },
+  "warnings": [
+    "Historical beginning-book values unavailable; clean-surplus is approximate.",
+    "Insurer GAAP equity lacks statutory surplus, reserve, and embedded-value inputs.",
+    "Experimental harness comparison only; no production or dashboard behavior."
+  ]
+}

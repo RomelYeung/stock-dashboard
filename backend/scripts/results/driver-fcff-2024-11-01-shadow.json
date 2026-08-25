@@ -1,0 +1,360 @@
+{
+  "format": "valuation-backtest-comparison/v1",
+  "version": 1,
+  "generatedAt": "2026-08-24T00:00:00Z",
+  "model": {
+    "modelId": "driver-fcff/v2-shadow",
+    "years": 10,
+    "terminalValue": true,
+    "carriedForwardToCutoff": true,
+    "fixtureSha256": "c13f7c67d937a6864bb9fabfad441fc7c8d8703fb4394f662811c130e9692e6c",
+    "baselineResultsSha256": "cc12d4371b85cc9fad980a4aec3db00656c627eccfde03f52e73c154695885cf"
+  },
+  "fixture": {
+    "filename": "driver-fcff-2024-11-01.json",
+    "sha256": "c13f7c67d937a6864bb9fabfad441fc7c8d8703fb4394f662811c130e9692e6c"
+  },
+  "baseline": {
+    "filename": "driver-fcff-2024-11-01-baseline.json",
+    "sha256": "cc12d4371b85cc9fad980a4aec3db00656c627eccfde03f52e73c154695885cf",
+    "fixtureSha256": "c13f7c67d937a6864bb9fabfad441fc7c8d8703fb4394f662811c130e9692e6c",
+    "summary": {
+      "bank-insurer": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      },
+      "mature-fcff": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      },
+      "growth-fcff": {
+        "total": 7,
+        "coverage": 1,
+        "valued": 7,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.40244014094788505,
+        "directionalAccuracy": 0.2857142857142857
+      },
+      "unsupported": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      }
+    }
+  },
+  "candidate": {
+    "records": [
+      {
+        "ticker": "MSFT",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 259.00393349145673,
+        "predictedReturn": -0.36885266103405046,
+        "realizedReturn": 0.2599117869239953,
+        "absolutePercentageError": 0.49905434212433175,
+        "directionalHit": false,
+        "projectionMethod": "driver-fcff",
+        "projectionYears": 10,
+        "driverScheduleYears": 10
+      },
+      {
+        "ticker": "NVDA",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 36.08393816348462,
+        "predictedReturn": -0.7335011952475287,
+        "realizedReturn": 0.5279172821270308,
+        "absolutePercentageError": 0.8255803453041153,
+        "directionalHit": false,
+        "projectionMethod": "driver-fcff",
+        "projectionYears": 10,
+        "driverScheduleYears": 10
+      },
+      {
+        "ticker": "TSLA",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 62.69322925350715,
+        "predictedReturn": -0.7481997379166714,
+        "realizedReturn": 0.8811551128604709,
+        "absolutePercentageError": 0.8661459332290558,
+        "directionalHit": false,
+        "projectionMethod": "driver-fcff",
+        "projectionYears": 10,
+        "driverScheduleYears": 10
+      },
+      {
+        "ticker": "GOOGL",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 223.46540199093192,
+        "predictedReturn": 0.3046027321555953,
+        "realizedReturn": 0.6563722342226637,
+        "absolutePercentageError": 0.21237345978100974,
+        "directionalHit": true
+      },
+      {
+        "ticker": "META",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 303.8475043286802,
+        "predictedReturn": -0.4642649264252059,
+        "realizedReturn": 0.12439170604414995,
+        "absolutePercentageError": 0.5235334174959148,
+        "directionalHit": false,
+        "projectionMethod": "driver-fcff",
+        "projectionYears": 10,
+        "driverScheduleYears": 10
+      },
+      {
+        "ticker": "AMD",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 45.897478837355095,
+        "predictedReturn": -0.6764593342918717,
+        "realizedReturn": 0.8303256731989281,
+        "absolutePercentageError": 0.8232332800409972,
+        "directionalHit": false
+      },
+      {
+        "ticker": "CRM",
+        "asOfDate": "2024-11-01T20:00:00.000Z",
+        "outcomeDate": "2025-11-03T21:00:00.000Z",
+        "cohort": "growth-fcff",
+        "status": "valued",
+        "reasonCodes": [],
+        "fairValue": 210.01214824487883,
+        "predictedReturn": -0.2874180637728053,
+        "realizedReturn": -0.11326004343105334,
+        "absolutePercentageError": 0.1964025857316949,
+        "directionalHit": true
+      }
+    ],
+    "summary": {
+      "bank-insurer": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      },
+      "mature-fcff": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      },
+      "growth-fcff": {
+        "total": 7,
+        "coverage": 1,
+        "valued": 7,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": 0.5235334174959148,
+        "directionalAccuracy": 0.2857142857142857
+      },
+      "unsupported": {
+        "total": 0,
+        "coverage": null,
+        "valued": 0,
+        "unvalued": 0,
+        "invalid": 0,
+        "medianAbsolutePercentageError": null,
+        "directionalAccuracy": null
+      }
+    }
+  },
+  "comparisons": {
+    "bank-insurer": {
+      "coverage": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "directionalAccuracy": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      }
+    },
+    "mature-fcff": {
+      "coverage": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "directionalAccuracy": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      }
+    },
+    "growth-fcff": {
+      "coverage": {
+        "baseline": 1,
+        "candidate": 1,
+        "delta": 0
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": 0.6140102431260002,
+        "candidate": 0.674556881400015,
+        "delta": 0.06054663827401485
+      },
+      "directionalAccuracy": {
+        "baseline": 0,
+        "candidate": 0,
+        "delta": 0
+      }
+    },
+    "unsupported": {
+      "coverage": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "medianAbsolutePercentageError": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      },
+      "directionalAccuracy": {
+        "baseline": null,
+        "candidate": null,
+        "delta": null
+      }
+    }
+  },
+  "driverFCFFCohort": {
+    "count": 4,
+    "tickers": [
+      "MSFT",
+      "NVDA",
+      "TSLA",
+      "META"
+    ],
+    "baselineSummary": {
+      "total": 4,
+      "coverage": 1,
+      "valued": 4,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": 0.6140102431260002,
+      "directionalAccuracy": 0
+    },
+    "candidateSummary": {
+      "total": 4,
+      "coverage": 1,
+      "valued": 4,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": 0.674556881400015,
+      "directionalAccuracy": 0
+    }
+  },
+  "growthDifferences": [
+    {
+      "ticker": "MSFT",
+      "baselineFairValue": 308.95637392571496,
+      "candidateFairValue": 259.00393349145673,
+      "fairValueDelta": -49.95244043425822,
+      "baselineAbsolutePercentageError": 0.40244014094788505,
+      "candidateAbsolutePercentageError": 0.49905434212433175,
+      "absolutePercentageErrorDelta": 0.0966142011764467,
+      "baselineDirectionalHit": false,
+      "candidateDirectionalHit": false
+    },
+    {
+      "ticker": "NVDA",
+      "baselineFairValue": 36.08393816348462,
+      "candidateFairValue": 36.08393816348462,
+      "fairValueDelta": 0,
+      "baselineAbsolutePercentageError": 0.8255803453041153,
+      "candidateAbsolutePercentageError": 0.8255803453041153,
+      "absolutePercentageErrorDelta": 0,
+      "baselineDirectionalHit": false,
+      "candidateDirectionalHit": false
+    },
+    {
+      "ticker": "TSLA",
+      "baselineFairValue": 53.18492113094023,
+      "candidateFairValue": 62.69322925350715,
+      "fairValueDelta": 9.508308122566916,
+      "baselineAbsolutePercentageError": 0.886446781111215,
+      "candidateAbsolutePercentageError": 0.8661459332290558,
+      "absolutePercentageErrorDelta": -0.020300847882159245,
+      "baselineDirectionalHit": false,
+      "candidateDirectionalHit": false
+    },
+    {
+      "ticker": "META",
+      "baselineFairValue": 458.3707304135872,
+      "candidateFairValue": 303.8475043286802,
+      "fairValueDelta": -154.52322608490698,
+      "baselineAbsolutePercentageError": 0.281223862863077,
+      "candidateAbsolutePercentageError": 0.5235334174959148,
+      "absolutePercentageErrorDelta": 0.24230955463283776,
+      "baselineDirectionalHit": false,
+      "candidateDirectionalHit": false
+    }
+  ],
+  "nonTargetEquality": {
+    "equal": true,
+    "count": 3,
+    "tickers": [
+      "GOOGL",
+      "AMD",
+      "CRM"
+    ]
+  },
+  "warnings": [
+    "Candidate assumptions are shadow-only; production aggregateDCFInputs and routes are unchanged."
+  ]
+}
