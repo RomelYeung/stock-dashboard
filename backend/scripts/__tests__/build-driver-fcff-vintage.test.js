@@ -91,3 +91,21 @@ test("publishes fixture, baseline, and shadow once with embedded hashes", async 
 test("fails closed when selector produces no driver target", async () => {
   await expect(buildFor("2023", [])).rejects.toThrow(/at least one default driver-fcff row/);
 });
+
+test("does not leave partial artifacts when Tiingo ingress fails", async () => {
+  const manifest = manifestFor("2024");
+  const directory = mkdtempSync(resolve(tmpdir(), "driver-vintage-tiingo-failure-"));
+  const paths = ["fixture.json", "baseline.json", "shadow.json"].map((name) => resolve(directory, name));
+  try {
+    await expect(buildVintage(manifest, {
+      archiveDir: "/private/tmp",
+      ingest: async (args) => {
+        if (args.ticker === "NVDA") throw new Error("Tiingo fetch failed (429)");
+        return ingestFor(manifest, ["MSFT", "NVDA", "TSLA", "META"])(args);
+      },
+    })).rejects.toThrow("Tiingo fetch failed");
+    expect(paths.every((path) => !existsSync(path))).toBe(true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

@@ -1,0 +1,139 @@
+{
+  "format": "valuation-backtest-results/v1",
+  "version": 1,
+  "baselineId": "driver-fcff-2024-11-01",
+  "generatedAt": "2026-08-24T00:00:00Z",
+  "records": [
+    {
+      "ticker": "MSFT",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 308.95637392571496,
+      "predictedReturn": -0.24712729018759916,
+      "realizedReturn": 0.2599117869239953,
+      "absolutePercentageError": 0.40244014094788505,
+      "directionalHit": false
+    },
+    {
+      "ticker": "NVDA",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 36.08393816348462,
+      "predictedReturn": -0.7335011952475287,
+      "realizedReturn": 0.5279172821270308,
+      "absolutePercentageError": 0.8255803453041153,
+      "directionalHit": false
+    },
+    {
+      "ticker": "TSLA",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 53.18492113094023,
+      "predictedReturn": -0.7863887817055979,
+      "realizedReturn": 0.8811551128604709,
+      "absolutePercentageError": 0.886446781111215,
+      "directionalHit": false
+    },
+    {
+      "ticker": "GOOGL",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 223.46540199093192,
+      "predictedReturn": 0.3046027321555953,
+      "realizedReturn": 0.6563722342226637,
+      "absolutePercentageError": 0.21237345978100974,
+      "directionalHit": true
+    },
+    {
+      "ticker": "META",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 458.3707304135872,
+      "predictedReturn": -0.19181407290079133,
+      "realizedReturn": 0.12439170604414995,
+      "absolutePercentageError": 0.281223862863077,
+      "directionalHit": false
+    },
+    {
+      "ticker": "AMD",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 45.897478837355095,
+      "predictedReturn": -0.6764593342918717,
+      "realizedReturn": 0.8303256731989281,
+      "absolutePercentageError": 0.8232332800409972,
+      "directionalHit": false
+    },
+    {
+      "ticker": "CRM",
+      "asOfDate": "2024-11-01T20:00:00.000Z",
+      "outcomeDate": "2025-11-03T21:00:00.000Z",
+      "cohort": "growth-fcff",
+      "status": "valued",
+      "reasonCodes": [],
+      "fairValue": 210.01214824487883,
+      "predictedReturn": -0.2874180637728053,
+      "realizedReturn": -0.11326004343105334,
+      "absolutePercentageError": 0.1964025857316949,
+      "directionalHit": true
+    }
+  ],
+  "summary": {
+    "bank-insurer": {
+      "total": 0,
+      "coverage": null,
+      "valued": 0,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": null,
+      "directionalAccuracy": null
+    },
+    "mature-fcff": {
+      "total": 0,
+      "coverage": null,
+      "valued": 0,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": null,
+      "directionalAccuracy": null
+    },
+    "growth-fcff": {
+      "total": 7,
+      "coverage": 1,
+      "valued": 7,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": 0.40244014094788505,
+      "directionalAccuracy": 0.2857142857142857
+    },
+    "unsupported": {
+      "total": 0,
+      "coverage": null,
+      "valued": 0,
+      "unvalued": 0,
+      "invalid": 0,
+      "medianAbsolutePercentageError": null,
+      "directionalAccuracy": null
+    }
+  },
+  "fixtureFile": "driver-fcff-2024-11-01.json",
+  "fixtureSha256": "c13f7c67d937a6864bb9fabfad441fc7c8d8703fb4394f662811c130e9692e6c"
+}

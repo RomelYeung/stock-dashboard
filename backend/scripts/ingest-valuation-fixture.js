@@ -13,6 +13,7 @@ const yahooFinanceVersion = String(backendPackage.dependencies["yahoo-finance2"]
 
 const SEC_FSDS_BASE = "https://www.sec.gov/files/dera/data/financial-statement-data-sets";
 const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
+const TIINGO_BASE = "https://api.tiingo.com/tiingo/daily";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const YEAR_DAYS = 365;
 const MIN_BETA_RETURNS = 24;
@@ -147,6 +148,10 @@ function assertCredentials(env = process.env) {
 
 function sanitizeError(error, secret) {
   return String(error?.message || error).replaceAll(secret || "\u0000", "[redacted]");
+}
+
+function sha256Text(value) {
+  return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
 async function fetchJson(url, options = {}, fetchImpl = globalThis.fetch, secret = null) {
@@ -955,18 +960,161 @@ async function fetchPrices(ticker, asOfDate, yahooClient, now, expectedCohort = 
     provider: "Yahoo Finance",
     packageVersion: yahooFinanceVersion,
     retrievedAt: now,
+    rawCloseBasis: "Yahoo raw close is already split-normalized; adjclose is intentionally unused.",
+    splitAdjustment: "None; Yahoo raw close returns are already split-normalized.",
+  };
+}
+
+function tiingoRequest(ticker, startDate, endDate) {
+  const endpoint = `${TIINGO_BASE}/${encodeURIComponent(ticker)}/prices`;
+  const params = { endDate, resampleFreq: "daily", startDate };
+  const query = new URLSearchParams(params).toString();
+  return { endpoint, params, url: `${endpoint}?${query}` };
+}
+
+async function fetchTiingoRows(request, token, fetchImpl) {
+  let response;
+  try {
+    response = await fetchImpl(request.url, {
+      headers: { Accept: "application/json", Authorization: `Token ${token}` },
+    });
+  } catch (error) {
+    throw new Error(`Tiingo fetch failed: ${sanitizeError(error, token)}`);
+  }
+  let bytes;
+  try {
+    bytes = Buffer.from(response?.arrayBuffer
+      ? await response.arrayBuffer()
+      : await response.text());
+  } catch (error) {
+    throw new Error(`Tiingo response read failed: ${sanitizeError(error, token)}`);
+  }
+  const responseHash = createHash("sha256").update(bytes).digest("hex");
+  const body = bytes.toString("utf8");
+  if (!response?.ok) throw new Error(`Tiingo fetch failed (${response?.status || "unknown"}): ${sanitizeError(body, token)}`);
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch (error) {
+    throw new Error(`Tiingo returned invalid JSON: ${sanitizeError(error, token)}`);
+  }
+  if (!Array.isArray(parsed)) throw new Error("Tiingo prices must be an array");
+  return { rows: parsed, responseHash };
+}
+
+function tiingoRows(rows) {
+  if (!Array.isArray(rows)) throw new Error("Tiingo prices must be an array");
+  return rows.map((row) => {
+    const date = String(row?.date || "").slice(0, 10);
+    const close = finite(row?.close);
+    const splitFactor = finite(row?.splitFactor);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isoDate(date) !== date) throw new Error("Tiingo price date is invalid");
+    if (!(close > 0)) throw new Error("Tiingo raw close must be positive");
+    if (!(splitFactor > 0)) throw new Error("Tiingo splitFactor must be positive");
+    return { date, close, splitFactor };
+  }).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function splitFactorBetween(splits, startExclusive, endInclusive) {
+  return dedupeSplits(splits)
+    .filter((split) => split.date > startExclusive && split.date <= endInclusive)
+    .reduce((factor, split) => factor * split.factor, 1);
+}
+
+function normalizeTiingoQuotes(rows, splits, asOfDate) {
+  return rows.map(({ date, close }) => ({
+    date,
+    close: close * splitFactorBetween(splits, date, asOfDate),
+  }));
+}
+
+function tiingoSplits(rows) {
+  return dedupeSplits(rows
+    .filter(({ splitFactor }) => splitFactor !== 1)
+    .map(({ date, splitFactor }) => ({ date, factor: splitFactor })));
+}
+
+async function fetchTiingoPrices(ticker, asOfDate, env, fetchImpl, now, expectedCohort = null) {
+  if (!String(env?.TIINGO_API_TOKEN || "").trim()) throw new Error("TIINGO_API_TOKEN is not configured");
+  const actualAsOfMs = dateMs(asOfDate);
+  const requestedOutcomeTarget = isoDate(new Date(Date.UTC(
+    new Date(actualAsOfMs).getUTCFullYear() + 1,
+    new Date(actualAsOfMs).getUTCMonth(),
+    new Date(actualAsOfMs).getUTCDate(),
+  )));
+  const minimumRetrievalDate = isoDate(new Date(dateMs(requestedOutcomeTarget) + 7 * DAY_MS));
+  const requestedRetrievalDate = isoDate(now) || isoDate(new Date());
+  const retrievalDate = requestedRetrievalDate >= minimumRetrievalDate ? requestedRetrievalDate : minimumRetrievalDate;
+  const historyStart = isoDate(new Date(actualAsOfMs - 5 * 366 * DAY_MS));
+  const tickerRequest = tiingoRequest(ticker, historyStart, retrievalDate);
+  const benchmarkRequest = tiingoRequest("SPY", historyStart, asOfDate);
+  const [tickerResponse, benchmarkResponse] = await Promise.all([
+    fetchTiingoRows(tickerRequest, env.TIINGO_API_TOKEN, fetchImpl),
+    fetchTiingoRows(benchmarkRequest, env.TIINGO_API_TOKEN, fetchImpl),
+  ]);
+  const tickerRows = tiingoRows(tickerResponse.rows);
+  const benchmarkRows = tiingoRows(benchmarkResponse.rows);
+  const requestedAsOf = tickerRows.find((quote) => quote.date >= asOfDate);
+  if (!requestedAsOf) throw new Error(`No Tiingo trading price on or after ${asOfDate}`);
+  const actualOutcomeTarget = isoDate(new Date(Date.UTC(
+    Number(requestedAsOf.date.slice(0, 4)) + 1,
+    Number(requestedAsOf.date.slice(5, 7)) - 1,
+    Number(requestedAsOf.date.slice(8, 10)),
+  )));
+  const outcome = tickerRows.find((quote) => quote.date >= actualOutcomeTarget);
+  if (!outcome) throw new Error(`No Tiingo one-year trading price on or after ${actualOutcomeTarget}`);
+  const splits = tiingoSplits(tickerRows);
+  const rebaseEvents = splits.filter((split) => split.date > requestedAsOf.date && split.date <= outcome.date);
+  const rebaseFactor = rebaseEvents.reduce((factor, split) => factor * split.factor, 1);
+  const tickerBetaRows = normalizeTiingoQuotes(tickerRows.filter((quote) => quote.date <= requestedAsOf.date), splits, requestedAsOf.date);
+  const benchmarkBetaRows = normalizeTiingoQuotes(benchmarkRows, tiingoSplits(benchmarkRows), requestedAsOf.date);
+  const beta = calculateBeta(tickerBetaRows, benchmarkBetaRows, { allowInsufficient: expectedCohort === "unsupported" });
+  const requestHash = sha256Text(tickerRequest.url);
+  return {
+    requestedAsOfDate: asOfDate,
+    asOfDate: requestedAsOf.date,
+    asOfPrice: requestedAsOf.close,
+    outcomeDate: outcome.date,
+    outcomePrice: outcome.close * rebaseFactor,
+    beta: beta.beta,
+    betaAlignedReturns: beta.alignedReturns,
+    betaStatus: beta.betaStatus,
+    betaReason: beta.betaReason,
+    splits,
+    historicalSplits: splits.filter((split) => split.date <= requestedAsOf.date),
+    rebaseEvents,
+    rebaseFactor,
+    retrievalDate,
+    provider: "Tiingo EOD",
+    packageVersion: null,
+    retrievedAt: now,
+    rawCloseBasis: "Tiingo EOD raw close; splitFactor is the sole split source.",
+    splitAdjustment: "Pre-as-of prices are normalized to actual-as-of share basis; outcome is rebased through actual as-of to outcome.",
+    endpoint: tickerRequest.endpoint,
+    params: tickerRequest.params,
+    requestHash,
+    responseHash: tickerResponse.responseHash,
+    requests: [
+      { endpoint: tickerRequest.endpoint, params: tickerRequest.params, requestHash, responseHash: tickerResponse.responseHash },
+      { endpoint: benchmarkRequest.endpoint, params: benchmarkRequest.params, requestHash: sha256Text(benchmarkRequest.url), responseHash: benchmarkResponse.responseHash },
+    ],
   };
 }
 
 async function ingestSnapshot(args, options = {}) {
   const parsed = typeof args === "string" ? parseArgs(args.split(/\s+/)) : args;
   const env = options.env || process.env;
+  const provider = String(env.VALUATION_PRICE_PROVIDER || "yahoo").trim();
+  if (provider !== "yahoo" && provider !== "tiingo") throw new Error(`Unknown valuation price provider: ${provider}`);
+  if (provider === "tiingo" && !String(env.TIINGO_API_TOKEN || "").trim()) throw new Error("TIINGO_API_TOKEN is not configured");
   assertCredentials(env);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const yahooClient = options.yahooClient || new (require("yahoo-finance2").default)();
+  const yahooClient = provider === "yahoo" ? options.yahooClient || new (require("yahoo-finance2").default)() : null;
   const runNow = options.now ? dateTime(options.now) : new Date().toISOString();
   const requestedAsOfDate = isoDate(parsed["as-of"]);
-  const price = await fetchPrices(parsed.ticker.toUpperCase(), requestedAsOfDate, yahooClient, runNow, parsed["expected-cohort"] || null);
+  const price = provider === "tiingo"
+    ? await fetchTiingoPrices(parsed.ticker.toUpperCase(), requestedAsOfDate, env, fetchImpl, runNow, parsed["expected-cohort"] || null)
+    : await fetchPrices(parsed.ticker.toUpperCase(), requestedAsOfDate, yahooClient, runNow, parsed["expected-cohort"] || null);
   // ponytail: historical early-close calendars are deferred; fixture dates must avoid exchange early closes.
   const asOfCutoff = marketCloseCutoff(price.asOfDate);
   const outcomeCutoff = marketCloseCutoff(price.outcomeDate);
@@ -1034,8 +1182,16 @@ async function ingestSnapshot(args, options = {}) {
         retrievalDate: price.retrievalDate,
         rebaseEvents: price.rebaseEvents,
         rebaseFactor: price.rebaseFactor,
-        rawCloseBasis: "Yahoo raw close is already split-normalized; adjclose is intentionally unused.",
-        adjustment: "Both raw as-of and outcome closes are multiplied by the same cumulative split factor after actual as-of through retrieval.",
+        rawCloseBasis: price.rawCloseBasis,
+        adjustment: price.splitAdjustment,
+        ...(price.endpoint ? {
+          endpoint: price.endpoint,
+          params: price.params,
+          retrievalTime: price.retrievedAt,
+          requestHash: price.requestHash,
+          responseHash: price.responseHash,
+          requests: price.requests,
+        } : {}),
       },
       beta: {
         formula: "covariance(ticker monthly returns, SPY monthly returns) / variance(SPY monthly returns)",
@@ -1043,7 +1199,7 @@ async function ingestSnapshot(args, options = {}) {
         alignedReturns: price.betaAlignedReturns,
         status: price.betaStatus,
         reason: price.betaReason,
-        splitAdjustment: "None; Yahoo raw close returns are already split-normalized.",
+        splitAdjustment: price.splitAdjustment,
       },
       sec: sec.metadata,
       shares: {
@@ -1080,7 +1236,17 @@ async function ingestSnapshot(args, options = {}) {
     sources: [
       { provider: "SEC FSDS", sourceUrl: sec.metadata.archive.sourceUrl, localArchiveSha256: sec.metadata.archive.localArchiveSha256 },
       { provider: "FRED", series: "DGS10", url: riskFree.provenance.url },
-      { provider: "Yahoo Finance", packageVersion: yahooFinanceVersion },
+      price.endpoint
+        ? {
+          provider: price.provider,
+          endpoint: price.endpoint,
+          params: price.params,
+          retrievalTime: price.retrievedAt,
+          requestHash: price.requestHash,
+          responseHash: price.responseHash,
+          requests: price.requests,
+        }
+        : { provider: "Yahoo Finance", packageVersion: yahooFinanceVersion },
     ],
     rows: [row],
   };
@@ -1118,6 +1284,7 @@ export {
   annualBalanceRows,
   buildStatements,
   fetchRiskFreeRate,
+  fetchTiingoPrices,
   ingestSnapshot,
   main,
 };

@@ -7,6 +7,7 @@ import {
   calculateBeta,
   adjustSharesToAsOf,
   fetchRiskFreeRate,
+  fetchTiingoPrices,
   ingestSnapshot,
   main,
   marketCloseCutoff,
@@ -127,6 +128,33 @@ function shortHistoryYahooClient() {
 function fetchImpl(url) {
   if (url.includes("fred")) return Promise.resolve(response({ observations: [{ date: "2022-01-03", value: "1.50" }] }));
   return Promise.reject(new Error("unexpected URL"));
+}
+
+function tiingoRows(multiplier = 1) {
+  const rows = monthlyQuotes(multiplier).map((quote) => ({ date: quote.date, close: quote.close, splitFactor: quote.date === "2021-06-28" ? 2 : 1 }));
+  rows[rows.length - 1].close = 50;
+  rows.push({ date: "2022-06-01", close: 30, splitFactor: 2 });
+  rows.push({ date: "2023-01-03", close: 30, splitFactor: 1 });
+  return rows;
+}
+
+function tiingoResponse(body, ok = true) {
+  const text = JSON.stringify(body);
+  return {
+    ok,
+    status: ok ? 200 : 503,
+    text: async () => text,
+  };
+}
+
+function tiingoFetch(rows = tiingoRows()) {
+  const requests = [];
+  const fetcher = async (url, options) => {
+    requests.push({ url, options });
+    return tiingoResponse(url.includes("/SPY/") ? tiingoRows(1.1).filter((row) => row.date <= "2022-01-03") : rows);
+  };
+  fetcher.requests = requests;
+  return fetcher;
 }
 
 const mockArchivePath = "/tmp/sec-fsds-2022q1.zip";
@@ -346,6 +374,34 @@ test("requests a vintage-bounded FRED observation and converts percent once", as
   expect(requestedUrl).toContain("realtime_start=2022-01-03");
   expect(requestedUrl).toContain("realtime_end=2022-01-03");
   expect(result.provenance.url).not.toContain("fred-secret");
+});
+
+test("uses Tiingo raw closes and split factors for as-of, outcome, beta, and share history", async () => {
+  const envTiingo = { ...env, VALUATION_PRICE_PROVIDER: "tiingo", TIINGO_API_TOKEN: "tiingo-secret" };
+  const fetcher = tiingoFetch();
+  const price = await fetchTiingoPrices("FIX", "2022-01-03", envTiingo, fetcher, "2026-08-24T00:00:00Z");
+  expect(price).toMatchObject({ provider: "Tiingo EOD", asOfDate: "2022-01-03", asOfPrice: 50, outcomeDate: "2023-01-03", outcomePrice: 60, rebaseFactor: 2 });
+  expect(price.historicalSplits).toContainEqual({ date: "2021-06-28", factor: 2 });
+  expect(Number.isFinite(price.beta)).toBe(true);
+  expect(price.requests).toHaveLength(2);
+  expect(price.requests.every((request) => !JSON.stringify(request).includes("tiingo-secret"))).toBe(true);
+  expect(fetcher.requests.every(({ options }) => options.headers.Authorization === "Token tiingo-secret")).toBe(true);
+});
+
+test("rejects malformed Tiingo rows and insufficient coverage", async () => {
+  const envTiingo = { ...env, TIINGO_API_TOKEN: "tiingo-secret" };
+  await expect(fetchTiingoPrices("FIX", "2022-01-03", envTiingo, tiingoFetch([{ date: "2022-01-03", close: 50, splitFactor: 0 }]), "2026-08-24T00:00:00Z")).rejects.toThrow("splitFactor");
+  await expect(fetchTiingoPrices("FIX", "2022-01-03", envTiingo, tiingoFetch([{ date: "2022-01-03", close: 50, splitFactor: 1 }]), "2026-08-24T00:00:00Z")).rejects.toThrow("one-year");
+});
+
+test("selects Tiingo only when configured and requires only its token", async () => {
+  await expect(ingestSnapshot({ ticker: "FIX", cik: "1", "as-of": "2022-01-03", sector: "Technology", industry: "Software", output: "/tmp/unused.json", "sec-archive": mockArchivePath }, {
+    env: { ...env, VALUATION_PRICE_PROVIDER: "tiingo" },
+    fetchImpl: tiingoFetch(),
+  })).rejects.toThrow("TIINGO_API_TOKEN");
+  await expect(ingestSnapshot({ ticker: "FIX", cik: "1", "as-of": "2022-01-03", sector: "Technology", industry: "Software", output: "/tmp/unused.json", "sec-archive": mockArchivePath }, {
+    env: { ...env, VALUATION_PRICE_PROVIDER: "bogus" },
+  })).rejects.toThrow("Unknown valuation price provider");
 });
 
 test("rejects stale, malformed, and non-array FRED observations", async () => {
