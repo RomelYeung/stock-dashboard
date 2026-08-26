@@ -1,4 +1,5 @@
 import express from "express";
+import { z } from "zod";
 import * as yf from "../services/yahoofinance.js";
 import { getOptionChainParsed } from "../services/schwab-client.js";
 import { getHistoricalIV } from "../services/historical-iv.js";
@@ -6,8 +7,13 @@ import { calcRealizedVolatility, calcIVRank, calcIVPercentile } from "../src/qua
 import { fitSVI, sviImpliedVol } from "../src/quant/svi.js";
 import { logStrike, calcSpreadAdjustedEdge, calcGEX } from "../src/quant/mathUtils.js";
 import { TICKER_REGEX } from "../constants.js";
+import { validate } from "../middleware/validate.js";
 
 const router = express.Router();
+
+const tickerParamSchema = z.object({
+  ticker: z.string().regex(TICKER_REGEX, "Invalid ticker format"),
+});
 
 /**
  * GET /api/options/scan/:ticker
@@ -20,12 +26,8 @@ const router = express.Router();
  *   - SVI volatility surface fit per expiration
  *   - Spread-adjusted edge for each option contract (actual IV vs SVI fair IV)
  */
-router.get("/scan/:ticker", async (req, res) => {
-  const ticker = (req.params.ticker || "").toUpperCase();
-
-  if (!TICKER_REGEX.test(ticker)) {
-    return res.status(400).json({ success: false, error: `Invalid ticker: ${ticker}` });
-  }
+router.get("/scan/:ticker", validate(tickerParamSchema, "params"), async (req, res) => {
+  const ticker = req.params.ticker;
 
   try {
     // ─── 1. Fetch data in parallel ───────────────────────────────────────

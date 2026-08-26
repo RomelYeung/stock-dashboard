@@ -53,7 +53,7 @@ function makeChainStub() {
 }
 
 function callRoute(ticker) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const req = {
       params: { ticker },
       method: "GET",
@@ -65,7 +65,15 @@ function callRoute(ticker) {
       json: jest.fn().mockImplementation((body) => resolve(body)),
     };
     router(req, res, (err) => {
-      if (err) reject(err);
+      if (err) {
+        if (err.name === "ZodError") {
+          const issues = err.issues || err.errors || [];
+          const messages = issues.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+          resolve({ success: false, error: messages });
+        } else {
+          resolve({ success: false, error: err.message });
+        }
+      }
     });
   });
 }

@@ -1,9 +1,46 @@
 import { getAiClient } from "./aiClient.js";
 import * as cache from "./cache.js";
 
-const SEC_HEADERS = {
-  "User-Agent": "StockDashboard/1.0 (contact@example.com)",
-};
+const SEC_TIMEOUT_MS = 15_000;
+const MAX_SEC_BODY_BYTES = 16 * 1024 * 1024;
+
+function getSecHeaders() {
+  return {
+    "User-Agent": process.env.SEC_USER_AGENT || "StockDashboard/1.0 (contact@example.com)",
+  };
+}
+
+async function readBoundedJson(response) {
+  const contentLength = Number(response.headers?.get?.("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_SEC_BODY_BYTES) {
+    throw new Error("SEC response exceeds maximum response size");
+  }
+  if (!response.body?.getReader) throw new Error("SEC response stream unavailable");
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > MAX_SEC_BODY_BYTES) {
+        await reader.cancel?.();
+        throw new Error("SEC response exceeds maximum response size");
+      }
+      chunks.push(Buffer.from(part.value));
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function fetchBoundedJson(url) {
+  const response = await fetch(url, { headers: getSecHeaders(), signal: AbortSignal.timeout(SEC_TIMEOUT_MS) });
+  if (!response.ok) throw new Error(`SEC ticker mapping failed: ${response.status}`);
+  return readBoundedJson(response);
+}
 
 // Module-level cache for the full company tickers mapping (shared with insiderTrading)
 let _companyTickersCache = null;
@@ -15,11 +52,7 @@ async function _getCompanyTickers() {
 
   _companyTickersLoading = (async () => {
     try {
-      const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
-        headers: SEC_HEADERS,
-      });
-      if (!res.ok) throw new Error(`SEC ticker mapping failed: ${res.status}`);
-      const data = await res.json();
+      const data = await fetchBoundedJson("https://www.sec.gov/files/company_tickers.json");
       _companyTickersCache = Object.values(data);
       return _companyTickersCache;
     } finally {
@@ -30,7 +63,7 @@ async function _getCompanyTickers() {
   return _companyTickersLoading;
 }
 
-async function getCIK(ticker) {
+export async function getCIK(ticker) {
   const entries = await _getCompanyTickers();
   const match = entries.find(
     (entry) => entry.ticker === ticker.toUpperCase()
@@ -45,7 +78,7 @@ async function getCIK(ticker) {
  */
 async function getRecent8KFilings(cik, count = 5) {
   const url = `https://data.sec.gov/submissions/CIK${cik}.json`;
-  const res = await fetch(url, { headers: SEC_HEADERS });
+  const res = await fetch(url, { headers: getSecHeaders() });
   if (!res.ok) throw new Error(`SEC submissions failed: ${res.status}`);
 
   const data = await res.json();
@@ -79,7 +112,7 @@ async function fetchFilingContent(cik, filing) {
 
   // Fetch the filing directory listing
   const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/index.json`;
-  const idxRes = await fetch(indexUrl, { headers: SEC_HEADERS });
+  const idxRes = await fetch(indexUrl, { headers: getSecHeaders() });
   if (!idxRes.ok) return null;
   const idx = await idxRes.json();
   const files = idx.directory?.item || [];
@@ -105,7 +138,7 @@ async function fetchFilingContent(cik, filing) {
   );
 
   const fileUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/${targetFile.name}`;
-  const res = await fetch(fileUrl, { headers: SEC_HEADERS });
+  const res = await fetch(fileUrl, { headers: getSecHeaders() });
   if (!res.ok) return null;
   return res.text();
 }
