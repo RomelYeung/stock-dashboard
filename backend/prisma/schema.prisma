@@ -8,16 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String           @id @default(uuid())
-  email        String           @unique
+  id           String          @id @default(uuid())
+  email        String          @unique
   passwordHash String
-  role         String           @default("USER")
+  role         String          @default("USER")
   investorRiskTolerance String? // CONSERVATIVE | BALANCED | AGGRESSIVE
   investorHorizon       String? // SHORT | MEDIUM | LONG
   investorStyle         String? // VALUE | GROWTH | BLEND | INDEX
   investorNotes         String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
   portfolios   PortfolioItem[]
   wishlist     WishListItem[]
   chatSessions ChatSession[]
@@ -69,13 +69,16 @@ model ChatSession {
 }
 
 model ChatMessage {
-  id            String      @id @default(uuid())
-  sessionId     String
-  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role          String      // 'user' or 'model'
-  agentName     String?     // e.g., 'Data Analyst', 'Trading Analyst', 'Execution Agent', 'Risk Evaluation Agent'
-  content       String
-  createdAt     DateTime    @default(now())
+  id        String      @id @default(uuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // 'user' or 'model'
+  agentName String? // e.g., 'Data Analyst', 'Trading Analyst', 'Execution Agent', 'Risk Evaluation Agent'
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 model Investor {
@@ -106,7 +109,9 @@ model Filing {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@index([investorId])
+  @@index([date])
+  @@index([periodOfReport])
+  @@index([investorId, periodOfReport])
 }
 
 model Holding {
@@ -125,6 +130,8 @@ model Holding {
   updatedAt       DateTime @updatedAt
 
   @@index([filingId])
+  @@index([ticker])
+  @@index([CUSIP])
 }
 
 model CusipMapping {
@@ -133,7 +140,10 @@ model CusipMapping {
   companyName String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([ticker])
 }
+
 model AdviserDebate {
   id        String      @id @default(uuid())
   sessionId String
