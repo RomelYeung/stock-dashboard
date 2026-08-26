@@ -1,5 +1,7 @@
 import { parseStringPromise } from "xml2js";
 import * as cache from "./cache.js";
+import { secLimiter } from "../utils/rateLimiter.js";
+import { CACHE_TTL_INSIDER_EMPTY } from "../constants.js";
 
 const SEC_HEADERS = {
   "User-Agent": "StockDashboard/1.0 (contact@example.com)",
@@ -56,28 +58,115 @@ async function getCIK(ticker) {
   return cik;
 }
 
+/**
+ * Normalize accession number by stripping dashes and /A suffix
+ * @param {string} acc - Raw accession number
+ * @returns {string} Normalized accession number
+ */
+export function normalizeAccession(acc) {
+  return acc.replace(/-/g, "").replace(/\/A$/, "");
+}
+
+/**
+ * Fetch Form 4 filings with pagination support
+ * Implements Form 4/A supersession (4/A overwrites original 4)
+ * Stops early if enough Form 4s (>10) are found, caps at 3 pages
+ * 
+ * @param {string} cik - Company CIK number
+ * @returns {Promise<Array>} Array of Form 4 filing objects
+ */
 async function getForm4Filings(cik) {
   const url = `https://data.sec.gov/submissions/CIK${cik}.json`;
+  await secLimiter.throttle();
   const res = await fetch(url, { headers: SEC_HEADERS });
   if (!res.ok) throw new Error(`SEC submissions failed: ${res.status}`);
 
   const data = await res.json();
-  const filings = data.filings?.recent || {};
-  const forms = filings.form || [];
-  const accessionNumbers = filings.accessionNumber || [];
-  const filingDates = filings.filingDate || [];
-  const primaryDocs = filings.primaryDocument || [];
+  
+  // Use recent filings or fallback to files if available
+  const recentFilings = data.filings?.recent || {};
+  const additionalFiles = data.filings?.files || [];
+  
+  // Map to store normalized accession -> filing data
+  const filingMap = new Map();
+  
+  // Process recent filings first
+  const forms = recentFilings.form || [];
+  const accessionNumbers = recentFilings.accessionNumber || [];
+  const filingDates = recentFilings.filingDate || [];
+  const primaryDocs = recentFilings.primaryDocument || [];
 
-  const form4s = [];
+  let recentForm4Count = 0;
   for (let i = 0; i < forms.length; i++) {
-    if (forms[i] === "4" && form4s.length < 10) {
-      form4s.push({
+    if (forms[i] === "4" || forms[i] === "4/A") {
+      const acc = normalizeAccession(accessionNumbers[i]);
+      recentForm4Count++;
+      filingMap.set(acc, {
         accessionNumber: accessionNumbers[i],
         filingDate: filingDates[i],
         primaryDocument: primaryDocs[i],
+        formType: forms[i],
       });
     }
   }
+  console.log(`[DEBUG getForm4Filings] recent filings scanned: ${forms.length}, Form 4/4A found in recent: ${recentForm4Count}`);
+
+  // Process paginated files sequentially (up to 3 pages)
+  let pagesProcessed = 0;
+  const MAX_PAGES = 3;
+  const MIN_FORM4S = 40;
+
+  console.log(`[DEBUG getForm4Filings] additionalFiles (paginated) available: ${additionalFiles.length}, will paginate: ${additionalFiles.length > 0 && filingMap.size < MIN_FORM4S}`);
+
+  for (const fileEntry of additionalFiles) {
+    if (pagesProcessed >= MAX_PAGES) break;
+    if (filingMap.size >= MIN_FORM4S) break;
+    
+    try {
+      await secLimiter.throttle();
+      const pageUrl = `https://data.sec.gov/submissions/${fileEntry.name}`;
+      const pageRes = await fetch(pageUrl, { headers: SEC_HEADERS });
+      if (!pageRes.ok) {
+        console.error(`[insider-trading] Failed to fetch paginated page: ${fileEntry.name} (Status: ${pageRes.status})`);
+        continue;
+      }
+      const page = await pageRes.json();
+      
+      const pageForms = page.form || [];
+      const pageAccessions = page.accessionNumber || [];
+      const pageDates = page.filingDate || [];
+      const pageDocs = page.primaryDocument || [];
+      
+      for (let i = 0; i < pageForms.length; i++) {
+        if (pageForms[i] === "4" || pageForms[i] === "4/A") {
+          const acc = normalizeAccession(pageAccessions[i]);
+          filingMap.set(acc, {
+            accessionNumber: pageAccessions[i],
+            filingDate: pageDates[i],
+            primaryDocument: pageDocs[i],
+            formType: pageForms[i],
+          });
+        }
+      }
+      
+      pagesProcessed++;
+    } catch (err) {
+      console.error(`[insider-trading] Error fetching paginated page: ${fileEntry.name} - ${err.message}`);
+    }
+  }
+
+  console.log(`[DEBUG getForm4Filings] paginated pages processed: ${pagesProcessed}, total unique Form 4/4A after pagination: ${filingMap.size}`);
+
+  // Convert map to array — 4/A entries have already overwritten originals via Map.set()
+  const form4s = [];
+  for (const [acc, filing] of filingMap) {
+    form4s.push({
+      accessionNumber: filing.accessionNumber,
+      filingDate: filing.filingDate,
+      primaryDocument: filing.primaryDocument,
+    });
+  }
+  
   return form4s;
 }
 
@@ -100,7 +189,7 @@ async function getRawXmlUrl(cik, acc, primaryDoc) {
 }
 
 async function parseForm4(cik, filing) {
-  const acc = filing.accessionNumber.replace(/-/g, "");
+  const acc = normalizeAccession(filing.accessionNumber);
   const url = await getRawXmlUrl(cik, acc, filing.primaryDocument);
   if (!url) return null;
   const res = await fetch(url, { headers: SEC_HEADERS });
@@ -133,16 +222,28 @@ async function parseForm4(cik, filing) {
   const nonDeriv = report.nonDerivativeTable?.nonDerivativeTransaction;
   const txList = nonDeriv ? (Array.isArray(nonDeriv) ? nonDeriv : [nonDeriv]) : [];
 
+  // Map SEC Form 4 transaction codes to human-readable activity types.
+  // P/S are open-market buy/sell; M/F/G/A are also genuine insider events
+  // (RSU vesting, tax-withholding sales, gifts, awards) and must be shown.
+  const TX_TYPE = {
+    P: "Buy",
+    S: "Sell",
+    M: "Exercise",
+    F: "TaxWithhold",
+    G: "Gift",
+    A: "Award",
+  };
+
   for (const tx of txList) {
     const transCode = tx?.transactionCoding?.transactionCode;
-    if (transCode !== "P" && transCode !== "S") continue;
+    if (!transCode || !TX_TYPE[transCode]) continue;
 
     const shares = parseFloat(tx?.transactionAmounts?.transactionShares?.value || 0);
     const price = parseFloat(tx?.transactionAmounts?.transactionPricePerShare?.value || 0);
     const value = shares * price;
 
     transactions.push({
-      type: transCode === "P" ? "Buy" : "Sell",
+      type: TX_TYPE[transCode],
       shares,
       pricePerShare: price,
       value,
@@ -284,44 +385,60 @@ export async function getInsiderTrading(ticker) {
   const cached = cache.getInsider(cacheKey);
   if (cached) return cached;
 
-  const cik = await getCIK(ticker);
-  const filings = await getForm4Filings(cik);
+  try {
+    const cik = await getCIK(ticker);
+    const filings = await getForm4Filings(cik);
 
-  const insiders = [];
-  const BATCH_SIZE = 3;
-  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
-    const batch = filings.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map(async (filing) => {
-        try {
-          const parsed = await parseForm4(cik, filing);
-          if (parsed && parsed.transactions.length > 0) {
-            return parsed;
+    const insiders = [];
+    const BATCH_SIZE = 3;
+    let parseSuccess = 0;
+    let parseNull = 0;
+    let parseError = 0;
+    for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+      const batch = filings.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async (filing) => {
+          try {
+            const parsed = await parseForm4(cik, filing);
+            if (parsed && parsed.transactions.length > 0) {
+              parseSuccess++;
+              return parsed;
+            }
+            parseNull++;
+            return null;
+          } catch (err) {
+            parseError++;
+            console.error(`[insider-trading] Failed to parse ${filing.accessionNumber}:`, err.message);
           }
-        } catch (err) {
-          console.error(`[insider-trading] Failed to parse ${filing.accessionNumber}:`, err.message);
-        }
-        return null;
-      })
-    );
-    for (const result of results) {
-      if (result) insiders.push(result);
+          return null;
+        })
+      );
+      for (const result of results) {
+        if (result) insiders.push(result);
+      }
+      if (insiders.length >= 10) break;
     }
+    console.log(`[DEBUG getInsiderTrading] filings: ${filings.length}, parseSuccess: ${parseSuccess}, parseNull: ${parseNull}, parseError: ${parseError}, insiders: ${insiders.length}`);
+  
+    const score = calculateSignal(insiders);
+    const label = getSignalLabel(score);
+    const summary = generateSummary(insiders, score);
+
+    const result = {
+      ticker,
+      score: Math.round(score * 100) / 100,
+      label,
+      summary,
+      insiders,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Cache empty results with shorter TTL
+    const cacheTtl = insiders.length === 0 ? CACHE_TTL_INSIDER_EMPTY : undefined;
+    cache.setInsider(cacheKey, result, cacheTtl);
+    return result;
+  } catch (err) {
+    // Do NOT cache errors - let them propagate so next request can retry
+    throw err;
   }
-
-  const score = calculateSignal(insiders);
-  const label = getSignalLabel(score);
-  const summary = generateSummary(insiders, score);
-
-  const result = {
-    ticker,
-    score: Math.round(score * 100) / 100,
-    label,
-    summary,
-    insiders,
-    lastUpdated: new Date().toISOString(),
-  };
-
-  cache.setInsider(cacheKey, result);
-  return result;
 }
