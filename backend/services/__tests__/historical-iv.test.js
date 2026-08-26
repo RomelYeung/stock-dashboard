@@ -19,6 +19,16 @@ jest.unstable_mockModule("../schwab-client.js", () => ({
   getOptionChainParsed: mockGetOptionChainParsed,
 }));
 
+const mockGetNYTradingDate = jest.fn(() => {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+});
+
+jest.unstable_mockModule("../trading-calendar.js", () => ({
+  getNYTradingDate: mockGetNYTradingDate,
+}));
+
 // ─── Import after mocks ───────────────────────────────────────────────────
 
 const { ingestHistoricalIV, getHistoricalIV } = await import(
@@ -90,19 +100,30 @@ describe("ingestHistoricalIV", () => {
     expect(mockUpsert).not.toHaveBeenCalled();
   });
 
-  test("uses today's date (UTC) for the upsert key", async () => {
+  test("uses explicit tradingDate when provided", async () => {
+    const options = [makeOption(100, 0.28)];
+    mockGetOptionChainParsed.mockResolvedValue(makeChain(100, options));
+    mockUpsert.mockResolvedValue({ id: "1", ticker: "AAPL", iv: 0.28 });
+
+    await ingestHistoricalIV("AAPL", "2026-07-15");
+
+    const callArg = mockUpsert.mock.calls[0][0];
+    const dateArg = callArg.where.ticker_date.date;
+    expect(dateArg.toISOString()).toBe("2026-07-15T00:00:00.000Z");
+  });
+
+  test("falls back to NY trading date when no tradingDate provided", async () => {
     const options = [makeOption(100, 0.28)];
     mockGetOptionChainParsed.mockResolvedValue(makeChain(100, options));
     mockUpsert.mockResolvedValue({ id: "1", ticker: "AAPL", iv: 0.28 });
 
     await ingestHistoricalIV("AAPL");
 
+    expect(mockGetNYTradingDate).toHaveBeenCalled();
     const callArg = mockUpsert.mock.calls[0][0];
     const dateArg = callArg.where.ticker_date.date;
-    const today = new Date();
-    expect(dateArg.getUTCFullYear()).toBe(today.getUTCFullYear());
-    expect(dateArg.getUTCMonth()).toBe(today.getUTCMonth());
-    expect(dateArg.getUTCDate()).toBe(today.getUTCDate());
+    expect(dateArg.getUTCHours()).toBe(0);
+    expect(dateArg.getUTCMinutes()).toBe(0);
   });
 });
 
