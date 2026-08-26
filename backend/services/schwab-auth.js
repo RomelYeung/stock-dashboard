@@ -4,22 +4,52 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load .env from backend/.env first, then cwd fallback
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+dotenv.config(); // fallback to cwd .env
 
 // ─── Config ──────────────────────────────────────────────────────────────
 
 const CLIENT_ID = process.env.SCHWAB_CLIENT_ID;
 const CLIENT_SECRET = process.env.SCHWAB_CLIENT_SECRET;
 const CALLBACK_URL = process.env.SCHWAB_CALLBACK_URL || "https://127.0.0.1:3000";
-const TOKEN_PATH = path.resolve(
-  process.env.SCHWAB_TOKEN_PATH || path.join(__dirname, "..", ".schwab-token.json")
-);
 
 const AUTH_URL = "https://api.schwabapi.com/v1/oauth/authorize";
 const TOKEN_URL = "https://api.schwabapi.com/v1/oauth/token";
 const REFRESH_TOKEN_DAYS_MAX = 7;
+
+/** In-memory PKCE code_verifier from the active or latest auth flow. */
+let activeVerifier = null;
+
+/**
+ * Get the current or most recent PKCE verifier.
+ * @returns {string | null}
+ */
+function getLastVerifier() {
+  return activeVerifier;
+}
+
+/**
+ * Set the active PKCE verifier.
+ * @param {string | null} v
+ */
+function setLastVerifier(v) {
+  activeVerifier = v;
+}
+
+/**
+ * Resolve the token file path, anchored to backend/ if relative.
+ * @returns {string}
+ */
+function getTokenPath() {
+  const custom = process.env.SCHWAB_TOKEN_PATH;
+  if (custom) {
+    return path.isAbsolute(custom) ? custom : path.resolve(__dirname, "..", custom);
+  }
+  return path.join(__dirname, "..", ".schwab-token.json");
+}
 
 // ─── PKCE ────────────────────────────────────────────────────────────────
 
@@ -33,6 +63,7 @@ function generatePKCE() {
     .createHash("sha256")
     .update(verifier)
     .digest("base64url");
+  activeVerifier = verifier;
   return { verifier, challenge };
 }
 
@@ -44,15 +75,59 @@ function generatePKCE() {
  * @returns {string}
  */
 function buildAuthURL(challenge) {
+  const clientId = process.env.SCHWAB_CLIENT_ID || CLIENT_ID;
+  const callbackUrl = process.env.SCHWAB_CALLBACK_URL || CALLBACK_URL;
+
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: CALLBACK_URL,
+    client_id: clientId,
+    redirect_uri: callbackUrl,
     response_type: "code",
     scope: "readonly",
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
   return `${AUTH_URL}?${params.toString()}`;
+}
+
+// ─── Auth Code Parsing ───────────────────────────────────────────────────
+
+/**
+ * Parse an authorization code from a raw string, query string, or callback URL.
+ * @param {string} input - Raw code, query string, or full redirect URL
+ * @returns {string} Clean authorization code
+ */
+function parseAuthCode(input) {
+  if (!input || typeof input !== "string") return "";
+  const trimmed = input.trim();
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.includes("?code=") ||
+    trimmed.includes("&code=")
+  ) {
+    try {
+      let urlStr;
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        urlStr = trimmed;
+      } else if (trimmed.startsWith("?") || trimmed.startsWith("&")) {
+        urlStr = `https://127.0.0.1/?${trimmed.replace(/^[?&]+/, "")}`;
+      } else {
+        urlStr = `https://${trimmed.replace(/^\/+/, "")}`;
+      }
+      const url = new URL(urlStr);
+      const codeParam = url.searchParams.get("code");
+      if (codeParam) {
+        return decodeURIComponent(codeParam);
+      }
+    } catch {
+      // Fall through to regex
+    }
+    const match = trimmed.match(/[?&]code=([^&#]+)/);
+    if (match && match[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  }
+  return decodeURIComponent(trimmed);
 }
 
 // ─── Token Exchange ──────────────────────────────────────────────────────
@@ -64,14 +139,18 @@ function buildAuthURL(challenge) {
  * @returns {Promise<object>} Parsed token response
  */
 async function exchangeCodeForToken(code, verifier) {
+  const clientId = process.env.SCHWAB_CLIENT_ID || CLIENT_ID;
+  const clientSecret = process.env.SCHWAB_CLIENT_SECRET || CLIENT_SECRET;
+  const callbackUrl = process.env.SCHWAB_CALLBACK_URL || CALLBACK_URL;
+
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     code_verifier: verifier,
-    redirect_uri: CALLBACK_URL,
+    redirect_uri: callbackUrl,
   });
 
-  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const res = await fetch(TOKEN_URL, {
     method: "POST",
@@ -93,56 +172,89 @@ async function exchangeCodeForToken(code, verifier) {
   return data;
 }
 
+/**
+ * Exchange an authorization code or callback URL for tokens.
+ * @param {string} codeOrUrl - Authorization code or full callback URL
+ * @param {string} [verifier] - PKCE verifier (defaults to getLastVerifier())
+ * @returns {Promise<object>}
+ */
+async function exchangeAuthCode(codeOrUrl, verifier) {
+  const code = parseAuthCode(codeOrUrl);
+  if (!code) {
+    throw new Error("Invalid or empty authorization code");
+  }
+  const pkceVerifier = verifier || getLastVerifier();
+  if (!pkceVerifier) {
+    throw new Error("No active PKCE verifier found. Start an auth flow first.");
+  }
+  return exchangeCodeForToken(code, pkceVerifier);
+}
+
 // ─── Token Refresh ───────────────────────────────────────────────────────
+
+let refreshPromise = null;
 
 /**
  * Refresh the access token using the stored refresh_token.
  * @returns {Promise<object>} Updated token data
  */
 async function refreshAccessToken() {
-  const tokens = loadTokens();
+  if (refreshPromise) return refreshPromise;
 
-  if (!tokens.refresh_token) {
-    throw new Error("No refresh_token available. Re-authenticate via the CLI.");
-  }
+  refreshPromise = (async () => {
+    try {
+      const tokens = loadTokens();
 
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: tokens.refresh_token,
-  });
+      if (!tokens.refresh_token) {
+        throw new Error("No refresh_token available. Re-authenticate via the CLI.");
+      }
 
-  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+      const clientId = process.env.SCHWAB_CLIENT_ID || CLIENT_ID;
+      const clientSecret = process.env.SCHWAB_CLIENT_SECRET || CLIENT_SECRET;
 
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${credentials}`,
-    },
-    body: body.toString(),
-  });
+      const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Token refresh failed (${res.status}): ${text}`);
-  }
+      const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
-  const data = await res.json();
-  data.obtained_at = Date.now();
+      const res = await fetch(TOKEN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${credentials}`,
+        },
+        body: body.toString(),
+      });
 
-  // Preserve the original refresh_token if the response doesn't include a new one
-  if (!data.refresh_token) {
-    data.refresh_token = tokens.refresh_token;
-  }
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Token refresh failed (${res.status}): ${text}`);
+      }
 
-  if (data.refresh_token && data.refresh_token !== tokens.refresh_token) {
-    data.refresh_obtained_at = Date.now();
-  } else {
-    data.refresh_obtained_at = tokens.refresh_obtained_at || tokens.obtained_at || Date.now();
-  }
+      const data = await res.json();
+      data.obtained_at = Date.now();
 
-  saveTokens(data);
-  return data;
+      // Preserve the original refresh_token if the response doesn't include a new one
+      if (!data.refresh_token) {
+        data.refresh_token = tokens.refresh_token;
+      }
+
+      if (data.refresh_token && data.refresh_token !== tokens.refresh_token) {
+        data.refresh_obtained_at = Date.now();
+      } else {
+        data.refresh_obtained_at = tokens.refresh_obtained_at || tokens.obtained_at || Date.now();
+      }
+
+      await saveTokens(data);
+      return data;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 // ─── Token File I/O ──────────────────────────────────────────────────────
@@ -153,7 +265,8 @@ async function refreshAccessToken() {
  */
 function loadTokens() {
   try {
-    const raw = fs.readFileSync(TOKEN_PATH, "utf-8");
+    const tokenPath = getTokenPath();
+    const raw = fs.readFileSync(tokenPath, "utf-8");
     return JSON.parse(raw);
   } catch {
     return {};
@@ -164,12 +277,13 @@ function loadTokens() {
  * Save tokens to the token file.
  * @param {object} tokens
  */
-function saveTokens(tokens) {
-  const dir = path.dirname(TOKEN_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8");
+async function saveTokens(tokens) {
+  const tokenPath = getTokenPath();
+  const dir = path.dirname(tokenPath);
+  await fs.promises.mkdir(dir, { recursive: true });
+  const tmpPath = tokenPath + ".tmp";
+  await fs.promises.writeFile(tmpPath, JSON.stringify(tokens, null, 2), "utf-8");
+  await fs.promises.rename(tmpPath, tokenPath);
 }
 
 // ─── Valid Access Token ──────────────────────────────────────────────────
@@ -279,6 +393,11 @@ export {
   generatePKCE,
   buildAuthURL,
   exchangeCodeForToken,
+  exchangeAuthCode,
+  parseAuthCode,
+  getLastVerifier,
+  setLastVerifier,
+  getTokenPath,
   refreshAccessToken,
   loadTokens,
   saveTokens,
