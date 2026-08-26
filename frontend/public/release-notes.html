@@ -361,6 +361,22 @@
         <h2>August 2026</h2>
         <article class="release-entry">
           <div class="entry-meta">
+            <time datetime="2026-08-25">August 25, 2026</time>
+            <span class="tag tag-improvement">Improvement</span>
+          </div>
+          <h3>Keep market-data ingestion running unattended</h3>
+          <p>Backend is now supervised by a macOS LaunchAgent that starts automatically at login and restarts after crashes. An hourly off-hours job auto-repairs missing implied-volatility days within a five-day window, so data no longer depends on remembering to start the dev server.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
+            <time datetime="2026-08-25">August 25, 2026</time>
+            <span class="tag tag-fix">Fix</span>
+          </div>
+          <h3>Remove weekend and holiday IV data points</h3>
+          <p>Cleared 83 stray historical implied-volatility records that had been captured on Saturdays and the July 3 market holiday during early manual runs. Implied-volatility percentile stats now reflect true trading days only.</p>
+        </article>
+        <article class="release-entry">
+          <div class="entry-meta">
             <time datetime="2026-08-24">August 24, 2026</time>
             <span class="tag tag-improvement">Improvement</span>
           </div>
