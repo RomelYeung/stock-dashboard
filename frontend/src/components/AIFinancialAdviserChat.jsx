@@ -4,12 +4,38 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence, useDragControls, useMotionValue } from "framer-motion";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 
+const EMPTY_PROFILE = { riskTolerance: "", horizon: "", style: "", notes: "" };
+const PROFILE_OPTIONS = {
+  riskTolerance: [["CONSERVATIVE", "Conservative"], ["BALANCED", "Balanced"], ["AGGRESSIVE", "Aggressive"]],
+  horizon: [["SHORT", "Short term"], ["MEDIUM", "Medium term"], ["LONG", "Long term"]],
+  style: [["VALUE", "Value"], ["GROWTH", "Growth"], ["BLEND", "Blend"], ["INDEX", "Index"]],
+};
+const ADVISER_STAGES = [
+  ["brief", "Brief"],
+  ["memos", "Memos"],
+  ["rebuttal", "Rebuttal"],
+  ["synthesis", "Synthesis"],
+];
+
+const normalizeProfile = (profile) => ({
+  riskTolerance: profile?.riskTolerance || "",
+  horizon: profile?.horizon || "",
+  style: profile?.style || "",
+  notes: profile?.notes || "",
+});
+const isProfileComplete = (profile) => Boolean(profile?.riskTolerance && profile?.horizon && profile?.style);
+const profileLabel = (value, options) => options.find(([key]) => key === value)?.[1] || value;
+export const getDeepResearchPollError = (response, body) => response.ok
+  ? ""
+  : body?.error || `Server returned ${response.status}`;
+
 export default function AIFinancialAdviserChat({ ticker }) {
   const [isOpen, setIsOpen] = useState(false);
   const [debateActive, setDebateActive] = useState(false);
   const [messages, setMessages] = useState([]);
   const [currentAgent, setCurrentAgent] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+  const [sessionToLoad, setSessionToLoad] = useState(null);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sessionsList, setSessionsList] = useState([]);
@@ -17,11 +43,23 @@ export default function AIFinancialAdviserChat({ ticker }) {
   const [toolStatus, setToolStatus] = useState(null);
   const [isDeepResearching, setIsDeepResearching] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
+  const [profileState, setProfileState] = useState("loading");
+  const [profileError, setProfileError] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileRefresh, setProfileRefresh] = useState(0);
+  const [fullPanel, setFullPanel] = useState(false);
+  const [fullPanelNotice, setFullPanelNotice] = useState("");
+  const [adviserStage, setAdviserStage] = useState(null);
   const scrollRef = useRef(null);
   const windowRef = useRef(null);
   const dragControls = useDragControls();
   const abortControllerRef = useRef(null);
   const pollIntervalRef = useRef(null);
+  const loadedTickerRef = useRef(null);
+  const sessionLoadRequestRef = useRef(0);
+  const persistentToolStatusRef = useRef(false);
 
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== 'undefined' ? parseInt(localStorage.getItem('aiAdviserWindowWidth')) || 400 : 400,
@@ -40,6 +78,38 @@ export default function AIFinancialAdviserChat({ ticker }) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setProfileState("loading");
+    setProfileError("");
+    setIsEditingProfile(false);
+
+    fetch("/api/profile/investor", { signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) {
+          setProfile(null);
+          setProfileForm(EMPTY_PROFILE);
+          setProfileState("unauthorized");
+          return;
+        }
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.success) {
+          throw new Error(body.error || "Unable to load your investor profile.");
+        }
+        const nextProfile = normalizeProfile(body.profile);
+        setProfile(nextProfile);
+        setProfileForm(nextProfile);
+        setProfileState("idle");
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        setProfileState("error");
+        setProfileError(error.message);
+      });
+
+    return () => controller.abort();
+  }, [ticker, profileRefresh]);
 
   const handleResizeStart = (e, direction) => {
     e.preventDefault();
@@ -123,12 +193,21 @@ export default function AIFinancialAdviserChat({ ticker }) {
   }, [showSessions, ticker]);
 
   useEffect(() => {
-    let isMounted = true;
-    if (ticker) {
-      fetch(`/api/stocks/${ticker}/advisor-chat/session?sessionId=${sessionId || ''}`)
+    const requestId = ++sessionLoadRequestRef.current;
+    const tickerChanged = loadedTickerRef.current !== ticker;
+    loadedTickerRef.current = ticker;
+
+    if (tickerChanged && sessionToLoad !== null) {
+      setSessionToLoad(null);
+      return;
+    }
+    if (!ticker || sessionToLoad === false) return;
+
+    const controller = new AbortController();
+    fetch(`/api/stocks/${ticker}/advisor-chat/session?sessionId=${sessionToLoad || ''}`, { signal: controller.signal })
         .then(r => r.json())
         .then(data => {
-           if (!isMounted) return;
+           if (requestId !== sessionLoadRequestRef.current) return;
            if (data.success && data.data) {
              if (data.data.history && data.data.history.length > 0) {
                setMessages(data.data.history);
@@ -137,15 +216,13 @@ export default function AIFinancialAdviserChat({ ticker }) {
                setMessages([]);
                setDebateActive(false);
              }
-             if (data.data.sessionId) {
-               setSessionId(data.data.sessionId);
-             }
+             setSessionId(data.data.sessionId || null);
            }
         })
-        .catch(e => console.error(e));
-    }
-    return () => { isMounted = false; };
-  }, [ticker, sessionId]);
+        .catch(e => { if (e.name !== "AbortError") console.error(e); });
+
+    return () => controller.abort();
+  }, [ticker, sessionToLoad]);
 
   useEffect(() => {
     return () => {
@@ -153,7 +230,7 @@ export default function AIFinancialAdviserChat({ ticker }) {
         abortControllerRef.current.abort();
       }
       if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+        clearTimeout(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
     };
@@ -201,13 +278,71 @@ export default function AIFinancialAdviserChat({ ticker }) {
 
   const cleanText = (text) => text.replace(/(?:\[Suggestions\]|\*\*Suggestions\*\*|Suggestions:|### Suggestions)\s*[\n\r]*\s*\[[\s\S]*?\]\s*$/i, '').trim();
 
+  const openProfileEditor = () => {
+    setProfileForm(normalizeProfile(profile));
+    setProfileError("");
+    setProfileState((state) => state === "saved" ? "idle" : state);
+    setIsEditingProfile(true);
+  };
+
+  const cancelProfileEdit = () => {
+    setProfileForm(normalizeProfile(profile));
+    setProfileError("");
+    setProfileState((state) => state === "saving" ? state : "idle");
+    setIsEditingProfile(false);
+  };
+
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setProfileState("saving");
+    setProfileError("");
+
+    const payload = {
+      riskTolerance: profileForm.riskTolerance,
+      horizon: profileForm.horizon,
+      style: profileForm.style,
+      notes: profileForm.notes.trim(),
+    };
+
+    try {
+      const response = await fetch("/api/profile/investor", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 401) {
+        setProfile(null);
+        setProfileForm(EMPTY_PROFILE);
+        setProfileState("unauthorized");
+        setIsEditingProfile(false);
+        return;
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.success) {
+        throw new Error(body.error || "Unable to save your investor profile.");
+      }
+      const savedProfile = normalizeProfile(body.profile);
+      setProfile(savedProfile);
+      setProfileForm(savedProfile);
+      setProfileState("saved");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setProfileState("error");
+      setProfileError(error.message);
+    }
+  };
+
   const sendMessage = async (text) => {
     if (!text.trim()) return;
+    if (profileState === "loading" || profileState === "unauthorized") return;
     setDebateActive(true);
     setMessages(prev => [...prev, { role: "user", agent: "User", text }]);
     setInputValue("");
     setIsSending(true);
     setToolStatus(null);
+    persistentToolStatusRef.current = false;
+    setAdviserStage(null);
+    setFullPanelNotice("");
     setCurrentAgent("Coordinator");
 
     if (abortControllerRef.current) {
@@ -219,12 +354,21 @@ export default function AIFinancialAdviserChat({ ticker }) {
       const res = await fetch(`/api/stocks/${ticker}/advisor-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, sessionId }),
+        body: JSON.stringify({ message: text, ...(sessionId ? { sessionId } : {}), ...(fullPanel ? { forceDeep: true } : {}) }),
         signal: abortControllerRef.current.signal
       });
       
       if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 501 && fullPanel) {
+          setFullPanel(false);
+          setFullPanelNotice("Full Panel is not enabled on this server. Fast chat is ready; your question has been restored.");
+          setInputValue(text);
+          setMessages((current) => current.slice(0, -1));
+          if (messages.length === 0) setDebateActive(false);
+          return;
+        }
+        throw new Error(body.error || `Server returned ${res.status}`);
       }
       if (!res.body) {
         throw new Error("Response body is empty");
@@ -249,9 +393,21 @@ export default function AIFinancialAdviserChat({ ticker }) {
                if (parsed.type === 'sessionId') {
                  setSessionId(parsed.sessionId);
                } else if (parsed.type === 'status') {
-                 setToolStatus(parsed.message);
+                 if (/fallback/i.test(parsed.message || "")) {
+                   persistentToolStatusRef.current = true;
+                   setAdviserStage(null);
+                   setToolStatus(parsed.message);
+                 } else if (!persistentToolStatusRef.current) {
+                   setToolStatus(parsed.message);
+                 }
+               } else if (parsed.type === 'stage') {
+                 if (!persistentToolStatusRef.current) setAdviserStage(parsed);
+               } else if (parsed.type === 'error') {
+                 persistentToolStatusRef.current = true;
+                 setAdviserStage(null);
+                 setToolStatus(parsed.message || parsed.error || "The adviser encountered an error.");
                } else if (parsed.agent && parsed.chunk) {
-                 setToolStatus(null);
+                 if (!persistentToolStatusRef.current) setToolStatus(null);
                  setCurrentAgent(parsed.agent);
                  
                  setMessages(prev => {
@@ -276,66 +432,29 @@ export default function AIFinancialAdviserChat({ ticker }) {
         console.log('Fetch aborted');
       } else {
         console.error(err);
-        setMessages(prev => [...prev, { role: "model", agent: "System", text: "Error connecting to advisor." }]);
+        setMessages(prev => [...prev, { role: "model", agent: "System", text: err.message || "Error connecting to advisor." }]);
       }
     } finally {
       setIsSending(false);
       setCurrentAgent(null);
-      setToolStatus(null);
+      setAdviserStage(null);
+      if (!persistentToolStatusRef.current) setToolStatus(null);
+      persistentToolStatusRef.current = false;
     }
   };
 
   const startDeepResearch = async () => {
-    if (pollIntervalRef.current) return; // Prevent concurrent deep research requests
+    if (profileState === "loading" || profileState === "unauthorized" || pollIntervalRef.current) return;
 
     setShowPlusMenu(false);
     setIsDeepResearching(true);
     setDebateActive(true);
-    
-    const DEEP_RESEARCH_PROMPT = `Role & Objective
-You are an elite AI equity research assistant. Conduct a comprehensive, multi-step deep research investigation to generate a highly structured, data-driven fundamental analysis report on ${ticker} (${ticker}). 
-Utilize your deep web search capabilities to locate the absolute latest SEC filings (10-K/10-Q), recent earnings call transcripts, real-time market data, and current news context.
- 
-Tone & Audience
-Objectively evaluate both the Bull and Bear cases, then declare a synthesized, evidence-based stance. Remain highly analytical, objective, and institutional in tone. Do not use conversational filler. Deliver insights with maximum scannability for retail and sophisticated investors.
- 
-Required Structure & Data Integration
-Organize the output exactly into the following sections using clear markdown headings:
- 
-1. Investment Overview
-- State the core thesis focusing on primary macroeconomic, industry, or company-specific catalysts.
-- Investment Highlights: Detail recent strategic moves and standout financial metrics from the latest earnings report.
-- Investment Risks: Isolate the largest current drags on profitability, execution delays, or macroeconomic headwinds.
-- Actionable Levels: Highlight a concrete "Price Watch Zone" (key support/resistance) and upcoming forward catalysts.
- 
-2. Company Profile & Macro Environment
-- Detail the business model, core operating segments, and global market share.
-- Identify the current stage of the company (e.g., Growth, Mature, Turnaround) and its primary KPI.
-- Analyze current Macro & Sector headwinds/tailwinds affecting this specific business.
- 
-3. Financial Analysis
-- Revenue & Growth: Integrate precise latest quarter metrics (YoY growth, margin expansion/contraction).
-- Profitability & Cash Flow: FCF, ROIC vs. WACC, balance sheet health/Net Cash.
-- Include a visual indicator (e.g., "Signal: 🟢 / 🟡 / 🔴") with a brief trailing summary at the end of each sub-section.
- 
-4. Company DNA & Governance
-- Analyze management alignment, recent capital return programs, and insider vs. institutional ownership.
-- Call out notable recent position shifts by major institutional funds.
-- Highlight customer base dynamics (e.g., switching costs, recurring revenue stickiness).
- 
-5. Competitive Moat
-- Define the overall moat rating (Wide, Narrow, None) and break down its core dimensions.
- 
-6. Valuation & Thesis
-- Compare current valuation multiples against specific, named industry peers.
-- Define a Fair Value Range and estimated safety margin.
-- End with a definitive, single-sentence conclusion summarizing the investment thesis.`;
 
     try {
       const res = await fetch('/api/ai/deep-research/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, prompt: DEEP_RESEARCH_PROMPT })
+        body: JSON.stringify({ ticker })
       });
       const body = await res.json();
       const interactionId = body.data?.interactionId;
@@ -343,14 +462,28 @@ Organize the output exactly into the following sections using clear markdown hea
         throw new Error(body.error || "No interactionId returned");
       }
 
-      pollIntervalRef.current = setInterval(async () => {
+      const pollDeepResearch = async () => {
         try {
           const statusRes = await fetch(`/api/ai/deep-research/status/${interactionId}`);
-          const statusBody = await statusRes.json();
+          const statusBody = await statusRes.json().catch(() => ({}));
+          const pollError = getDeepResearchPollError(statusRes, statusBody);
+          if (pollError) {
+            clearTimeout(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setIsDeepResearching(false);
+            setAdviserStage(null);
+            setToolStatus(null);
+            setMessages(prev => [...prev, {
+              role: 'model',
+              agent: 'System',
+              text: `Deep Research stopped. ${pollError} Please retry.`
+            }]);
+            return;
+          }
           const pollStatus = statusBody.data?.status;
 
           if (pollStatus === 'completed') {
-            clearInterval(pollIntervalRef.current);
+            clearTimeout(pollIntervalRef.current);
             pollIntervalRef.current = null;
             setIsDeepResearching(false);
             setMessages(prev => [...prev, { 
@@ -358,8 +491,9 @@ Organize the output exactly into the following sections using clear markdown hea
               agent: 'Deep Research', 
               text: statusBody.data?.result || "Research completed but no output was returned." 
             }]);
+            return;
           } else if (pollStatus === 'failed') {
-            clearInterval(pollIntervalRef.current);
+            clearTimeout(pollIntervalRef.current);
             pollIntervalRef.current = null;
             setIsDeepResearching(false);
             setMessages(prev => [...prev, { 
@@ -367,19 +501,24 @@ Organize the output exactly into the following sections using clear markdown hea
               agent: 'System', 
               text: "Deep Research failed." + (statusBody.data?.error ? ` ${statusBody.data.error}` : "")
             }]);
+            return;
           }
           // "in_progress" or any other status — continue polling
         } catch (e) {
           console.error("Polling error:", e);
-          // Do not clear interval on transient network errors — retry on next tick
+          // Do not clear the timer on transient network errors — retry on next tick
         }
-      }, 10000);
+        if (pollIntervalRef.current !== null) {
+          pollIntervalRef.current = setTimeout(pollDeepResearch, 10000);
+        }
+      };
+      pollIntervalRef.current = setTimeout(pollDeepResearch, 10000);
       
     } catch (e) {
       console.error(e);
       setIsDeepResearching(false);
       if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+        clearTimeout(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
       setMessages(prev => [...prev, { role: 'model', agent: 'System', text: "Failed to start Deep Research." }]);
@@ -400,6 +539,33 @@ Organize the output exactly into the following sections using clear markdown hea
       }
       return <a {...props} target="_blank" rel="noopener noreferrer" style={{color: "var(--accent-blue)"}}/>;
     }
+  };
+
+  const profileComplete = isProfileComplete(profile);
+  const stageIndex = adviserStage ? ADVISER_STAGES.findIndex(([stage]) => stage === adviserStage.stage) : -1;
+  const profileAccessBlocked = profileState === "loading" || profileState === "unauthorized";
+  const chatDisabled = isSending || profileAccessBlocked;
+  const deepResearchDisabled = isDeepResearching || profileAccessBlocked;
+  const deepResearchLabel = profileState === "loading"
+    ? "Loading profile..."
+    : profileState === "unauthorized"
+      ? "Sign in for Deep Research"
+      : isDeepResearching ? "Research in progress..." : "Deep Research";
+  const activityInProgress = isSending || isDeepResearching;
+
+  const startNewChat = () => {
+    if (activityInProgress) return;
+    sessionLoadRequestRef.current += 1;
+    setSessionToLoad(false);
+    setSessionId(null);
+    setMessages([]);
+    setDebateActive(false);
+  };
+
+  const loadSession = (id) => {
+    setSessionId(id);
+    setSessionToLoad(id);
+    setShowSessions(false);
   };
 
   return (
@@ -447,7 +613,7 @@ Organize the output exactly into the following sections using clear markdown hea
                 {debateActive && (
                   <>
                     <button style={headerBtn} onClick={exportChat}>Export</button>
-                    <button style={headerBtn} onClick={() => { setSessionId(null); setMessages([]); setDebateActive(false); }}>New</button>
+                    <button style={headerBtn} onClick={startNewChat} disabled={activityInProgress}>New</button>
                   </>
                 )}
                 <button style={headerBtn} onClick={() => setShowSessions(!showSessions)}>History</button>
@@ -459,7 +625,7 @@ Organize the output exactly into the following sections using clear markdown hea
               <div style={sessionsDrawer}>
                  <div style={{color: "var(--text-secondary)", fontSize: "12px", marginBottom: "12px", textTransform: "uppercase"}}>Past Sessions</div>
                  {sessionsList.map(s => (
-                   <div key={s.id} style={sessionItem} onClick={() => { setSessionId(s.id); setShowSessions(false); }}>
+                   <div key={s.id} style={sessionItem} onClick={() => loadSession(s.id)}>
                      <div style={{color: "var(--text-primary)", fontSize: "13px", marginBottom: "4px"}}>{s.snippet}</div>
                      <div style={{color: "var(--text-muted)", fontSize: "11px"}}>{new Date(s.updatedAt).toLocaleString()}</div>
                    </div>
@@ -469,6 +635,153 @@ Organize the output exactly into the following sections using clear markdown hea
             )}
 
             <div style={windowBody}>
+              <div style={controlRail}>
+                <span style={controlRailSignal} aria-hidden="true" />
+                <div style={profileControl}>
+                  <span style={controlEyebrow}>Investor profile</span>
+                  {profileState === "loading" ? (
+                    <span style={controlMeta} role="status">Loading...</span>
+                  ) : profileState === "unauthorized" ? (
+                    <a href="/login" style={signInLink}>Sign in to use adviser chat</a>
+                  ) : profileState === "error" && !isEditingProfile ? (
+                    <span style={controlInlineError} role="alert">
+                      Profile unavailable
+                      <button type="button" style={textButton} onClick={() => setProfileRefresh((value) => value + 1)}>Retry</button>
+                    </span>
+                  ) : profileComplete ? (
+                    <button
+                      type="button"
+                      style={profileChip}
+                      onClick={openProfileEditor}
+                      aria-expanded={isEditingProfile}
+                      aria-controls="adviser-profile-form"
+                    >
+                      {profileLabel(profile.riskTolerance, PROFILE_OPTIONS.riskTolerance)} · {profileLabel(profile.horizon, PROFILE_OPTIONS.horizon)} · {profileLabel(profile.style, PROFILE_OPTIONS.style)}
+                      <span aria-hidden="true"> ↗</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      style={setupProfileButton}
+                      onClick={openProfileEditor}
+                      aria-expanded={isEditingProfile}
+                      aria-controls="adviser-profile-form"
+                    >
+                      Set up profile
+                    </button>
+                  )}
+                  {profileState === "saved" && <span style={savedStatus} role="status">Profile saved.</span>}
+                </div>
+
+                <div style={fullPanelControl}>
+                  <span>
+                    <span style={controlEyebrow}>Full Panel</span>
+                    <span style={controlMeta}>4-stage debate</span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={fullPanel}
+                    aria-label="Use Full Panel for adviser messages"
+                    disabled={isSending}
+                    onClick={() => {
+                      setFullPanel((enabled) => !enabled);
+                      setFullPanelNotice("");
+                    }}
+                    style={{ ...switchTrack, ...(fullPanel ? switchTrackEnabled : {}), opacity: isSending ? 0.55 : 1 }}
+                  >
+                    <span aria-hidden="true" style={{ ...switchThumb, transform: fullPanel ? "translateX(16px)" : "translateX(0)" }} />
+                  </button>
+                </div>
+
+                {fullPanelNotice && <div style={fullPanelStatus} role="status">{fullPanelNotice}</div>}
+              </div>
+
+              {isEditingProfile && (
+                <form id="adviser-profile-form" style={profileFormPanel} onSubmit={saveProfile}>
+                  <div style={profileFormHeading}>
+                    <div>
+                      <div style={profileFormTitle}>{profileComplete ? "Edit investor profile" : "Set up investor profile"}</div>
+                      <div style={profileFormHelp}>Personalize suitability and time-horizon context. Chat remains available.</div>
+                    </div>
+                  </div>
+
+                  <div style={profileFieldGrid}>
+                    <label style={fieldLabel}>
+                      Risk tolerance
+                      <select
+                        required
+                        style={profileField}
+                        value={profileForm.riskTolerance}
+                        onChange={(event) => setProfileForm((current) => ({ ...current, riskTolerance: event.target.value }))}
+                      >
+                        <option value="">Select risk</option>
+                        {PROFILE_OPTIONS.riskTolerance.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                    <label style={fieldLabel}>
+                      Investment horizon
+                      <select
+                        required
+                        style={profileField}
+                        value={profileForm.horizon}
+                        onChange={(event) => setProfileForm((current) => ({ ...current, horizon: event.target.value }))}
+                      >
+                        <option value="">Select horizon</option>
+                        {PROFILE_OPTIONS.horizon.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                    <label style={fieldLabel}>
+                      Investment style
+                      <select
+                        required
+                        style={profileField}
+                        value={profileForm.style}
+                        onChange={(event) => setProfileForm((current) => ({ ...current, style: event.target.value }))}
+                      >
+                        <option value="">Select style</option>
+                        {PROFILE_OPTIONS.style.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                  </div>
+
+                  <label style={fieldLabel}>
+                    Notes <span style={optionalLabel}>(optional)</span>
+                    <textarea
+                      style={{ ...profileField, minHeight: "64px", resize: "vertical" }}
+                      value={profileForm.notes}
+                      maxLength={1000}
+                      placeholder="Income needs, exclusions, concentrated positions, or other context"
+                      onChange={(event) => setProfileForm((current) => ({ ...current, notes: event.target.value }))}
+                    />
+                  </label>
+
+                  {profileError && <div style={profileFormError} role="alert">{profileError}</div>}
+                  <div style={profileFormActions}>
+                    <span style={notesCount}>{profileForm.notes.length}/1000</span>
+                    <button type="button" style={profileCancelButton} onClick={cancelProfileEdit} disabled={profileState === "saving"}>Cancel</button>
+                    <button type="submit" style={profileSaveButton} disabled={profileState === "saving"}>
+                      {profileState === "saving" ? "Saving..." : "Save changes"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {adviserStage && stageIndex >= 0 && (
+                <div style={stageProgress} role="status" aria-live="polite">
+                  <span style={stageProgressLabel}>Full Panel</span>
+                  <div style={stageSteps}>
+                    {ADVISER_STAGES.map(([stage, label], index) => (
+                      <span key={stage} style={{ ...stageStep, ...(index <= stageIndex ? stageStepReached : {}) }}>
+                        <span style={{ ...stageDot, ...(index === stageIndex ? stageDotActive : {}) }} aria-hidden="true" />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  {adviserStage.total && <span style={stageAvailability}>{adviserStage.available}/{adviserStage.total} ready</span>}
+                </div>
+              )}
+
               {!debateActive ? (
                 <div style={debateSplash}>
                   <div style={debateSplashIcon}>💬</div>
@@ -523,7 +836,7 @@ Organize the output exactly into the following sections using clear markdown hea
                           >
                             <button
                               onClick={startDeepResearch}
-                              disabled={isDeepResearching}
+                              disabled={deepResearchDisabled}
                               style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -532,19 +845,19 @@ Organize the output exactly into the following sections using clear markdown hea
                                 background: "transparent",
                                 border: "none",
                                 padding: "10px 12px",
-                                color: isDeepResearching ? "var(--text-muted)" : "var(--text-primary)",
-                                cursor: isDeepResearching ? "not-allowed" : "pointer",
+                                color: deepResearchDisabled ? "var(--text-muted)" : "var(--text-primary)",
+                                cursor: deepResearchDisabled ? "not-allowed" : "pointer",
                                 borderRadius: "0",
                                 transition: "background 0.2s",
                                 textAlign: "left",
                                 fontSize: "13px",
-                                opacity: isDeepResearching ? 0.5 : 1
+                                opacity: deepResearchDisabled ? 0.5 : 1
                               }}
-                              onMouseOver={(e) => { if (!isDeepResearching) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                              onMouseOver={(e) => { if (!deepResearchDisabled) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                               onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
                             >
-                              <Sparkles size={16} color={isDeepResearching ? "var(--text-muted)" : "var(--accent-purple)"} />
-                              <span>{isDeepResearching ? "Research in progress..." : "Deep Research"}</span>
+                              <Sparkles size={16} color={deepResearchDisabled ? "var(--text-muted)" : "var(--accent-purple)"} />
+                              <span>{deepResearchLabel}</span>
                             </button>
                           </motion.div>
                         )}
@@ -552,14 +865,14 @@ Organize the output exactly into the following sections using clear markdown hea
 
                       <input 
                         style={{...chatInput, paddingLeft: "44px"}} 
-                        placeholder="Ask a question..." 
+                        placeholder={profileState === "loading" ? "Loading your profile..." : profileState === "unauthorized" ? "Sign in to use adviser chat" : "Ask a question..."}
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && sendMessage(inputValue)}
-                        disabled={isSending}
+                        disabled={chatDisabled}
                       />
                     </div>
-                    <button style={chatSendBtn} onClick={() => sendMessage(inputValue)}>Send</button>
+                    <button style={chatSendBtn} onClick={() => sendMessage(inputValue)} disabled={chatDisabled}>Send</button>
                   </div>
                 </div>
               ) : (
@@ -599,7 +912,7 @@ Organize the output exactly into the following sections using clear markdown hea
                       </div>
                     )}
                     {toolStatus && (
-                      <div style={{ ...chatBubbleWrapper, alignItems: "center", opacity: 0.7 }}>
+                      <div style={{ ...chatBubbleWrapper, alignItems: "center", opacity: 0.7 }} role="status" aria-live="polite">
                         <div style={{ background: "rgba(255,255,255,0.05)", padding: "6px 12px", borderRadius: "0", fontSize: "11px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
                            <span style={{...typingDot, background: "var(--accent-blue)", animationDelay: "0ms", width: "4px", height: "4px"}} />
                            {toolStatus}
@@ -609,7 +922,7 @@ Organize the output exactly into the following sections using clear markdown hea
                     {currentSuggestions.length > 0 && !isSending && (
                       <div style={{display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px", padding: "0 4px"}}>
                         {currentSuggestions.map((s, idx) => (
-                          <button key={idx} className="suggestion-chip" style={suggestionChip} onClick={() => sendMessage(s)}>{s}</button>
+                          <button key={idx} className="suggestion-chip" style={suggestionChip} onClick={() => sendMessage(s)} disabled={profileAccessBlocked}>{s}</button>
                         ))}
                       </div>
                     )}
@@ -682,7 +995,7 @@ Organize the output exactly into the following sections using clear markdown hea
                             >
                               <button
                                 onClick={startDeepResearch}
-                                disabled={isDeepResearching}
+                                disabled={deepResearchDisabled}
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
@@ -691,19 +1004,19 @@ Organize the output exactly into the following sections using clear markdown hea
                                   background: "transparent",
                                   border: "none",
                                   padding: "10px 12px",
-                                  color: isDeepResearching ? "var(--text-muted)" : "var(--text-primary)",
-                                  cursor: isDeepResearching ? "not-allowed" : "pointer",
+                                  color: deepResearchDisabled ? "var(--text-muted)" : "var(--text-primary)",
+                                  cursor: deepResearchDisabled ? "not-allowed" : "pointer",
                                   borderRadius: "0",
                                   transition: "background 0.2s",
                                   textAlign: "left",
                                   fontSize: "13px",
-                                  opacity: isDeepResearching ? 0.5 : 1
+                                  opacity: deepResearchDisabled ? 0.5 : 1
                                 }}
-                                onMouseOver={(e) => { if (!isDeepResearching) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                                onMouseOver={(e) => { if (!deepResearchDisabled) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                                 onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
                               >
-                                <Sparkles size={16} color={isDeepResearching ? "var(--text-muted)" : "var(--accent-purple)"} />
-                                <span>{isDeepResearching ? "Research in progress..." : "Deep Research"}</span>
+                                <Sparkles size={16} color={deepResearchDisabled ? "var(--text-muted)" : "var(--accent-purple)"} />
+                                <span>{deepResearchLabel}</span>
                               </button>
                             </motion.div>
                           )}
@@ -712,14 +1025,14 @@ Organize the output exactly into the following sections using clear markdown hea
                         <input 
                           className="modern-chat-input"
                           style={{...chatInput, paddingLeft: "44px"}} 
-                          placeholder={isDeepResearching ? "Deep Research in progress..." : "Ask your financial adviser..."}
+                          placeholder={profileState === "loading" ? "Loading your profile..." : profileState === "unauthorized" ? "Sign in to use adviser chat" : isDeepResearching ? "Deep Research in progress..." : "Ask your financial adviser..."}
                           value={inputValue}
                           onChange={e => setInputValue(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && sendMessage(inputValue)}
-                          disabled={isSending || isDeepResearching}
+                          disabled={chatDisabled || isDeepResearching}
                         />
                       </div>
-                      <button className="modern-chat-btn" style={{...chatSendBtn, opacity: isSending ? 0.5 : 1}} onClick={() => sendMessage(inputValue)} disabled={isSending}>
+                      <button className="modern-chat-btn" style={{...chatSendBtn, opacity: chatDisabled ? 0.5 : 1}} onClick={() => sendMessage(inputValue)} disabled={chatDisabled}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                       </button>
                     </div>
@@ -839,6 +1152,10 @@ const fabStyle = {
 };
 
 const agentColors = {
+  "Alex Meridian": "var(--accent-blue)",
+  "Viktor Hale": "var(--accent-amber)",
+  "Mina Okafor": "var(--accent-green)",
+  "Sam Reyes": "#ff6b8a",
   "Coordinator": "var(--accent-blue)",
   "Data Analyst": "var(--accent-green)",
   "Trading Analyst": "var(--accent-amber)",
@@ -846,6 +1163,83 @@ const agentColors = {
   "Risk Evaluation Agent": "var(--accent-red)",
   "System": "var(--text-secondary)"
 };
+
+const controlRail = {
+  position: "relative", display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap",
+  padding: "10px 16px 10px 20px", background: "rgba(0, 240, 255, 0.025)",
+  borderBottom: "1px solid rgba(0, 240, 255, 0.14)", flexShrink: 0,
+};
+const controlRailSignal = {
+  position: "absolute", inset: "0 auto 0 0", width: "3px",
+  background: "linear-gradient(180deg, var(--accent-blue) 0%, var(--accent-purple) 100%)",
+  boxShadow: "0 0 14px rgba(0, 240, 255, 0.35)",
+};
+const profileControl = { display: "flex", alignItems: "center", gap: "8px", flex: "1 1 190px", minWidth: 0, flexWrap: "wrap" };
+const fullPanelControl = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flex: "0 1 128px" };
+const controlEyebrow = {
+  display: "block", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: "10px",
+  fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap",
+};
+const controlMeta = { display: "block", color: "var(--text-muted)", fontFamily: "var(--font-body)", fontSize: "10px", lineHeight: 1.3 };
+const profileChip = {
+  maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  background: "rgba(57, 255, 20, 0.07)", border: "1px solid rgba(57, 255, 20, 0.3)",
+  color: "#9cff8a", padding: "5px 8px", fontFamily: "var(--font-mono)", fontSize: "10px", cursor: "pointer",
+};
+const setupProfileButton = {
+  background: "transparent", border: "none", borderBottom: "1px solid var(--accent-blue)",
+  color: "var(--accent-blue)", padding: "3px 0", fontFamily: "var(--font-body)", fontSize: "11px", cursor: "pointer",
+};
+const signInLink = { ...setupProfileButton, textDecoration: "none" };
+const textButton = { ...setupProfileButton, marginLeft: "7px", fontSize: "10px" };
+const savedStatus = { color: "#9cff8a", fontFamily: "var(--font-body)", fontSize: "10px" };
+const controlInlineError = { color: "#ff8aa2", fontFamily: "var(--font-body)", fontSize: "10px" };
+const switchTrack = {
+  width: "38px", height: "22px", padding: "2px", flexShrink: 0, display: "flex", alignItems: "center",
+  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(168,185,211,0.5)", cursor: "pointer",
+};
+const switchTrackEnabled = { background: "rgba(0, 240, 255, 0.15)", borderColor: "var(--accent-blue)" };
+const switchThumb = { display: "block", width: "16px", height: "16px", background: "var(--text-secondary)" };
+const fullPanelStatus = {
+  flex: "1 0 100%", color: "var(--accent-amber)", fontFamily: "var(--font-body)", fontSize: "11px", lineHeight: 1.4,
+  paddingLeft: "2px",
+};
+const profileFormPanel = {
+  padding: "14px 16px", background: "rgba(10,11,16,0.98)", borderBottom: "1px solid rgba(178,0,255,0.28)",
+  display: "flex", flexDirection: "column", gap: "12px", maxHeight: "330px", overflowY: "auto", flexShrink: 0,
+};
+const profileFormHeading = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" };
+const profileFormTitle = { color: "var(--text-primary)", fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: 700 };
+const profileFormHelp = { color: "var(--text-muted)", fontFamily: "var(--font-body)", fontSize: "10px", lineHeight: 1.4, marginTop: "4px" };
+const profileFieldGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px" };
+const fieldLabel = { display: "flex", flexDirection: "column", gap: "5px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px" };
+const optionalLabel = { color: "var(--text-muted)", fontSize: "10px" };
+const profileField = {
+  width: "100%", background: "var(--bg-surface)", border: "1px solid rgba(168,185,211,0.38)", color: "var(--text-primary)",
+  padding: "9px 10px", fontFamily: "var(--font-body)", fontSize: "12px", lineHeight: 1.3,
+};
+const profileFormError = { color: "#ff8aa2", fontFamily: "var(--font-body)", fontSize: "11px", lineHeight: 1.4 };
+const profileFormActions = { display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px" };
+const notesCount = { marginRight: "auto", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "9px" };
+const profileCancelButton = {
+  background: "transparent", border: "1px solid rgba(168,185,211,0.42)", color: "var(--text-secondary)",
+  padding: "7px 10px", fontFamily: "var(--font-body)", fontSize: "11px", cursor: "pointer",
+};
+const profileSaveButton = {
+  background: "var(--accent-blue)", border: "1px solid var(--accent-blue)", color: "#020203",
+  padding: "7px 11px", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 700, cursor: "pointer",
+};
+const stageProgress = {
+  display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", flexShrink: 0,
+  background: "rgba(178,0,255,0.06)", borderBottom: "1px solid rgba(178,0,255,0.2)", overflowX: "auto",
+};
+const stageProgressLabel = { color: "#d38cff", fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap" };
+const stageSteps = { display: "flex", alignItems: "center", gap: "9px", minWidth: "max-content" };
+const stageStep = { display: "flex", alignItems: "center", gap: "4px", color: "var(--text-muted)", fontFamily: "var(--font-body)", fontSize: "9px" };
+const stageStepReached = { color: "var(--text-secondary)" };
+const stageDot = { width: "5px", height: "5px", background: "rgba(168,185,211,0.35)", flexShrink: 0 };
+const stageDotActive = { background: "var(--accent-blue)", boxShadow: "0 0 8px rgba(0,240,255,0.65)" };
+const stageAvailability = { marginLeft: "auto", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "9px", whiteSpace: "nowrap" };
 
 const debateSplash = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", gap: "16px", flex: 1 };
 const debateSplashIcon = { fontSize: "48px", opacity: 0.8 };

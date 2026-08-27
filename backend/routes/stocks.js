@@ -37,7 +37,7 @@ import {
   getCompanyModelType,
 } from "../services/dcf.js";
 import { evaluateAIValuation } from "../services/aiValuation.js";
-import { streamAdviserChat, getSessionHistory } from "../services/aiFinancialAdviser.js";
+import { streamAdviserChat, getSessionHistory, findOwnedSession } from "../services/aiFinancialAdviser.js";
 import { getFinancialResidualIncome } from "../services/financialResidualIncome.js";
 
 const router = express.Router();
@@ -68,6 +68,16 @@ const tickersBodySchema = z.object({
 const schwabQuotesSchema = z.object({
   symbols: z.array(z.string().min(1)).min(1, "symbols array required"),
   fields: z.any().optional(),
+});
+
+const adviserChatSchema = z.object({
+  message: z.string().trim().min(1, "message is required.").max(4000, "message is too long."),
+  sessionId: z.string().trim().min(1).max(100).nullable().optional().transform((value) => value || undefined),
+  forceDeep: z.boolean().optional().default(false),
+});
+
+const adviserSessionQuerySchema = z.object({
+  sessionId: z.string().trim().max(100).optional().transform((value) => value || undefined),
 });
 
 // ─── Rate limiters ────────────────────────────────────────────────────
@@ -579,9 +589,9 @@ router.get("/:ticker/ai-valuation", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/advisor-chat/sessions
-router.get("/:ticker/advisor-chat/sessions", async (req, res) => {
+router.get("/:ticker/advisor-chat/sessions", requireAuth, async (req, res) => {
   try {
-    const userId = req.user?.id || null;
+    const userId = req.user.id;
     const { getSessionsList } = await import("../services/aiFinancialAdviser.js");
     const sessions = await getSessionsList(userId, req.ticker);
     res.json({ success: true, data: sessions });
@@ -592,11 +602,15 @@ router.get("/:ticker/advisor-chat/sessions", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/advisor-chat/session
-router.get("/:ticker/advisor-chat/session", async (req, res) => {
+router.get("/:ticker/advisor-chat/session", requireAuth, validate(adviserSessionQuerySchema, "query"), async (req, res) => {
   try {
     const sessionId = req.query.sessionId;
-    const userId = req.user?.id || null;
-    
+    const userId = req.user.id;
+
+    if (sessionId && !(await findOwnedSession(sessionId, userId, req.ticker))) {
+      return res.status(404).json({ success: false, error: "Session not found." });
+    }
+
     const { sessionId: currentSessionId, messages } = await getSessionHistory(sessionId, userId, req.ticker);
     res.json({ success: true, data: { sessionId: currentSessionId, history: messages } });
   } catch (err) {
@@ -606,15 +620,27 @@ router.get("/:ticker/advisor-chat/session", async (req, res) => {
 });
 
 // POST /api/stocks/:ticker/advisor-chat
-router.post("/:ticker/advisor-chat", async (req, res) => {
+router.post("/:ticker/advisor-chat", requireAuth, validate(adviserChatSchema), async (req, res) => {
+  const { message, sessionId, forceDeep } = req.body;
+  const userId = req.user.id;
+
+  try {
+    if (sessionId && !(await findOwnedSession(sessionId, userId, req.ticker))) {
+      return res.status(404).json({ success: false, error: "Session not found." });
+    }
+    if (forceDeep && process.env.ADVISER_V2 !== "v2") {
+      return res.status(501).json({ success: false, error: "Deep adviser mode requires ADVISER_V2=v2." });
+    }
+  } catch (err) {
+    console.error(`[advisor-chat] session preflight error:`, err.message);
+    return res.status(500).json({ success: false, error: "Unable to validate adviser session." });
+  }
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
   try {
-    const { message, sessionId } = req.body;
-    const userId = req.user?.id || null;
-
     const [summary, financials, balanceSheet, priceHistory, optionChain, insiderData] = await Promise.all([
       yf.getSummary(req.ticker).catch(() => null),
       yf.getFinancials(req.ticker).catch(() => null),
@@ -631,13 +657,13 @@ router.post("/:ticker/advisor-chat", async (req, res) => {
       insiderData
     };
 
-    for await (const chunk of streamAdviserChat(sessionId, userId, req.ticker, message, quantData)) {
+    for await (const chunk of streamAdviserChat(sessionId, userId, req.ticker, message, quantData, forceDeep)) {
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       if (res.flush) res.flush();
     }
   } catch (err) {
     console.error(`[advisor-chat] error:`, err.message);
-    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "error", error: "Unable to complete adviser response.", message: "Unable to complete adviser response." })}\n\n`);
     if (res.flush) res.flush();
   } finally {
     res.write(`data: [DONE]\n\n`);
