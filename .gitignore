@@ -13,4 +13,5 @@ build/
 backend/.env
 backend/.schwab-token.json
 backend/certs/*.pem
+backend/prisma/dev.db
 .worktrees/
