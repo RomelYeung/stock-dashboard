@@ -114,7 +114,6 @@ function toISODateTime(entry) {
 export async function getNextEarningsDate(ticker) {
   const map = await loadCalendar();
   const entry = map.get(ticker.toUpperCase());
-  console.error(`[DBG ec ${ticker}] mapSize=${map.size} entry=${entry ? JSON.stringify(entry) : null}`);
   if (!entry) return null;
   return toISODateTime(entry);
 }

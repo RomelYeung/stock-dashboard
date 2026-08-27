@@ -25,23 +25,25 @@ const guruDataCache = new NodeCache({ stdTTL: CACHE_TTL_GURU_DATA, maxKeys: 500,
 
 let guruDataEpoch = 0;
 
-// Load persisted cache on startup
-loadCache(fundamentalsCache, priceCache);
+if (process.env.NODE_ENV !== "test") {
+  // Load persisted cache on startup.
+  void loadCache(fundamentalsCache, priceCache);
 
-// Persist cache on changes
-const persistInterval = setInterval(() => {
-  persistCache(fundamentalsCache, priceCache);
-}, CACHE_PERSIST_INTERVAL_MS);
+  // Persist cache on changes.
+  const persistInterval = setInterval(() => {
+    void persistCache(fundamentalsCache, priceCache);
+  }, CACHE_PERSIST_INTERVAL_MS);
 
-async function gracefulShutdown(signal) {
-  clearInterval(persistInterval);
-  await persistCache(fundamentalsCache, priceCache);
-  console.log(`Cache persisted on ${signal}`);
-  process.exit(0);
+  async function gracefulShutdown(signal) {
+    clearInterval(persistInterval);
+    await persistCache(fundamentalsCache, priceCache);
+    console.log(`Cache persisted on ${signal}`);
+    process.exit(0);
+  }
+
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 }
-
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 export const getFundamentals = (key) => fundamentalsCache.get(key);
 export const setFundamentals = (key, value) => fundamentalsCache.set(key, value);

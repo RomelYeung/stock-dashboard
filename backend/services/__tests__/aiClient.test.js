@@ -12,6 +12,8 @@ describe("aiClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...originalEnv };
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   });
 
   afterAll(() => {

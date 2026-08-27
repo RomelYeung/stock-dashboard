@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.stockdashboard.backend</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>__PROJECT_ROOT__/backend/node_modules/nodemon/bin/nodemon.js</string>
+    <string>--exitcrash</string>
+    <string>__PROJECT_ROOT__/backend/server.js</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_ROOT__/backend</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>ExitTimeOut</key>
+  <integer>30</integer>
+  <key>ProcessType</key>
+  <string>Standard</string>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/stock-dashboard/backend.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/stock-dashboard/backend.err.log</string>
+  <key>Umask</key>
+  <integer>23</integer>
+</dict>
+</plist>

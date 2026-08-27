@@ -7,6 +7,9 @@ import {
   buildAuthURL,
   exchangeCodeForToken,
   saveTokens,
+  parseAuthCode,
+  getLastVerifier,
+  setLastVerifier,
   CALLBACK_URL,
 } from "./schwab-auth.js";
 
@@ -45,12 +48,56 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-/** @type {{ authUrl: string, promise: Promise<object> } | null} */
+/** @type {{ authUrl: string, promise: Promise<object>, server?: import("node:https").Server, settle?: Function, resolve?: Function, reject?: Function } | null} */
 let activeFlow = null;
 
 /**
+ * Reset any active authentication flow and shut down the callback server.
+ */
+export function resetAuthFlow() {
+  if (activeFlow) {
+    if (typeof activeFlow.settle === "function") {
+      activeFlow.settle();
+    } else if (activeFlow.server) {
+      try {
+        activeFlow.server.close(() => {});
+      } catch {
+        // ignore close error
+      }
+    }
+    activeFlow = null;
+  }
+}
+
+/**
+ * Manually exchange an authorization code or callback URL for tokens.
+ * @param {string} codeOrUrl - Raw code or full callback URL
+ * @returns {Promise<object>} Token response
+ */
+export async function exchangeManualCode(codeOrUrl) {
+  const code = parseAuthCode(codeOrUrl);
+  if (!code) {
+    throw new Error("No authorization code provided");
+  }
+
+  const verifier = getLastVerifier();
+  if (!verifier) {
+    throw new Error("No active PKCE verifier found. Start an auth flow first.");
+  }
+
+  const tokens = await exchangeCodeForToken(code, verifier);
+  await saveTokens(tokens);
+
+  if (activeFlow && typeof activeFlow.resolve === "function") {
+    activeFlow.resolve(tokens);
+  }
+
+  return tokens;
+}
+
+/**
  * Start the Schwab OAuth2 authorization flow:
- * generates PKCE, builds the auth URL, starts an HTTPS callback server on port 3000,
+ * generates PKCE, sets active verifier, builds the auth URL, starts an HTTPS callback server,
  * and returns { authUrl, promise } where promise resolves to the tokens object.
  *
  * If a flow is already in progress, returns the existing one.
@@ -73,6 +120,7 @@ export function startAuthFlow() {
   }
 
   const { verifier, challenge } = generatePKCE();
+  setLastVerifier(verifier);
   const authUrl = buildAuthURL(challenge);
 
   const server = https.createServer({
@@ -80,21 +128,34 @@ export function startAuthFlow() {
     cert: fs.readFileSync(certPath),
   });
 
-  const promise = new Promise((resolve, reject) => {
-    let settled = false;
+  let timeoutId = null;
+  let settled = false;
+  let flowResolve = null;
+  let flowReject = null;
 
-    function settle() {
-      if (settled) return;
-      settled = true;
+  function settle() {
+    if (settled) return;
+    settled = true;
+    if (timeoutId) {
       clearTimeout(timeoutId);
-      // Clear activeFlow immediately so retries can start a fresh flow
-      activeFlow = null;
-      server.close(() => {
-        // Server fully closed; nothing else needed here.
-      });
+      timeoutId = null;
     }
+    // Clear activeFlow immediately so retries can start a fresh flow
+    activeFlow = null;
+    try {
+      server.close(() => {
+        // Server fully closed
+      });
+    } catch {
+      // ignore
+    }
+  }
 
-    const timeoutId = setTimeout(() => {
+  const promise = new Promise((resolve, reject) => {
+    flowResolve = resolve;
+    flowReject = reject;
+
+    timeoutId = setTimeout(() => {
       settle();
       reject(new Error("Authorization timed out after 5 minutes"));
     }, TIMEOUT_MS);
@@ -130,8 +191,9 @@ export function startAuthFlow() {
       res.end(`<h1>Authorization Successful!</h1><p>You can close this window now.</p>`);
 
       try {
-        const tokens = await exchangeCodeForToken(authCode, verifier);
-        saveTokens(tokens);
+        const parsedCode = parseAuthCode(authCode);
+        const tokens = await exchangeCodeForToken(parsedCode, verifier);
+        await saveTokens(tokens);
         settle();
         resolve(tokens);
       } catch (err) {
@@ -152,6 +214,20 @@ export function startAuthFlow() {
     });
   });
 
-  activeFlow = { authUrl, promise };
+  activeFlow = {
+    authUrl,
+    promise,
+    server,
+    settle,
+    resolve: (tokens) => {
+      settle();
+      if (flowResolve) flowResolve(tokens);
+    },
+    reject: (err) => {
+      settle();
+      if (flowReject) flowReject(err);
+    },
+  };
+
   return activeFlow;
 }

@@ -14,7 +14,7 @@ import * as newsService from "../services/newsService.js";
 import * as secGuidance from "../services/secGuidance.js";
 import { getQuotes, getPriceHistory, getOptionChain, getMovers } from "../services/schwab-client.js";
 import { getTokenHealth } from "../services/schwab-auth.js";
-import { startAuthFlow } from "../services/schwab-callback-server.js";
+import { startAuthFlow, exchangeManualCode, resetAuthFlow } from "../services/schwab-callback-server.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import NodeCache from "node-cache";
@@ -26,10 +26,19 @@ import {
   TICKER_REGEX,
   RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_DCF_MAX,
+  CACHE_TTL_INSIDER_EMPTY,
 } from "../constants.js";
-import { calculateWACC, projectFCF, monteCarlo, aggregateDCFInputs } from "../services/dcf.js";
+import {
+  DEFAULT_RISK_FREE_RATE,
+  projectValuation,
+  monteCarlo,
+  buildSensitivity,
+  aggregateDCFInputs,
+  getCompanyModelType,
+} from "../services/dcf.js";
 import { evaluateAIValuation } from "../services/aiValuation.js";
-import { streamAdviserChat, getSessionHistory } from "../services/aiFinancialAdviser.js";
+import { streamAdviserChat, getSessionHistory, findOwnedSession } from "../services/aiFinancialAdviser.js";
+import { getFinancialResidualIncome } from "../services/financialResidualIncome.js";
 
 const router = express.Router();
 const MAX_BATCH_TICKERS = MAX_PORTFOLIO_TICKERS + MAX_WISHLIST_TICKERS;
@@ -61,6 +70,16 @@ const schwabQuotesSchema = z.object({
   fields: z.any().optional(),
 });
 
+const adviserChatSchema = z.object({
+  message: z.string().trim().min(1, "message is required.").max(4000, "message is too long."),
+  sessionId: z.string().trim().min(1).max(100).nullable().optional().transform((value) => value || undefined),
+  forceDeep: z.boolean().optional().default(false),
+});
+
+const adviserSessionQuerySchema = z.object({
+  sessionId: z.string().trim().max(100).optional().transform((value) => value || undefined),
+});
+
 // ─── Rate limiters ────────────────────────────────────────────────────
 
 const dcfRateLimiter = rateLimit({
@@ -72,6 +91,12 @@ const dcfRateLimiter = rateLimit({
     res.status(429).json({ success: false, error: "DCF rate limit reached. Max 5 requests per minute." });
   },
 });
+
+function normalizeTreasuryYield(value) {
+  const percentagePoints = Number(value);
+  if (!Number.isFinite(percentagePoints) || percentagePoints < 0 || percentagePoints > 20) return null;
+  return percentagePoints / 100;
+}
 
 // ETFs for sector tracking (GICS + Thematic)
 const sectorEtfs = [
@@ -155,7 +180,12 @@ router.get("/search", validate(searchQuerySchema, "query"), async (req, res) => 
 // Returns price, valuation metrics (P/E, P/B, EV/EBITDA), 52wk range
 router.get("/:ticker/summary", async (req, res) => {
   try {
-    const data = await yf.getSummary(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getFundamentals,
+      cache.setFundamentals,
+      `fundamentals-${req.ticker}`,
+      () => yf.getSummary(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[summary] ${req.ticker}:`, err.message);
@@ -167,7 +197,12 @@ router.get("/:ticker/summary", async (req, res) => {
 // Returns margins, ROE, revenue, EPS, growth rates, annual income history
 router.get("/:ticker/financials", async (req, res) => {
   try {
-    const data = await yf.getFinancials(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getFundamentals,
+      cache.setFundamentals,
+      `financials_v3:${req.ticker}`,
+      () => yf.getFinancials(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[financials] ${req.ticker}:`, err.message);
@@ -179,7 +214,12 @@ router.get("/:ticker/financials", async (req, res) => {
 // Returns debt, cash, current ratio, FCF, annual balance sheet history
 router.get("/:ticker/balance-sheet", async (req, res) => {
   try {
-    const data = await yf.getBalanceSheet(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getFundamentals,
+      cache.setFundamentals,
+      `balance_v2:${req.ticker}`,
+      () => yf.getBalanceSheet(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[balance-sheet] ${req.ticker}:`, err.message);
@@ -192,7 +232,12 @@ router.get("/:ticker/balance-sheet", async (req, res) => {
 router.get("/:ticker/price-history", validate(priceHistoryQuerySchema, "query"), async (req, res) => {
   const { period } = req.query;
   try {
-    const data = await yf.getPriceHistory(req.ticker, period);
+    const data = await cache.getOrFetch(
+      cache.getPrice,
+      cache.setPrice,
+      `priceHistory:${req.ticker}:${period}`,
+      () => yf.getPriceHistory(req.ticker, period)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[price-history] ${req.ticker}:`, err.message);
@@ -205,9 +250,24 @@ router.get("/:ticker/price-history", validate(priceHistoryQuerySchema, "query"),
 router.get("/:ticker/all", async (req, res) => {
   try {
     const [summary, financials, balanceSheet] = await Promise.all([
-      yf.getSummary(req.ticker),
-      yf.getFinancials(req.ticker),
-      yf.getBalanceSheet(req.ticker),
+      cache.getOrFetch(
+        cache.getFundamentals,
+        cache.setFundamentals,
+        `fundamentals-${req.ticker}`,
+        () => yf.getSummary(req.ticker)
+      ),
+      cache.getOrFetch(
+        cache.getFundamentals,
+        cache.setFundamentals,
+        `financials_v3:${req.ticker}`,
+        () => yf.getFinancials(req.ticker)
+      ),
+      cache.getOrFetch(
+        cache.getFundamentals,
+        cache.setFundamentals,
+        `balance_v2:${req.ticker}`,
+        () => yf.getBalanceSheet(req.ticker)
+      ),
     ]);
     res.json({ success: true, data: { summary, financials, balanceSheet } });
   } catch (err) {
@@ -232,7 +292,12 @@ router.get("/:ticker/insider-trading", async (req, res) => {
 // Returns sector peer comparison with valuation, growth, profitability, health metrics + sparklines
 router.get("/:ticker/comparables", async (req, res) => {
   try {
-    const data = await comparables.getComparables(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getComparables,
+      cache.setComparables,
+      `comparables:${req.ticker}`,
+      () => comparables.getComparables(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[comparables] ${req.ticker}:`, err.message);
@@ -244,7 +309,12 @@ router.get("/:ticker/comparables", async (req, res) => {
 // Returns earnings surprises, estimates, peer comparisons (No AI)
 router.get("/:ticker/earnings", async (req, res) => {
   try {
-    const data = await earnings.getEarningsInsights(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getComparables,
+      cache.setComparables,
+      `earnings-insights:${req.ticker}`,
+      () => earnings.getEarningsInsights(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[earnings] ${req.ticker}:`, err.message);
@@ -256,7 +326,12 @@ router.get("/:ticker/earnings", async (req, res) => {
 // Returns deep forensic AI sentiment analysis
 router.get("/:ticker/earnings-sentiment", async (req, res) => {
   try {
-    const data = await earnings.getEarningsSentiment(req.ticker);
+    const data = await cache.getOrFetch(
+      cache.getComparables,
+      cache.setComparables,
+      `earnings-sentiment:${req.ticker}`,
+      () => earnings.getEarningsSentiment(req.ticker)
+    );
     res.json({ success: true, data });
   } catch (err) {
     console.error(`[earnings-sentiment] ${req.ticker}:`, err.message);
@@ -314,9 +389,37 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
     const annualIncome = financials?.annualIncome || [];
     const annualCashFlow = balanceSheet?.annualCashFlow || [];
 
-    const params = aggregateDCFInputs(summary, financials, balanceSheet, annualIncome, annualCashFlow);
-
-    if (!params.fcf || params.fcf <= 0) {
+    // Financial companies use the SEC-backed residual-income adapter; never run FCFF for them.
+    if (getCompanyModelType(summary) !== "corporate-fcff") {
+      let treasury;
+      try {
+        treasury = await fred.getTreasuryYield("1mo");
+      } catch (error) {
+        console.error(`[dcf] FRED unavailable for financial ${req.ticker}:`, error.message);
+        throw new Error(`FRED unavailable: ${error.message}`);
+      }
+      const riskFreeRate = normalizeTreasuryYield(treasury?.currentValue);
+      const beta = Number(summary?.beta);
+      const rim = await getFinancialResidualIncome(req.ticker, {
+        summary,
+        riskFreeRate,
+        beta,
+        valuationAsOf: new Date().toISOString(),
+      });
+      const params = {
+        modelType: "financial-residual-income",
+        eligible: rim.eligible === true,
+        status: rim.status || (rim.eligible ? "valued" : "unvalued"),
+        cohort: "bank-insurer",
+        financialSubtype: rim.financialSubtype || null,
+        reasonCodes: rim.reasonCodes || [],
+        cohortReasons: rim.reasonCodes || [],
+        riskFreeRate,
+        riskFreeRateSource: riskFreeRate == null ? null : "fred:DGS10",
+        beta: Number.isFinite(beta) ? beta : null,
+        costOfEquity: rim.costOfEquity?.value ?? null,
+        diagnostics: rim.reasonCodes || [],
+      };
       return res.json({
         success: true,
         data: {
@@ -324,38 +427,69 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
           params,
           dcf: null,
           monteCarlo: null,
-          warning: "DCF analysis unavailable — company has zero or negative free cash flow.",
+          sensitivity: null,
+          rim,
+          warning: params.diagnostics?.[0] || null,
         },
       });
     }
 
-    if (params.wacc <= params.terminalGrowth) {
-      return res.json({
-        success: true,
-        data: {
-          ticker: req.ticker,
-          params,
-          dcf: null,
-          monteCarlo: null,
-          warning: "DCF analysis unavailable — WACC is less than or equal to terminal growth rate.",
-        },
-      });
-    }
-
-    const dcf = projectFCF(
-      params.fcf, params.projectionGrowth, params.terminalGrowth,
-      params.wacc, params.cash, params.debt, params.sharesOutstanding, params.projectionYears
+    const treasury = await fred.getTreasuryYield("1mo").catch((error) => {
+      console.warn(`[dcf] Treasury yield unavailable for ${req.ticker}:`, error.message);
+      return null;
+    });
+    const liveRiskFreeRate = normalizeTreasuryYield(treasury?.currentValue);
+    const riskFreeRate = liveRiskFreeRate ?? DEFAULT_RISK_FREE_RATE;
+    const riskFreeRateSource = liveRiskFreeRate == null ? "fallback-static" : "fred:DGS10";
+    const params = aggregateDCFInputs(
+      summary,
+      financials,
+      balanceSheet,
+      annualIncome,
+      annualCashFlow,
+      { riskFreeRate, riskFreeRateSource },
     );
+
+    if (!params.eligible) {
+      return res.json({
+        success: true,
+        data: {
+          ticker: req.ticker,
+          params,
+          dcf: null,
+          monteCarlo: null,
+          sensitivity: null,
+          warning: params.cohortReasons?.join(", ") || "DCF analysis unavailable — inputs are not eligible.",
+        },
+      });
+    }
+
+    const dcf = projectValuation(params);
 
     const currentPrice = summary?.currentPrice || 0;
     const upsidePercent = currentPrice > 0
       ? ((dcf.fairValue - currentPrice) / currentPrice) * 100
       : null;
 
-    const mc = monteCarlo(
-      params.fcf, params.projectionGrowth, params.wacc,
-      params.cash, params.debt, params.sharesOutstanding, simulations, params.terminalGrowth, params.projectionYears
-    );
+    const mc = params.projectionMethod === "driver-fcff"
+      ? monteCarlo(params, simulations)
+      : monteCarlo(params.fcf, params.projectionGrowth, params.wacc, params.cash, params.debt, params.sharesOutstanding, simulations, params.terminalGrowth, params.projectionYears);
+    const terminalValueShare = dcf.enterpriseValue > 0
+      ? dcf.pvTerminalValue / dcf.enterpriseValue
+      : null;
+    const diagnostics = [...(params.diagnostics || [])];
+    if (terminalValueShare != null && terminalValueShare > 0.75) {
+      diagnostics.push("terminal-value-concentration");
+    }
+    const sensitivity = params.projectionMethod === "driver-fcff"
+      ? buildSensitivity(params)
+      : buildSensitivity(params.fcf, params.projectionGrowth, params.wacc, params.terminalGrowth, params.cash, params.debt, params.sharesOutstanding, params.projectionYears);
+    const serializedSensitivity = {
+      ...sensitivity,
+      values: sensitivity.values.map((row) => row.map((value) =>
+        value == null ? null : Math.round(value * 100) / 100
+      )),
+    };
 
     res.json({
       success: true,
@@ -363,19 +497,34 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
         ticker: req.ticker,
         params: {
           fcf: params.fcf,
+          modelType: params.modelType,
+          eligible: params.eligible,
+          cohort: params.cohort,
+          cohortReasons: params.cohortReasons,
+          cashFlowType: params.cashFlowType,
+          cashFlowSource: params.cashFlowSource,
           revenueGrowth: params.revenueGrowth,
           historicalFCFGrowth: params.historicalFCFGrowth,
           projectionGrowth: params.projectionGrowth,
           projectionYears: params.projectionYears,
+          projectionMethod: params.projectionMethod,
+          drivers: params.drivers,
           wacc: Math.round(params.wacc * 10000) / 10000,
           terminalGrowth: params.terminalGrowth,
+          terminalGrowthSource: params.terminalGrowthSource,
           sharesOutstanding: params.sharesOutstanding,
           cash: params.cash,
           debt: params.debt,
           beta: params.beta,
           rf: params.rf,
+          riskFreeRate: params.riskFreeRate,
+          riskFreeRateSource: params.riskFreeRateSource,
           erp: params.erp,
+          marketRiskPremium: params.marketRiskPremium,
+          marketRiskPremiumSource: params.marketRiskPremiumSource,
           sector: params.sector,
+          industry: params.industry,
+          diagnostics,
           sectorWacc: params.sectorWacc != null ? Math.round(params.sectorWacc * 10000) / 10000 : null,
           sizePremium: params.sizePremium != null ? Math.round(params.sizePremium * 10000) / 10000 : null,
         },
@@ -384,14 +533,23 @@ router.get("/:ticker/dcf", dcfRateLimiter, validate(dcfQuerySchema, "query"), as
           upsidePercent: upsidePercent != null ? Math.round(upsidePercent * 100) / 100 : null,
           projectedFCFs: dcf.projectedFCFs.map(f => Math.round(f)),
           terminalValue: Math.round(dcf.terminalValue),
+          pvExplicitCashFlows: Math.round(dcf.pvExplicitCashFlows),
+          pvTerminalValue: Math.round(dcf.pvTerminalValue),
+          terminalValueShare: terminalValueShare == null
+            ? null
+            : Math.round(terminalValueShare * 10000) / 10000,
         },
         monteCarlo: {
-          iterations: simulations,
-          bear: Math.round(mc.bear * 100) / 100,
-          base: Math.round(mc.base * 100) / 100,
-          bull: Math.round(mc.bull * 100) / 100,
+          requestedIterations: mc.requestedIterations,
+          iterations: mc.iterations,
+          bear: mc.bear == null ? null : Math.round(mc.bear * 100) / 100,
+          base: mc.base == null ? null : Math.round(mc.base * 100) / 100,
+          bull: mc.bull == null ? null : Math.round(mc.bull * 100) / 100,
           histogram: mc.histogram.map(b => ({ bin: Math.round(b.bin * 100) / 100, count: b.count })),
+          ...(mc.warning ? { warning: mc.warning } : {}),
         },
+        sensitivity: serializedSensitivity,
+        rim: null,
       },
     });
   } catch (err) {
@@ -431,9 +589,9 @@ router.get("/:ticker/ai-valuation", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/advisor-chat/sessions
-router.get("/:ticker/advisor-chat/sessions", async (req, res) => {
+router.get("/:ticker/advisor-chat/sessions", requireAuth, async (req, res) => {
   try {
-    const userId = req.user?.id || null;
+    const userId = req.user.id;
     const { getSessionsList } = await import("../services/aiFinancialAdviser.js");
     const sessions = await getSessionsList(userId, req.ticker);
     res.json({ success: true, data: sessions });
@@ -444,11 +602,15 @@ router.get("/:ticker/advisor-chat/sessions", async (req, res) => {
 });
 
 // GET /api/stocks/:ticker/advisor-chat/session
-router.get("/:ticker/advisor-chat/session", async (req, res) => {
+router.get("/:ticker/advisor-chat/session", requireAuth, validate(adviserSessionQuerySchema, "query"), async (req, res) => {
   try {
     const sessionId = req.query.sessionId;
-    const userId = req.user?.id || null;
-    
+    const userId = req.user.id;
+
+    if (sessionId && !(await findOwnedSession(sessionId, userId, req.ticker))) {
+      return res.status(404).json({ success: false, error: "Session not found." });
+    }
+
     const { sessionId: currentSessionId, messages } = await getSessionHistory(sessionId, userId, req.ticker);
     res.json({ success: true, data: { sessionId: currentSessionId, history: messages } });
   } catch (err) {
@@ -458,15 +620,27 @@ router.get("/:ticker/advisor-chat/session", async (req, res) => {
 });
 
 // POST /api/stocks/:ticker/advisor-chat
-router.post("/:ticker/advisor-chat", async (req, res) => {
+router.post("/:ticker/advisor-chat", requireAuth, validate(adviserChatSchema), async (req, res) => {
+  const { message, sessionId, forceDeep } = req.body;
+  const userId = req.user.id;
+
+  try {
+    if (sessionId && !(await findOwnedSession(sessionId, userId, req.ticker))) {
+      return res.status(404).json({ success: false, error: "Session not found." });
+    }
+    if (forceDeep && process.env.ADVISER_V2 !== "v2") {
+      return res.status(501).json({ success: false, error: "Deep adviser mode requires ADVISER_V2=v2." });
+    }
+  } catch (err) {
+    console.error(`[advisor-chat] session preflight error:`, err.message);
+    return res.status(500).json({ success: false, error: "Unable to validate adviser session." });
+  }
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
   try {
-    const { message, sessionId } = req.body;
-    const userId = req.user?.id || null;
-
     const [summary, financials, balanceSheet, priceHistory, optionChain, insiderData] = await Promise.all([
       yf.getSummary(req.ticker).catch(() => null),
       yf.getFinancials(req.ticker).catch(() => null),
@@ -483,13 +657,13 @@ router.post("/:ticker/advisor-chat", async (req, res) => {
       insiderData
     };
 
-    for await (const chunk of streamAdviserChat(sessionId, userId, req.ticker, message, quantData)) {
+    for await (const chunk of streamAdviserChat(sessionId, userId, req.ticker, message, quantData, forceDeep)) {
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       if (res.flush) res.flush();
     }
   } catch (err) {
     console.error(`[advisor-chat] error:`, err.message);
-    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "error", error: "Unable to complete adviser response.", message: "Unable to complete adviser response." })}\n\n`);
     if (res.flush) res.flush();
   } finally {
     res.write(`data: [DONE]\n\n`);
@@ -870,6 +1044,23 @@ router.get("/schwab/auth", async (req, res) => {
     res.json({ authUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/schwab/exchange — manual callback URL or authorization code exchange
+router.post("/schwab/exchange", async (req, res) => {
+  try {
+    const { url, code } = req.body || {};
+    const input = code || url;
+    if (!input || typeof input !== "string") {
+      return res.status(400).json({ error: "Missing 'url' or 'code' parameter in request body" });
+    }
+    const tokens = await exchangeManualCode(input.trim());
+    const health = await getTokenHealth();
+    res.json({ success: true, message: "Schwab authorization successful", health });
+  } catch (e) {
+    console.error("[schwab/exchange] Exchange failed:", e.message);
+    res.status(400).json({ error: e.message });
   }
 });
 

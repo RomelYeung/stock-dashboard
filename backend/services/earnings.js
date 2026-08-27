@@ -85,7 +85,7 @@ Format your response exactly as JSON. Do NOT use double quotes inside the summar
 }
 
 export async function getEarningsInsights(ticker) {
-  const cacheKey = `earnings-insights:${ticker}`;
+  const cacheKey = `earnings-insights-v2:${ticker}`;
   const cached = cache.getComparables(cacheKey); // Reuse comparables cache TTL
   if (cached) return cached;
 
@@ -108,6 +108,7 @@ export async function getEarningsInsights(ticker) {
       epsSurprises,
       estimates,
       annualIncome: financials.annualIncome || [],
+      quarterlyIncome: financials.quarterlyIncome || [],
       peers: comparablesData?.peers || [],
       earningsDate: summary?.earningsDate || null,
       recommendationTrend: financials.recommendationTrend || [],

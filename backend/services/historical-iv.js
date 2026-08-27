@@ -1,5 +1,6 @@
 import prisma from "./db.js";
 import { getOptionChainParsed } from "./schwab-client.js";
+import { getNYTradingDate } from "./trading-calendar.js";
 
 /**
  * Find ATM IV — IV of the option whose strike is closest to the underlying price.
@@ -26,9 +27,10 @@ function getAtmIV(options, underlyingPrice) {
 /**
  * Fetch today's ATM IV for a ticker and upsert it into the HistoricalIV table.
  * @param {string} ticker
+ * @param {string} [tradingDate=null] - Optional YYYY-MM-DD trading date to force backfill.
  * @returns {Promise<{ ticker: string, iv: number } | null>}
  */
-export async function ingestHistoricalIV(ticker) {
+export async function ingestHistoricalIV(ticker, tradingDate = null) {
   let chain;
   try {
     chain = await getOptionChainParsed(ticker, { strikeCount: 10 });
@@ -42,13 +44,14 @@ export async function ingestHistoricalIV(ticker) {
   const atmIV = getAtmIV(allOptions, chain.underlyingPrice);
   if (atmIV == null) return null;
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const date = tradingDate
+    ? new Date(tradingDate + "T00:00:00Z")
+    : getNYTradingDate();
 
   await prisma.historicalIV.upsert({
-    where: { ticker_date: { ticker, date: today } },
+    where: { ticker_date: { ticker, date } },
     update: { iv: atmIV },
-    create: { ticker, date: today, iv: atmIV },
+    create: { ticker, date, iv: atmIV },
   });
 
   return { ticker, iv: atmIV };

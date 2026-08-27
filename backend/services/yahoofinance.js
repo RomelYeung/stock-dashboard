@@ -166,6 +166,7 @@ async function getSummary(ticker) {
     pegRatio: defaultKeyStatistics.pegRatio,
     netAssets: defaultKeyStatistics?.totalAssets,
     beta: defaultKeyStatistics?.beta,
+    sharesOutstanding: defaultKeyStatistics?.sharesOutstanding ?? price?.sharesOutstanding ?? null,
 
     // Range
     fiftyTwoWeekLow: summaryDetail.fiftyTwoWeekLow,
@@ -196,7 +197,7 @@ async function getSummary(ticker) {
  * Covers: gross/net/operating margins, ROE, ROA, revenue, EPS (TTM + historical)
  */
 async function getFinancials(ticker) {
-  const cacheKey = `financials_v2:${ticker}`;
+  const cacheKey = `financials_v3:${ticker}`;
   const cached = cache.getFundamentals(cacheKey);
   if (cached) return cached;
 
@@ -218,30 +219,42 @@ async function getFinancials(ticker) {
     upgradeDowngradeHistory = {}
   } = result || {};
 
-  // Annual income statements — last 4 years using fundamentalsTimeSeries
+  // Income statements (annual & quarterly) — last 5 years using fundamentalsTimeSeries
   const periodStart = new Date();
   periodStart.setFullYear(periodStart.getFullYear() - 5);
   periodStart.setMonth(0, 1);
-  const incomeSeries = await yahooFinance.fundamentalsTimeSeries(ticker, {
-    period1: periodStart.toISOString().split("T")[0],
-    type: "annual",
-    module: "financials",
-  }, { validateResult: false }).catch(() => []);
+  const [incomeSeries, quarterlyIncomeSeries] = await Promise.all([
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: periodStart.toISOString().split("T")[0],
+      type: "annual",
+      module: "financials",
+    }, { validateResult: false }).catch(() => []),
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: periodStart.toISOString().split("T")[0],
+      type: "quarterly",
+      module: "financials",
+    }, { validateResult: false }).catch(() => []),
+  ]);
 
-  const annualIncome = (incomeSeries || []).map((s) => ({
+  const mapIncomeItem = (s) => ({
     date: s.date,
     totalRevenue: s.totalRevenue || 0,
     grossProfit: s.grossProfit || 0,
-    operatingIncome: s.operatingIncome || s.operatingExpense || 0,
+    // Never substitute operating expense for operating income: that reverses
+    // the sign and corrupts driver-based margin/reinvestment projections.
+    operatingIncome: s.operatingIncome ?? s.EBIT ?? null,
     netIncome: s.netIncome || 0,
     eps: s.dilutedEPS || s.basicEPS || null,
     interestExpense: s.interestExpense || null,
     incomeTaxExpense: s.taxProvision || null,
     ebt: s.pretaxIncome || null,
-    ebit: s.EBIT || s.operatingIncome || null,
+    ebit: s.EBIT ?? s.operatingIncome ?? null,
     grossMargin: s.grossProfit && s.totalRevenue ? s.grossProfit / s.totalRevenue : null,
     netMargin: s.netIncome && s.totalRevenue ? s.netIncome / s.totalRevenue : null,
-  }));
+  });
+
+  const annualIncome = (incomeSeries || []).map(mapIncomeItem);
+  const quarterlyIncome = (quarterlyIncomeSeries || []).map(mapIncomeItem);
 
   // EPS surprises — last 4 quarters
   const epsSurprises = (earningsHistory?.history || []).map((q) => ({
@@ -276,8 +289,9 @@ async function getFinancials(ticker) {
     revenuePerShare: financialData.revenuePerShare,
     earningsPerShare: financialData.earningsPerShare || null,
 
-    // Historical annual data for charts
+    // Historical annual and quarterly data for charts
     annualIncome,
+    quarterlyIncome,
 
     // EPS beat/miss history
     epsSurprises,
@@ -325,7 +339,7 @@ async function getFinancials(ticker) {
  * Covers: total debt, cash, D/E ratio, current ratio, free cash flow
  */
 async function getBalanceSheet(ticker) {
-  const cacheKey = `balance:${ticker}`;
+  const cacheKey = `balance_v2:${ticker}`;
   const cached = cache.getFundamentals(cacheKey);
   if (cached) return cached;
 
@@ -356,25 +370,38 @@ async function getBalanceSheet(ticker) {
         : null,
   }));
 
-  // Annual cash flows — last 4 years using fundamentalsTimeSeries
+  // Cash flows (annual & quarterly) — last 5 years using fundamentalsTimeSeries
   const periodStart = new Date();
   periodStart.setFullYear(periodStart.getFullYear() - 5);
   periodStart.setMonth(0, 1);
-  const cashflowSeries = await yahooFinance.fundamentalsTimeSeries(ticker, {
-    period1: periodStart.toISOString().split("T")[0],
-    type: "annual",
-    module: "cash-flow",
-  }, { validateResult: false });
+  const [cashflowSeries, quarterlyCashflowSeries] = await Promise.all([
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: periodStart.toISOString().split("T")[0],
+      type: "annual",
+      module: "cash-flow",
+    }, { validateResult: false }).catch(() => []),
+    yahooFinance.fundamentalsTimeSeries(ticker, {
+      period1: periodStart.toISOString().split("T")[0],
+      type: "quarterly",
+      module: "cash-flow",
+    }, { validateResult: false }).catch(() => []),
+  ]);
+
+  const mapCashFlowItem = (s) => ({
+    date: s.date,
+    operatingCashFlow:
+      s.operatingCashFlow ?? s.cashFlowFromContinuingOperatingActivities ?? null,
+    capitalExpenditures: s.capitalExpenditure ?? s.purchaseOfPPE ?? null,
+    freeCashFlow: s.freeCashFlow ?? null,
+  });
 
   const annualCashFlow = (cashflowSeries || [])
     .filter((s) => s.operatingCashFlow != null || s.freeCashFlow != null || s.cashFlowFromContinuingOperatingActivities != null)
-    .map((s) => ({
-      date: s.date,
-      operatingCashFlow:
-        s.operatingCashFlow ?? s.cashFlowFromContinuingOperatingActivities ?? null,
-      capitalExpenditures: s.capitalExpenditure ?? s.purchaseOfPPE ?? null,
-      freeCashFlow: s.freeCashFlow ?? null,
-    }));
+    .map(mapCashFlowItem);
+
+  const quarterlyCashFlow = (quarterlyCashflowSeries || [])
+    .filter((s) => s.operatingCashFlow != null || s.freeCashFlow != null || s.cashFlowFromContinuingOperatingActivities != null)
+    .map(mapCashFlowItem);
 
   const data = {
     ticker: ticker.toUpperCase(),
@@ -391,6 +418,7 @@ async function getBalanceSheet(ticker) {
     // Historical for charts
     annualBalanceSheet,
     annualCashFlow,
+    quarterlyCashFlow,
   };
 
   cache.setFundamentals(cacheKey, data);

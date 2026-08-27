@@ -8,6 +8,7 @@ const mockCronSchedule = jest.fn();
 const mockPortfolioItemFindMany = jest.fn();
 const mockWishListItemFindMany = jest.fn();
 const mockHistoricalIVCount = jest.fn();
+const mockHistoricalIVFindFirst = jest.fn();
 
 jest.unstable_mockModule("../../services/historical-iv.js", () => ({
   ingestHistoricalIV: mockIngestHistoricalIV,
@@ -28,8 +29,19 @@ jest.unstable_mockModule("../../services/db.js", () => ({
     },
     historicalIV: {
       count: mockHistoricalIVCount,
+      findFirst: mockHistoricalIVFindFirst,
     },
   },
+}));
+
+const mockIsTradingDay = jest.fn(() => true);
+const mockGetNYTradingDateStr = jest.fn(() => "2026-07-31");
+const mockGetMissedTradingDays = jest.fn(() => []);
+
+jest.unstable_mockModule("../../services/trading-calendar.js", () => ({
+  isTradingDay: mockIsTradingDay,
+  getNYTradingDateStr: mockGetNYTradingDateStr,
+  getMissedTradingDays: mockGetMissedTradingDays,
 }));
 
 // ─── Import after mocks ─────────────────────────────────────────────────
@@ -39,7 +51,8 @@ const {
   startCronJob,
   DEFAULT_TICKERS,
   getActiveTickers,
-  runStartupCheck,
+  runBackfill,
+  runIngestionWithRetry,
 } = await import("../historical-iv-worker.js");
 
 // ─── Tests ────────────────────────────────────────────────────────────────
@@ -51,6 +64,10 @@ describe("historical-iv-worker", () => {
     mockPortfolioItemFindMany.mockResolvedValue([]);
     mockWishListItemFindMany.mockResolvedValue([]);
     mockHistoricalIVCount.mockResolvedValue(0);
+    mockHistoricalIVFindFirst.mockResolvedValue(null);
+    mockIsTradingDay.mockReturnValue(true);
+    mockGetNYTradingDateStr.mockReturnValue("2026-07-31");
+    mockGetMissedTradingDays.mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -109,21 +126,32 @@ describe("historical-iv-worker", () => {
   // ─── ingestAllTickers ────────────────────────────────────────────────
 
   describe("ingestAllTickers", () => {
-    test("calls ingestHistoricalIV once per active ticker and returns results", async () => {
+    test("calls ingestHistoricalIV once per active ticker and passes tradingDate", async () => {
       mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
 
-      const results = await ingestAllTickers();
+      const results = await ingestAllTickers("2026-07-31");
 
       expect(mockIngestHistoricalIV).toHaveBeenCalledTimes(
         DEFAULT_TICKERS.length,
       );
       for (const t of DEFAULT_TICKERS) {
-        expect(mockIngestHistoricalIV).toHaveBeenCalledWith(t);
+        expect(mockIngestHistoricalIV).toHaveBeenCalledWith(t, "2026-07-31");
       }
       expect(results).toHaveLength(DEFAULT_TICKERS.length);
       for (const r of results) {
         expect(r).toHaveProperty("ticker");
       }
+    });
+
+    test("passes null tradingDate when called without argument", async () => {
+      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
+
+      await ingestAllTickers();
+
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(
+        expect.any(String),
+        null,
+      );
     });
 
     test("continues processing remaining tickers when one fails", async () => {
@@ -152,71 +180,128 @@ describe("historical-iv-worker", () => {
   // ─── startCronJob ────────────────────────────────────────────────────
 
   describe("startCronJob", () => {
-    test("schedules daily cron at 17:00 America/New_York weekdays (5 PM EST)", () => {
+    test("schedules primary cron at 17:00 and safety-net at 18:00 America/New_York", () => {
       const mockTask = { start: jest.fn() };
       mockCronSchedule.mockReturnValue(mockTask);
 
-      // Mock runStartupCheck to prevent it calling DB during this test
-      mockHistoricalIVCount.mockResolvedValue(1);
-
       startCronJob();
 
-      expect(mockCronSchedule).toHaveBeenCalledTimes(1);
+      expect(mockCronSchedule).toHaveBeenCalledTimes(2);
+      // Primary cron
       expect(mockCronSchedule.mock.calls[0][0]).toBe("0 17 * * 1-5");
       expect(mockCronSchedule.mock.calls[0][2]).toEqual({
         timezone: "America/New_York",
       });
+      // Safety-net cron
+      expect(mockCronSchedule.mock.calls[1][0]).toBe("0 18 * * 1-5");
+      expect(mockCronSchedule.mock.calls[1][2]).toEqual({
+        timezone: "America/New_York",
+      });
     });
 
-    test("calls start on the scheduled task", () => {
+    test("calls start on both scheduled tasks", () => {
       const mockTask = { start: jest.fn() };
       mockCronSchedule.mockReturnValue(mockTask);
 
-      mockHistoricalIVCount.mockResolvedValue(1);
-
       startCronJob();
 
-      expect(mockTask.start).toHaveBeenCalledTimes(1);
+      expect(mockTask.start).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ─── runStartupCheck ─────────────────────────────────────────────────
+  // ─── runBackfill ────────────────────────────────────────────────────
 
-  describe("runStartupCheck", () => {
-    test("skips check on weekends in America/New_York", async () => {
-      jest.spyOn(Intl, "DateTimeFormat").mockImplementation(() => ({
-        format: () => "Sat",
-      }));
+  describe("runBackfill", () => {
+    test("no backfill needed when all recent days have full counts", async () => {
+      mockGetMissedTradingDays.mockReturnValue(["2026-07-28", "2026-07-29", "2026-07-30"]);
+      mockHistoricalIVCount.mockResolvedValue(10); // >= 10 * 0.8 = 8
 
-      await runStartupCheck();
+      await runBackfill();
 
-      expect(mockHistoricalIVCount).not.toHaveBeenCalled();
       expect(mockIngestHistoricalIV).not.toHaveBeenCalled();
     });
 
-    test("skips ingestion if records already exist for today", async () => {
-      jest.spyOn(Intl, "DateTimeFormat").mockImplementation(() => ({
-        format: () => "Mon",
-      }));
-      mockHistoricalIVCount.mockResolvedValue(10); // records exist
+    test("backfill triggers when a day is missing (count === 0) or partial (count < 80% of active tickers)", async () => {
+      mockGetMissedTradingDays.mockReturnValue(["2026-07-28", "2026-07-29", "2026-07-30"]);
+      mockHistoricalIVCount.mockImplementation(({ where }) => {
+        const dateStr = where.date.toISOString().split("T")[0];
+        if (dateStr === "2026-07-28") return 10; // Full count
+        if (dateStr === "2026-07-29") return 0;  // Completely missing
+        if (dateStr === "2026-07-30") return 5;  // Partial (5 < 8)
+        return 10;
+      });
+      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
 
-      await runStartupCheck();
+      await runBackfill();
 
-      expect(mockHistoricalIVCount).toHaveBeenCalledTimes(1);
+      // Should ingest missing day 2026-07-29 and partial day 2026-07-30
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(expect.any(String), "2026-07-29");
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(expect.any(String), "2026-07-30");
+      // Should NOT ingest fully covered day 2026-07-28
+      expect(mockIngestHistoricalIV).not.toHaveBeenCalledWith(expect.any(String), "2026-07-28");
+    });
+
+    test("skips backfill when gap is too large (> 5 days)", async () => {
+      mockGetMissedTradingDays.mockReturnValue([
+        "2026-07-20", "2026-07-21", "2026-07-22",
+        "2026-07-23", "2026-07-24", "2026-07-27",
+      ]);
+      mockHistoricalIVCount.mockResolvedValue(0);
+
+      await runBackfill();
+
+      expect(mockIngestHistoricalIV).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── runIngestionWithRetry ──────────────────────────────────────────
+
+  describe("runIngestionWithRetry", () => {
+    test("skips ingestion on non-trading days", async () => {
+      mockIsTradingDay.mockReturnValue(false);
+
+      await runIngestionWithRetry();
+
       expect(mockIngestHistoricalIV).not.toHaveBeenCalled();
     });
 
-    test("triggers background ingestion if no records exist for today on a weekday", async () => {
-      jest.spyOn(Intl, "DateTimeFormat").mockImplementation(() => ({
-        format: () => "Mon",
-      }));
-      mockHistoricalIVCount.mockResolvedValue(0); // no records
-      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.22 });
+    test("runs ingestion on trading days", async () => {
+      mockIsTradingDay.mockReturnValue(true);
+      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
 
-      await runStartupCheck();
+      await runIngestionWithRetry();
 
-      expect(mockHistoricalIVCount).toHaveBeenCalledTimes(1);
       expect(mockIngestHistoricalIV).toHaveBeenCalled();
+    });
+
+    test("triggers runBackfill on attempt 1", async () => {
+      mockIsTradingDay.mockReturnValue(true);
+      mockGetNYTradingDateStr.mockReturnValue("2026-07-31");
+      mockGetMissedTradingDays.mockReturnValue(["2026-07-30"]);
+      mockHistoricalIVCount.mockResolvedValue(0);
+      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
+
+      await runIngestionWithRetry(1);
+
+      // Backfill should have been triggered for missed day 2026-07-30
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(expect.any(String), "2026-07-30");
+      // And today's ingestion should also run for 2026-07-31
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(expect.any(String), "2026-07-31");
+    });
+
+    test("does not trigger runBackfill on retry attempts (attempt > 1)", async () => {
+      mockIsTradingDay.mockReturnValue(true);
+      mockGetNYTradingDateStr.mockReturnValue("2026-07-31");
+      mockGetMissedTradingDays.mockReturnValue(["2026-07-30"]);
+      mockHistoricalIVCount.mockResolvedValue(0);
+      mockIngestHistoricalIV.mockResolvedValue({ ticker: "SPY", iv: 0.20 });
+
+      await runIngestionWithRetry(2);
+
+      // Should NOT backfill 2026-07-30
+      expect(mockIngestHistoricalIV).not.toHaveBeenCalledWith(expect.any(String), "2026-07-30");
+      // Should only ingest for today 2026-07-31
+      expect(mockIngestHistoricalIV).toHaveBeenCalledWith(expect.any(String), "2026-07-31");
     });
   });
 });

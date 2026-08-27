@@ -1,33 +1,41 @@
 import express from "express";
 import { z } from "zod";
 import { getAiClient } from "../services/aiClient.js";
+import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { buildDeepResearchPrompt } from "../services/deepResearchPrompts.js";
 
 const router = express.Router();
+const deepResearchOwnership = new Map();
+const MAX_DEEP_RESEARCH_OWNERS = 1000;
+
+function rememberDeepResearchOwner(interactionId, userId) {
+  deepResearchOwnership.set(interactionId, userId);
+  while (deepResearchOwnership.size > MAX_DEEP_RESEARCH_OWNERS) {
+    deepResearchOwnership.delete(deepResearchOwnership.keys().next().value);
+  }
+}
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
 const startDeepResearchSchema = z.object({
-  ticker: z.string().min(1).max(10).transform((s) => s.toUpperCase()),
-  prompt: z.string().min(1, "Prompt is required."),
+  ticker: z.string().trim().regex(/^[A-Za-z0-9.-]{1,10}$/, "Invalid ticker.").transform((s) => s.toUpperCase()),
 });
 
 // ─── POST /api/ai/deep-research/start ─────────────────────────────────────────
-router.post("/deep-research/start", validate(startDeepResearchSchema), async (req, res) => {
-  const { ticker, prompt } = req.body;
+router.post("/deep-research/start", requireAuth, validate(startDeepResearchSchema), async (req, res) => {
+  const { ticker } = req.body;
 
   try {
     const ai = getAiClient();
 
-    // Build a context-rich prompt for the deep research agent
-    const fullPrompt = `Deep research request for ${ticker}:\n\n${prompt}`;
-
     const response = await ai.interactions.create({
       agent: "deep-research-preview-04-2026",
       background: true,
-      input: fullPrompt,
+      input: buildDeepResearchPrompt(ticker),
     });
 
+    rememberDeepResearchOwner(response.id, req.user.id);
     res.json({ success: true, data: { interactionId: response.id } });
   } catch (err) {
     console.error("[deep-research/start]", err);
@@ -36,11 +44,16 @@ router.post("/deep-research/start", validate(startDeepResearchSchema), async (re
 });
 
 // ─── GET /api/ai/deep-research/status/:interactionId ──────────────────────────
-router.get("/deep-research/status/:interactionId", async (req, res) => {
+router.get("/deep-research/status/:interactionId", requireAuth, async (req, res) => {
   const { interactionId } = req.params;
 
   if (!interactionId) {
     return res.status(400).json({ success: false, error: "interactionId is required." });
+  }
+
+  // ponytail: process-local ownership resets on restart; use durable ownership when persistence is added.
+  if (deepResearchOwnership.get(interactionId) !== req.user.id) {
+    return res.status(404).json({ success: false, error: "Interaction not found." });
   }
 
   try {

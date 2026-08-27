@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config(); // Trigger nodemon restart: 2026-07-18T21:37
 
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
@@ -23,6 +23,7 @@ import portfolioRoutes from "./routes/portfolio.js";
 import optionsRoutes from "./routes/options.js";
 import aiRoutes from "./routes/ai.js";
 import gurusRoutes from "./routes/gurus.js";
+import profileRoutes from "./routes/profile.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { autoUpdateCheck } from "./services/marginDebt.js";
 import { seedAdmin } from "./scripts/seed.js";
@@ -38,7 +39,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true,
-  methods: ["GET", "POST", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
 }));
 app.use(express.json());
 app.use(cookieParser());
@@ -103,6 +104,7 @@ app.use("/api/portfolio", portfolioRoutes);
 app.use("/api/options", optionsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/gurus", gurusRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
